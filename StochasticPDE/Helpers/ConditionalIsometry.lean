@@ -76,7 +76,7 @@ theorem ItoProcess.setIntegral_cross_term_zero {F : Filtration Ω ℝ}
         ((X.stoch_integral_integrable t (le_trans hs hst)).sub
           (X.stoch_integral_integrable s hs)).aestronglyMeasurable
     · filter_upwards with ω
-      simp only [Pi.add_apply, Real.norm_eq_abs, indicator_mul_left]
+      simp only [Pi.add_apply, Real.norm_eq_abs]
       by_cases hω : ω ∈ A
       · simp only [indicator_of_mem hω]
         rw [abs_mul]
@@ -628,8 +628,8 @@ private lemma si_at_filt_meas {F : Filtration Ω ℝ}
     (H : SimpleProcess F) (W : BrownianMotion Ω μ)
     (hH_adapted : ∀ i : Fin H.n,
       @Measurable Ω ℝ (W.F.σ_algebra (H.times i)) _ (H.values i))
-    (hH_times_nn : ∀ i : Fin H.n, 0 ≤ H.times i)
-    (s : ℝ) (_hs : 0 ≤ s) :
+    (_ : ∀ i : Fin H.n, 0 ≤ H.times i)
+    (s : ℝ) (_ : 0 ≤ s) :
     @Measurable Ω ℝ (W.F.σ_algebra s) _ (H.stochasticIntegral_at W s) := by
   have heq : H.stochasticIntegral_at W s = fun ω =>
       ∑ i : Fin H.n, if h : (i : ℕ) + 1 < H.n then
@@ -692,7 +692,7 @@ private lemma four_point_to_two_point
       ring
 
 /-- The clamped lower endpoint is ≤ the clamped upper endpoint. -/
-private lemma clamp_le_clamp (a b s t : ℝ) (hab : a ≤ b) (hst : s ≤ t) :
+private lemma clamp_le_clamp (a b s t : ℝ) (hab : a ≤ b) (_ : s ≤ t) :
     min (max a s) t ≤ min (max b s) t :=
   min_le_min_right t (max_le_max_right s hab)
 
@@ -705,6 +705,11 @@ private lemma clamp_ge_lo (a s t : ℝ) (hst : s ≤ t) :
 private lemma clamp_le_hi (a s t : ℝ) :
     min (max a s) t ≤ t :=
   min_le_right _ t
+
+/-- When max(a, s) ≤ t, a ≤ clamp(a, s, t). -/
+private lemma clamp_ge_arg (a s t : ℝ) (h : max a s ≤ t) :
+    a ≤ min (max a s) t :=
+  le_min (le_max_left a s) (le_trans (le_max_left a s) h)
 
 /-- Clamped endpoints from consecutive partition points are ordered:
     for i < j, clamp(t_{i+1}, s, t) ≤ clamp(t_j, s, t). -/
@@ -815,6 +820,78 @@ private theorem set_sum_sq_integral_eq {n : ℕ}
     congr 1; ext i; simp_rw [h_sq_ind' i, integral_indicator hA]
   rw [hRHS] at hpyth; exact hpyth
 
+/-! ## Helper lemmas for compensated square proof -/
+
+/-- The compensated BM square increment has zero set-integral:
+    ∫_B [(W_b - W_a)² - (b-a)] = 0 for B ∈ F_a.
+    This follows from the variance factorization on sets. -/
+private lemma setIntegral_bm_compensated_sq_zero (W : BrownianMotion Ω μ) [IsProbabilityMeasure μ]
+    (a b : ℝ) (ha : 0 ≤ a) (hab : a ≤ b)
+    (B : Set Ω) (hB : @MeasurableSet Ω (W.F.σ_algebra a) B) :
+    ∫ ω in B, ((W.process b ω - W.process a ω) ^ 2 - (b - a)) ∂μ = 0 := by
+  show ∫ ω in B, ((W.toAdapted.process b ω - W.toAdapted.process a ω) ^ 2 - (b - a)) ∂μ = 0
+  have hincr_sq_int := W.increment_sq_integrable a b ha hab
+  have hvar := W.increment_variance a b ha hab
+  have hindep := W.independent_increments a b ha hab
+  have hincr_meas : Measurable (fun ω => W.toAdapted.process b ω - W.toAdapted.process a ω) :=
+    ((W.toAdapted.adapted b).mono (W.F.le_ambient b) le_rfl).sub
+      ((W.toAdapted.adapted a).mono (W.F.le_ambient a) le_rfl)
+  haveI : SigmaFinite (μ.trim (W.F.le_ambient a)) := inferInstance
+  rw [integral_sub hincr_sq_int.integrableOn (integrable_const _).integrableOn,
+      Probability.setIntegral_sq_of_indep_eq_measure_mul_integral
+        (W.F.le_ambient a) hincr_meas hincr_sq_int hindep B hB,
+      setIntegral_const, smul_eq_mul, hvar, Measure.real]
+  ring
+
+/-- Each summand of `stochasticIntegral_at` equals the min-capped form:
+    H_i · (W(min(t_{i+1}, t)) - W(min(t_i, t))). -/
+private lemma si_at_summand_eq_min {F : Filtration Ω ℝ} (H : SimpleProcess F)
+    (W : BrownianMotion Ω μ) (t : ℝ) (i : Fin H.n) (h : (i : ℕ) + 1 < H.n) (ω : Ω) :
+    (if H.times ⟨(i : ℕ) + 1, h⟩ ≤ t then
+      H.values i ω * (W.process (H.times ⟨(i : ℕ) + 1, h⟩) ω - W.process (H.times i) ω)
+    else if H.times i ≤ t then
+      H.values i ω * (W.process t ω - W.process (H.times i) ω)
+    else 0) =
+    H.values i ω * (W.process (min (H.times ⟨(i : ℕ) + 1, h⟩) t) ω -
+                     W.process (min (H.times i) t) ω) := by
+  by_cases h1 : H.times ⟨(i : ℕ) + 1, h⟩ ≤ t
+  · -- Case 1: t_{i+1} ≤ t (full interval)
+    have h_i_lt : i < (⟨(i : ℕ) + 1, h⟩ : Fin H.n) := by
+      show i.val < (⟨(i : ℕ) + 1, h⟩ : Fin H.n).val; simp
+    have h2 : H.times i ≤ t := le_trans (le_of_lt (H.increasing i ⟨(i : ℕ) + 1, h⟩
+        h_i_lt)) h1
+    rw [if_pos h1, min_eq_left h1, min_eq_left h2]
+  · push_neg at h1
+    by_cases h2 : H.times i ≤ t
+    · -- Case 2: t_i ≤ t < t_{i+1} (partial interval)
+      rw [if_neg (not_le.mpr h1), if_pos h2, min_eq_right (le_of_lt h1), min_eq_left h2]
+    · -- Case 3: t < t_i (no contribution)
+      push_neg at h2
+      rw [if_neg (not_le.mpr h1), if_neg (not_le.mpr h2),
+          min_eq_right (le_of_lt h1), min_eq_right (le_of_lt h2)]
+      simp
+
+/-- The difference SI(t₂) - SI(s₂) equals a sum of clamped BM increment terms. -/
+private lemma si_at_diff_eq_clamped_sum {F : Filtration Ω ℝ} (H : SimpleProcess F)
+    (W : BrownianMotion Ω μ) (s t : ℝ) (hst : s ≤ t) (ω : Ω) :
+    H.stochasticIntegral_at W t ω - H.stochasticIntegral_at W s ω =
+    ∑ i : Fin H.n, if h : (i : ℕ) + 1 < H.n then
+      H.values i ω * (W.process (min (max (H.times ⟨(i : ℕ) + 1, h⟩) s) t) ω -
+                       W.process (min (max (H.times i) s) t) ω)
+    else 0 := by
+  simp only [SimpleProcess.stochasticIntegral_at, ← Finset.sum_sub_distrib]
+  congr 1; ext i
+  by_cases hi : (i : ℕ) + 1 < H.n
+  · simp only [dif_pos hi]
+    rw [si_at_summand_eq_min H W t i hi ω, si_at_summand_eq_min H W s i hi ω, ← mul_sub]
+    congr 1
+    have h_ab : H.times i ≤ H.times ⟨(i : ℕ) + 1, hi⟩ :=
+      le_of_lt (H.increasing i ⟨(i : ℕ) + 1, hi⟩ (by show i.val < _; simp))
+    have := four_point_to_two_point (fun r => W.process r ω)
+      (H.times i) (H.times ⟨(i : ℕ) + 1, hi⟩) s t h_ab hst
+    linarith
+  · simp [dif_neg hi]
+
 /-! ## Simple process compensated square set-integral -/
 
 /-- For a simple process H, the compensated square set-integral vanishes:
@@ -880,7 +957,7 @@ theorem simple_compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
           (W.F.le_ambient s₂ A hA)).aestronglyMeasurable.mul
           ((hSI_int t₂ ht₂).sub (hSI_int s₂ hs₂)).aestronglyMeasurable
       · filter_upwards with ω
-        simp only [Pi.add_apply, Real.norm_eq_abs, Set.indicator_mul_left]
+        simp only [Pi.add_apply, Real.norm_eq_abs]
         by_cases hω : ω ∈ A
         · simp only [Set.indicator_of_mem hω]
           rw [abs_mul]
@@ -903,16 +980,294 @@ theorem simple_compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
   -- This is the hard part: uses BM increment simplification, Pythagoras on sets,
   -- and set-integral compensated square computation.
   have h_iso : ∫ ω in A, ((SI t₂ ω - SI s₂ ω) ^ 2 - QV ω) ∂μ = 0 := by
-    sorry -- Will prove via min-capped increment expansion + BM simplification
+    -- === Setup: clamped summands ===
+    set τ : Fin H.n → ℝ := fun i => min (max (H.times i) s₂) t₂
+    set d : Fin H.n → Ω → ℝ := fun i ω =>
+      if h : (i : ℕ) + 1 < H.n then
+        H.values i ω * (W.process (τ ⟨(i:ℕ)+1, h⟩) ω - W.process (τ i) ω)
+      else 0
+    -- Clamped time properties
+    have hτ_ge_s₂ : ∀ i, s₂ ≤ τ i := fun i => clamp_ge_lo _ s₂ t₂ hst₂
+    have hτ_nn : ∀ i, 0 ≤ τ i := fun i => le_trans hs₂ (hτ_ge_s₂ i)
+    have hτ_mono : ∀ (i : Fin H.n) (h : (i:ℕ)+1 < H.n), τ i ≤ τ ⟨(i:ℕ)+1, h⟩ := fun i h =>
+      clamp_le_clamp _ _ s₂ t₂
+        (le_of_lt (H.increasing i ⟨(i:ℕ)+1, h⟩ (by show i.val < _; simp))) hst₂
+    have hA_amb : MeasurableSet A := W.F.le_ambient s₂ A hA
+    -- SI(t₂) - SI(s₂) = Σ d_i
+    have h_diff : ∀ ω, SI t₂ ω - SI s₂ ω = ∑ i, d i ω :=
+      fun ω => si_at_diff_eq_clamped_sum H W s₂ t₂ hst₂ ω
+    -- BM increment integrability
+    have hΔW_int : ∀ (i : Fin H.n) (hi : (i:ℕ)+1 < H.n),
+        Integrable (fun ω => W.process (τ ⟨(i:ℕ)+1, hi⟩) ω - W.process (τ i) ω) μ :=
+      fun i hi => W.increment_integrable (τ i) (τ ⟨(i:ℕ)+1, hi⟩) (hτ_nn i) (hτ_mono i hi)
+    have hΔW_sq_int : ∀ (i : Fin H.n) (hi : (i:ℕ)+1 < H.n),
+        Integrable (fun ω => (W.process (τ ⟨(i:ℕ)+1, hi⟩) ω - W.process (τ i) ω)^2) μ :=
+      fun i hi => W.increment_sq_integrable (τ i) (τ ⟨(i:ℕ)+1, hi⟩) (hτ_nn i) (hτ_mono i hi)
+    -- === Cross-term integrability ===
+    have hd_cross_int : ∀ i j : Fin H.n,
+        IntegrableOn (fun ω => d i ω * d j ω) A μ := by
+      intro i j; apply Integrable.integrableOn
+      simp only [d]
+      by_cases hi : (i:ℕ)+1 < H.n <;> by_cases hj : (j:ℕ)+1 < H.n <;>
+        simp only [dif_pos, *]
+      · -- Both active: |H_i·ΔW_i·H_j·ΔW_j| ≤ Ci·Cj·(ΔW_i² + ΔW_j²) by AM-GM
+        obtain ⟨Ci, hCi⟩ := hH_bdd i; obtain ⟨Cj, hCj⟩ := hH_bdd j
+        apply (((hΔW_sq_int i hi).add (hΔW_sq_int j hj)).const_mul (Ci * Cj)).mono'
+        · exact ((hH_adapted i).mono (W.F.le_ambient (H.times i)) le_rfl).aestronglyMeasurable.mul
+            ((W.toAdapted.adapted (τ ⟨_,hi⟩)).mono (W.F.le_ambient _) le_rfl |>.sub
+            ((W.toAdapted.adapted (τ i)).mono (W.F.le_ambient _) le_rfl)).aestronglyMeasurable
+            |>.mul
+            (((hH_adapted j).mono (W.F.le_ambient _) le_rfl).aestronglyMeasurable.mul
+            ((W.toAdapted.adapted (τ ⟨_,hj⟩)).mono (W.F.le_ambient _) le_rfl |>.sub
+            ((W.toAdapted.adapted (τ j)).mono (W.F.le_ambient _) le_rfl)).aestronglyMeasurable)
+        · filter_upwards with ω
+          simp only [Pi.add_apply, Real.norm_eq_abs]
+          rw [abs_mul, abs_mul, abs_mul,
+              ← sq_abs (W.process (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω),
+              ← sq_abs (W.process (τ ⟨(j:ℕ)+1,hj⟩) ω - W.process (τ j) ω)]
+          set a := |W.process (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω|
+          set b := |W.process (τ ⟨(j:ℕ)+1,hj⟩) ω - W.process (τ j) ω|
+          have ha := abs_nonneg (W.process (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω)
+          have hb := abs_nonneg (W.process (τ ⟨(j:ℕ)+1,hj⟩) ω - W.process (τ j) ω)
+          have hCi_nn : 0 ≤ Ci := le_trans (abs_nonneg _) (hCi ω)
+          have hCj_nn : 0 ≤ Cj := le_trans (abs_nonneg _) (hCj ω)
+          calc |H.values i ω| * a * (|H.values j ω| * b)
+              ≤ Ci * a * (Cj * b) :=
+                mul_le_mul (mul_le_mul_of_nonneg_right (hCi ω) ha)
+                  (mul_le_mul_of_nonneg_right (hCj ω) hb)
+                  (mul_nonneg (abs_nonneg _) hb) (mul_nonneg hCi_nn ha)
+            _ = Ci * Cj * (a * b) := by ring
+            _ ≤ Ci * Cj * (a ^ 2 + b ^ 2) := by
+                apply mul_le_mul_of_nonneg_left _ (mul_nonneg hCi_nn hCj_nn)
+                nlinarith [sq_nonneg (a - b), mul_nonneg ha hb]
+      all_goals (simp only [dite_false, mul_zero, zero_mul]; exact integrable_zero _ _ _)
+    -- === Cross-term orthogonality ===
+    have hd_orth : ∀ i j : Fin H.n, i ≠ j →
+        ∫ ω in A, d i ω * d j ω ∂μ = 0 := by
+      intro i j hij
+      simp only [d]
+      by_cases hi : (i:ℕ)+1 < H.n <;> by_cases hj : (j:ℕ)+1 < H.n <;>
+        simp only [dif_pos, *]
+      · -- Both active: use BM independence
+        -- WLOG i.val < j.val
+        rcases Nat.lt_or_gt_of_ne (Fin.val_ne_of_ne hij) with hlt | hgt
+        · -- i < j: use ΔW_j as the independent BM increment
+          -- Rearrange: (H_i·ΔW_i)·(H_j·ΔW_j) = (H_i·ΔW_i·H_j)·ΔW_j
+          have hrw : ∀ ω, H.values i ω * (W.process (τ ⟨_,hi⟩) ω - W.process (τ i) ω) *
+              (H.values j ω * (W.process (τ ⟨_,hj⟩) ω - W.process (τ j) ω)) =
+              (H.values i ω * (W.process (τ ⟨_,hi⟩) ω - W.process (τ i) ω) * H.values j ω) *
+              (W.process (τ ⟨_,hj⟩) ω - W.process (τ j) ω) := fun ω => by ring
+          simp_rw [hrw]; clear hrw
+          show ∫ ω in A, _ * (W.toAdapted.process (τ ⟨_,hj⟩) ω -
+            W.toAdapted.process (τ j) ω) ∂μ = 0
+          -- Case split: is the j-th partition interval degenerate?
+          by_cases h_active_j : max (H.times j) s₂ ≤ t₂
+          · -- Active case: H.times j ≤ τ_j
+            have hHj_le_τj : H.times j ≤ τ j := clamp_ge_arg _ s₂ t₂ h_active_j
+            have hHi_le_τj : H.times i ≤ τ j := le_trans
+              (le_of_lt (H.increasing i j (by exact_mod_cast hlt))) hHj_le_τj
+            have hτi1_le_τj : τ ⟨(i:ℕ)+1, hi⟩ ≤ τ j :=
+              clamp_partition_ordered H s₂ t₂ i j hi hlt
+            apply SimpleProcess.setIntegral_adapted_mul_increment_zero W
+            · -- g = (H_i · ΔW_i) · H_j is F_{τ_j}-measurable
+              exact (((hH_adapted i).mono (W.F.mono _ _ hHi_le_τj) le_rfl).mul
+                (((W.toAdapted.adapted (τ ⟨_,hi⟩)).mono
+                  (W.F.mono _ _ hτi1_le_τj) le_rfl).sub
+                ((W.toAdapted.adapted (τ i)).mono
+                  (W.F.mono _ _ ((hτ_mono i hi).trans hτi1_le_τj)) le_rfl))).mul
+                ((hH_adapted j).mono (W.F.mono _ _ hHj_le_τj) le_rfl)
+            · -- g = H_i * ΔW_i * H_j is integrable
+              obtain ⟨Ci, hCi⟩ := hH_bdd i; obtain ⟨Cj, hCj⟩ := hH_bdd j
+              exact ((hΔW_int i hi).mul_of_top_right
+                (memLp_top_of_bound (hH_adapted i |>.mono (W.F.le_ambient _) le_rfl
+                  |>.stronglyMeasurable.aestronglyMeasurable) Ci
+                  (ae_of_all _ fun ω => hCi ω))).mul_of_top_left
+                (memLp_top_of_bound (hH_adapted j |>.mono (W.F.le_ambient _) le_rfl
+                  |>.stronglyMeasurable.aestronglyMeasurable) Cj
+                  (ae_of_all _ fun ω => hCj ω))
+            · exact hτ_nn j
+            · exact hτ_mono j hj
+            · exact by apply W.F.mono _ _ (hτ_ge_s₂ j); exact hA
+          · -- Degenerate case: max(H.times j, s₂) > t₂, so τ_j = τ_{j+1} = t₂
+            push_neg at h_active_j
+            have h1 : τ j = t₂ := min_eq_right (le_of_lt h_active_j)
+            have h2 : τ ⟨(j:ℕ)+1, hj⟩ = t₂ := min_eq_right (le_trans (le_of_lt h_active_j)
+              (max_le_max_right s₂ (le_of_lt (H.increasing j ⟨(j:ℕ)+1, hj⟩
+                (by show j.val < _; simp)))))
+            simp only [h1, h2, sub_self, mul_zero, integral_zero]
+        · -- j < i: symmetric, swap using mul_comm
+          have hrw : ∀ ω, H.values i ω * (W.process (τ ⟨_,hi⟩) ω - W.process (τ i) ω) *
+              (H.values j ω * (W.process (τ ⟨_,hj⟩) ω - W.process (τ j) ω)) =
+              (H.values j ω * (W.process (τ ⟨_,hj⟩) ω - W.process (τ j) ω) * H.values i ω) *
+              (W.process (τ ⟨_,hi⟩) ω - W.process (τ i) ω) := fun ω => by ring
+          simp_rw [hrw]; clear hrw
+          show ∫ ω in A, _ * (W.toAdapted.process (τ ⟨_,hi⟩) ω -
+            W.toAdapted.process (τ i) ω) ∂μ = 0
+          -- Case split: is the i-th partition interval degenerate?
+          by_cases h_active_i : max (H.times i) s₂ ≤ t₂
+          · -- Active case: H.times i ≤ τ_i
+            have hHi_le_τi : H.times i ≤ τ i := clamp_ge_arg _ s₂ t₂ h_active_i
+            have hHj_le_τi : H.times j ≤ τ i := le_trans
+              (le_of_lt (H.increasing j i (by exact_mod_cast hgt))) hHi_le_τi
+            have hτj1_le_τi : τ ⟨(j:ℕ)+1, hj⟩ ≤ τ i :=
+              clamp_partition_ordered H s₂ t₂ j i hj hgt
+            apply SimpleProcess.setIntegral_adapted_mul_increment_zero W
+            · -- g = (H_j · ΔW_j) · H_i is F_{τ_i}-measurable
+              exact (((hH_adapted j).mono (W.F.mono _ _ hHj_le_τi) le_rfl).mul
+                (((W.toAdapted.adapted (τ ⟨_,hj⟩)).mono
+                  (W.F.mono _ _ hτj1_le_τi) le_rfl).sub
+                ((W.toAdapted.adapted (τ j)).mono
+                  (W.F.mono _ _ ((hτ_mono j hj).trans hτj1_le_τi)) le_rfl))).mul
+                ((hH_adapted i).mono (W.F.mono _ _ hHi_le_τi) le_rfl)
+            · -- g = H_j * ΔW_j * H_i is integrable
+              obtain ⟨Ci, hCi⟩ := hH_bdd i; obtain ⟨Cj, hCj⟩ := hH_bdd j
+              exact ((hΔW_int j hj).mul_of_top_right
+                (memLp_top_of_bound (hH_adapted j |>.mono (W.F.le_ambient _) le_rfl
+                  |>.stronglyMeasurable.aestronglyMeasurable) Cj
+                  (ae_of_all _ fun ω => hCj ω))).mul_of_top_left
+                (memLp_top_of_bound (hH_adapted i |>.mono (W.F.le_ambient _) le_rfl
+                  |>.stronglyMeasurable.aestronglyMeasurable) Ci
+                  (ae_of_all _ fun ω => hCi ω))
+            · exact hτ_nn i
+            · exact hτ_mono i hi
+            · exact by apply W.F.mono _ _ (hτ_ge_s₂ i); exact hA
+          · -- Degenerate case: max(H.times i, s₂) > t₂, so τ_i = τ_{i+1} = t₂
+            push_neg at h_active_i
+            have h1 : τ i = t₂ := min_eq_right (le_of_lt h_active_i)
+            have h2 : τ ⟨(i:ℕ)+1, hi⟩ = t₂ := min_eq_right (le_trans (le_of_lt h_active_i)
+              (max_le_max_right s₂ (le_of_lt (H.increasing i ⟨(i:ℕ)+1, hi⟩
+                (by show i.val < _; simp)))))
+            simp only [h1, h2, sub_self, mul_zero, integral_zero]
+      -- Degenerate cases: one or both d_i = 0
+      all_goals (simp only [dite_false, zero_mul, mul_zero]; exact integral_zero _ _)
+    -- === Apply Pythagoras: ∫_A (Σ d_i)² = Σ ∫_A d_i² ===
+    have h_pyth := set_sum_sq_integral_eq d hA_amb hd_cross_int hd_orth
+    -- H_i² is integrable (bounded on probability space)
+    have hH_sq_int : ∀ i : Fin H.n, Integrable (fun ω => (H.values i ω) ^ 2) μ := by
+      intro i; obtain ⟨C, hC⟩ := hH_bdd i
+      exact (memLp_top_of_bound
+        ((hH_adapted i).mono (W.F.le_ambient _) le_rfl |>.pow_const 2
+          |>.stronglyMeasurable.aestronglyMeasurable) (C ^ 2)
+        (ae_of_all _ fun ω => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+          nlinarith [hC ω, sq_abs (H.values i ω), abs_nonneg (H.values i ω)])).integrable le_top
+    -- === Rewrite and conclude ===
+    -- Rewrite: ∫_A [(Σ d_i)² - QV] via h_diff and h_QV_eq
+    simp_rw [h_diff]
+    rw [integral_sub
+      (by simp_rw [← h_diff]
+          exact ((((hSI_sq_int t₂ ht₂).add (hSI_sq_int s₂ hs₂)).add
+            ((hSI_sq_int t₂ ht₂).add (hSI_sq_int s₂ hs₂))).mono'
+            (((hSI_int t₂ ht₂).sub (hSI_int s₂ hs₂)).aestronglyMeasurable.pow 2)
+            (ae_of_all _ fun ω => by
+              simp only [Real.norm_eq_abs, Pi.add_apply, Pi.sub_apply, Pi.pow_apply]
+              rw [abs_of_nonneg (sq_nonneg _)]
+              nlinarith [sq_nonneg (SI t₂ ω + SI s₂ ω)])).integrableOn)
+      hQV_int.integrableOn]
+    -- ∫_A (Σ d_i)² = Σ ∫_A d_i²
+    rw [h_pyth]
+    -- QV = Σ H_i² * Δτ_i
+    have h_QV_sum : ∀ ω, QV ω = ∑ i : Fin H.n, if h : (i:ℕ)+1 < H.n then
+        (H.values i ω)^2 * (τ ⟨(i:ℕ)+1, h⟩ - τ i) else 0 :=
+      fun ω => simple_QV_eq_clamped_sum H hH_bdd hH_times_nn s₂ t₂ hs₂ hst₂ ω
+    simp_rw [h_QV_sum]
+    rw [integral_finset_sum _ (fun i _ => by
+      split_ifs with hi
+      · exact ((hH_sq_int i).mul_const _).integrableOn
+      · exact integrableOn_zero)]
+    -- Match: ∫_A d_i² = ∫_A H_i² * Δτ_i for each i
+    -- Equivalently: Σ ∫_A d_i² - Σ ∫_A (H_i² * Δτ_i) = 0
+    rw [← Finset.sum_sub_distrib]
+    apply Finset.sum_eq_zero; intro i _
+    -- For each i: ∫_A d_i² - ∫_A (H_i² * Δτ_i) = ∫_A [d_i² - H_i² * Δτ_i] = 0
+    simp only [d]
+    by_cases hi : (i:ℕ)+1 < H.n
+    · simp only [dif_pos hi]
+      -- d_i² = H_i² * ΔW_i², so d_i² - H_i² * Δτ_i = H_i² * (ΔW_i² - Δτ_i)
+      have hrw : ∀ ω, (H.values i ω * (W.process (τ ⟨(i:ℕ)+1,hi⟩) ω -
+          W.process (τ i) ω))^2 -
+          (H.values i ω)^2 * (τ ⟨(i:ℕ)+1,hi⟩ - τ i) =
+          (H.values i ω)^2 * ((W.process (τ ⟨(i:ℕ)+1,hi⟩) ω -
+          W.process (τ i) ω)^2 - (τ ⟨(i:ℕ)+1,hi⟩ - τ i)) := fun ω => by ring
+      have h_sq_int : IntegrableOn (fun ω => (H.values i ω * (W.process (τ ⟨(i:ℕ)+1,hi⟩) ω -
+          W.process (τ i) ω)) ^ 2) A μ := by
+        have h := hd_cross_int i i; simp only [d, dif_pos hi] at h; simp_rw [sq]; exact h
+      rw [← integral_sub h_sq_int ((hH_sq_int i).mul_const _ |>.integrableOn)]
+      simp_rw [hrw]
+      -- ∫_A H_i² * (ΔW_i² - Δτ_i) = 0 by compensator
+      -- Case split: when τ_i = τ_{i+1}, integrand is 0
+      by_cases hτ_eq : τ i = τ ⟨(i:ℕ)+1, hi⟩
+      · -- Degenerate: τ_i = τ_{i+1}, so ΔW = 0 and Δτ = 0
+        have : ∀ ω, (H.values i ω) ^ 2 * ((W.process (τ ⟨(i:ℕ)+1,hi⟩) ω -
+            W.process (τ i) ω) ^ 2 - (τ ⟨(i:ℕ)+1,hi⟩ - τ i)) = 0 := fun ω => by
+          rw [← hτ_eq]; ring
+        simp_rw [this]; exact integral_zero _ _
+      · -- τ_i < τ_{i+1}: use BM compensator
+        have hτ_strict : τ i < τ ⟨(i:ℕ)+1, hi⟩ := lt_of_le_of_ne (hτ_mono i hi) hτ_eq
+        -- When τ_i < τ_{i+1}, max(H.times i, s₂) ≤ t₂ (otherwise both clamp to t₂)
+        have h_max_le : max (H.times i) s₂ ≤ t₂ := by
+          by_contra h_abs; push_neg at h_abs
+          have eq1 : τ i = t₂ := min_eq_right (le_of_lt h_abs)
+          have h2 : max (H.times ⟨(i:ℕ)+1, hi⟩) s₂ ≥ max (H.times i) s₂ :=
+            max_le_max_right s₂ (le_of_lt (H.increasing i ⟨_, hi⟩ (by show i.val < _; simp)))
+          have eq2 : τ ⟨(i:ℕ)+1, hi⟩ = t₂ := min_eq_right (le_of_lt (lt_of_lt_of_le h_abs h2))
+          linarith
+        -- Hence H.times i ≤ τ_i = max(H.times i, s₂)
+        have hHi_le_τ : H.times i ≤ τ i := by
+          show H.times i ≤ min (max (H.times i) s₂) t₂
+          rw [min_eq_left h_max_le]; exact le_max_left _ _
+        -- Use indicator trick: ∫_A f = ∫ 1_A · f
+        rw [← integral_indicator hA_amb]
+        simp_rw [Set.indicator_mul_left]
+        -- Apply integral_mul_eq_zero_of_setIntegral_eq_zero'
+        -- X = 1_A · H_i², Y = ΔW_i² - Δτ_i, m = F_{τ_i}
+        apply integral_mul_eq_zero_of_setIntegral_eq_zero' (W.F.le_ambient (τ i))
+        · -- 1_A · H_i² is F_{τ_i}-measurable
+          have hA_τi : @MeasurableSet Ω (W.F.σ_algebra (τ i)) A := by
+            apply W.F.mono _ _ (hτ_ge_s₂ i)
+            exact hA
+          exact ((hH_adapted i).mono (W.F.mono _ _ hHi_le_τ) le_rfl).pow_const 2
+            |>.indicator hA_τi
+        · -- ΔW_i² - Δτ_i is integrable
+          exact (hΔW_sq_int i hi).sub (integrable_const _)
+        · -- (1_A · H_i²) · (ΔW_i² - Δτ_i) is integrable
+          obtain ⟨C, hC⟩ := hH_bdd i
+          apply (((hΔW_sq_int i hi).add
+            (integrable_const (τ ⟨(i:ℕ)+1,hi⟩ - τ i))).const_mul (C ^ 2)).mono'
+          · exact (((hH_adapted i).mono (W.F.le_ambient _) le_rfl).pow_const 2
+              |>.indicator (hA_amb)).stronglyMeasurable.aestronglyMeasurable.mul
+              ((hΔW_sq_int i hi).sub (integrable_const _)).aestronglyMeasurable
+          · filter_upwards with ω
+            simp only [Pi.add_apply, Real.norm_eq_abs, Set.indicator]
+            split_ifs
+            · rw [abs_mul, abs_of_nonneg (sq_nonneg _)]
+              have hC_nn : 0 ≤ C := le_trans (abs_nonneg _) (hC ω)
+              have hHsq : (H.values i ω) ^ 2 ≤ C ^ 2 := by
+                nlinarith [hC ω, sq_abs (H.values i ω), abs_nonneg (H.values i ω)]
+              have habs : |(W.process (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω) ^ 2 -
+                  (τ ⟨(i:ℕ)+1,hi⟩ - τ i)| ≤
+                  (W.process (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω) ^ 2 +
+                  (τ ⟨(i:ℕ)+1,hi⟩ - τ i) := by
+                rw [abs_le]; constructor <;> nlinarith [sq_nonneg (W.process
+                  (τ ⟨(i:ℕ)+1,hi⟩) ω - W.process (τ i) ω), hτ_mono i hi]
+              nlinarith
+            · simp only [zero_mul, abs_zero]
+              exact mul_nonneg (sq_nonneg _)
+                (add_nonneg (sq_nonneg _) (sub_nonneg.mpr (hτ_mono i hi)))
+        · -- ∀ B ∈ F_{τ_i}, ∫_B (ΔW_i² - Δτ_i) = 0
+          intro B hB
+          exact setIntegral_bm_compensated_sq_zero W (τ i) (τ ⟨(i:ℕ)+1,hi⟩)
+            (hτ_nn i) (hτ_mono i hi) B hB
+    · simp [dif_neg hi, sub_self]
   -- === COMBINE ===
   -- SI(t₂)² - SI(s₂)² - QV = 2·SI(s₂)·(SI(t₂)-SI(s₂)) + ((SI(t₂)-SI(s₂))² - QV)
   -- Rewrite integrand via algebraic identity
   suffices hsuff : ∫ ω in A, (2 * (SI s₂ ω * (SI t₂ ω - SI s₂ ω)) +
       ((SI t₂ ω - SI s₂ ω) ^ 2 - QV ω)) ∂μ = 0 by
-    have hrw : ∀ ω, SI t₂ ω ^ 2 - SI s₂ ω ^ 2 -
-        ∫ u in Icc s₂ t₂, (H.valueAtTime u ω)^2 ∂volume =
+    have hrw : ∀ ω, SI t₂ ω ^ 2 - SI s₂ ω ^ 2 - QV ω =
         2 * (SI s₂ ω * (SI t₂ ω - SI s₂ ω)) +
         ((SI t₂ ω - SI s₂ ω) ^ 2 - QV ω) := fun ω => by ring
+    show ∫ ω in A, (SI t₂ ω ^ 2 - SI s₂ ω ^ 2 - QV ω) ∂μ = 0
     simp_rw [hrw]; exact hsuff
   -- Now prove the decomposed form
   have h_prod_int : Integrable (fun ω => SI s₂ ω * (SI t₂ ω - SI s₂ ω)) μ := by
@@ -947,6 +1302,27 @@ theorem simple_compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
   rw [h_cross_A, h_cross, mul_zero, zero_add]
   exact h_iso
 
+/-- L¹ convergence implies set integral convergence:
+    if ∫ ‖fₙ - g‖ → 0 then ∫_A fₙ → ∫_A g. -/
+private lemma tendsto_setIntegral_of_L1 (f : ℕ → Ω → ℝ) (g : Ω → ℝ)
+    (hf_int : ∀ n, Integrable (f n) μ) (hg_int : Integrable g μ)
+    (hL1 : Tendsto (fun n => ∫ ω, ‖f n ω - g ω‖ ∂μ) atTop (nhds 0))
+    (A : Set Ω) :
+    Tendsto (fun n => ∫ ω in A, f n ω ∂μ) atTop (nhds (∫ ω in A, g ω ∂μ)) := by
+  suffices h : Tendsto (fun n => ∫ ω in A, f n ω ∂μ - ∫ ω in A, g ω ∂μ)
+      atTop (nhds 0) by
+    have h' := h.add (@tendsto_const_nhds _ _ _ (∫ ω in A, g ω ∂μ) _)
+    rw [zero_add] at h'
+    exact h'.congr fun _ => sub_add_cancel _ _
+  apply squeeze_zero_norm (fun n => ?_) hL1
+  calc ‖∫ ω in A, f n ω ∂μ - ∫ ω in A, g ω ∂μ‖
+      = ‖∫ ω in A, (f n ω - g ω) ∂μ‖ := by
+        congr 1; exact (integral_sub (hf_int n).integrableOn hg_int.integrableOn).symm
+    _ ≤ ∫ ω in A, ‖f n ω - g ω‖ ∂μ := norm_integral_le_integral_norm _
+    _ ≤ ∫ ω, ‖f n ω - g ω‖ ∂μ :=
+        setIntegral_le_integral ((hf_int n).sub hg_int).norm
+          (ae_of_all _ fun _ => norm_nonneg _)
+
 /-! ## Main conditional isometry theorem -/
 
 /-- **Conditional Itô isometry**: For A ∈ F_s with s ≤ s₂ ≤ t₂,
@@ -960,6 +1336,7 @@ theorem simple_compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
     L¹ convergence of the compensated square. -/
 theorem ItoProcess.compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
     (X : ItoProcess F μ) [IsProbabilityMeasure μ]
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s₂ t₂ : ℝ) (hs₂ : 0 ≤ s₂) (hst₂ : s₂ ≤ t₂)
     (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s₂) A) :
     ∫ ω in A, ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
@@ -1020,12 +1397,111 @@ theorem ItoProcess.compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
         ∫ ω in A, ∫ u in Icc s₂ t₂, (approx n).valueAtTime u ω ^ 2 ∂volume ∂μ :=
       integral_sub (hSIn_t₂_sq.sub hSIn_s₂_sq).integrableOn hHn_int.integrableOn
     linarith
-  -- Step 4: Pass to limit using L¹ convergence of SI² and ∫H²
-  -- ∫_A SI_n(t₂)² → ∫_A SI(t₂)², ∫_A SI_n(s₂)² → ∫_A SI(s₂)²
-  -- ∫_A ∫H_n² → ∫_A ∫σ²
-  -- These follow from L¹ convergence (sq_L1_tendsto_of_L2, diffusion_integral_L1_tendsto)
-  -- applied with |∫_A (f_n-f)| ≤ ∫ ‖f_n-f‖ → 0
-  sorry
+  -- Step 4: Pass to limit using L¹ convergence
+  -- 4a: L¹ convergences of SI_n(t)² → SI(t)²
+  have hL1_t₂ := sq_L1_tendsto_of_L2 X approx hadapted hbdd hnn t₂ ht₂ (hL2 t₂ ht₂)
+  have hL1_s₂ := sq_L1_tendsto_of_L2 X approx hadapted hbdd hnn s₂ hs₂ (hL2 s₂ hs₂)
+  -- 4b: L¹ convergence of diffusion integral on Icc s₂ t₂
+  -- via splitting: ∫_{s₂}^{t₂} = ∫₀^{t₂} - ∫₀^{s₂}
+  have hL1_0t := diffusion_integral_L1_tendsto X approx hbdd hMσ t₂ ht₂ (hL2_int t₂ ht₂)
+  have hL1_0s := diffusion_integral_L1_tendsto X approx hbdd hMσ s₂ hs₂ (hL2_int s₂ hs₂)
+  have h_split_Hn : ∀ n ω,
+      ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume =
+      (∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+      (∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) := by
+    intro n ω
+    obtain ⟨C, hC_nn, hC⟩ := SimpleProcess.valueAtTime_uniform_bounded (approx n) (hbdd n)
+    have h_int : IntegrableOn (fun u => (SimpleProcess.valueAtTime (approx n) u ω) ^ 2)
+        (Icc 0 t₂) volume := by
+      haveI : IsFiniteMeasure (volume.restrict (Icc (0:ℝ) t₂)) :=
+        ⟨by rw [Measure.restrict_apply_univ]; exact measure_Icc_lt_top⟩
+      exact (integrable_const (C ^ 2)).mono'
+        (((SimpleProcess.valueAtTime_jointly_measurable (approx n)).comp
+          (measurable_id.prodMk measurable_const)).pow_const 2
+          |>.stronglyMeasurable.aestronglyMeasurable)
+        (ae_of_all _ fun u => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+          calc (SimpleProcess.valueAtTime (approx n) u ω) ^ 2
+              = |SimpleProcess.valueAtTime (approx n) u ω| ^ 2 := (sq_abs _).symm
+            _ ≤ C ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hC u ω) 2)
+    linarith [setIntegral_Icc_split' hs₂ hst₂ h_int]
+  have h_split_σ : ∀ ω,
+      ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume =
+      (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume) -
+      (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume) := by
+    intro ω
+    linarith [setIntegral_Icc_split' hs₂ hst₂ (X.diffusion_sq_time_integrable ω t₂ ht₂)]
+  -- Combine L1 convergences using triangle inequality
+  have hL1_diff : Tendsto (fun n => ∫ ω,
+      ‖(∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+       (∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ)
+      atTop (nhds 0) := by
+    have hL1_sum : Tendsto (fun n =>
+        (∫ ω, ‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
+        (∫ ω, ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ))
+        atTop (nhds 0) := by
+      have := hL1_0t.add hL1_0s; rwa [add_zero] at this
+    apply squeeze_zero (fun _ => integral_nonneg fun _ => norm_nonneg _) (fun n => ?_) hL1_sum
+    -- Bound: ‖∫_{s,t} Hₙ² - ∫_{s,t} σ²‖ ≤ ‖∫₀ᵗ Hₙ² - ∫₀ᵗ σ²‖ + ‖∫₀ˢ Hₙ² - ∫₀ˢ σ²‖
+    calc ∫ ω, ‖(∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+         (∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ
+        ≤ ∫ ω, (‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ +
+          ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖) ∂μ := by
+            apply integral_mono_of_nonneg (ae_of_all _ fun _ => norm_nonneg _)
+            · exact ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
+                (X.diffusion_sq_integral_integrable t₂ ht₂)).norm.add
+                ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
+                  (X.diffusion_sq_integral_integrable s₂ hs₂)).norm
+            · exact ae_of_all _ fun ω => by
+                dsimp only
+                rw [h_split_Hn n ω, h_split_σ ω]
+                have : ∀ (a b c d : ℝ), (a - c) - (b - d) = (a - b) - (c - d) := fun _ _ _ _ => by ring
+                rw [this]
+                exact norm_sub_le _ _
+      _ = (∫ ω, ‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
+          (∫ ω, ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) := by
+            exact integral_add
+              ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
+                (X.diffusion_sq_integral_integrable t₂ ht₂)).norm
+              ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
+                (X.diffusion_sq_integral_integrable s₂ hs₂)).norm
+  -- 4c: Convert L1 to set integral convergence via tendsto_setIntegral_of_L1
+  have h_SI_n_t₂_int : ∀ n, Integrable (fun ω =>
+      ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2) μ :=
+    fun n => simple_stochasticIntegral_at_sq_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂
+  have h_SI_n_s₂_int : ∀ n, Integrable (fun ω =>
+      ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2) μ :=
+    fun n => simple_stochasticIntegral_at_sq_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂
+  have h_Hn_int : ∀ n, Integrable (fun ω =>
+      ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) μ :=
+    fun n => simple_process_sq_interval_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ t₂ hs₂ hst₂
+  have hA_t₂ := tendsto_setIntegral_of_L1
+    (fun n ω => ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2)
+    (fun ω => (X.stoch_integral t₂ ω) ^ 2) h_SI_n_t₂_int hSI_t₂_sq_int hL1_t₂ A
+  have hA_s₂ := tendsto_setIntegral_of_L1
+    (fun n ω => ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2)
+    (fun ω => (X.stoch_integral s₂ ω) ^ 2) h_SI_n_s₂_int hSI_s₂_sq_int hL1_s₂ A
+  have hA_diff := tendsto_setIntegral_of_L1
+    (fun n ω => ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume)
+    (fun ω => ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)
+    h_Hn_int hQ_s₂t₂_int hL1_diff A
+  -- 4d: Combine: LHS_n → LHS and RHS_n → RHS, with LHS_n = RHS_n ⟹ LHS = RHS
+  have hLHS_tendsto := hA_t₂.sub hA_s₂
+  -- hLHS_tendsto : ∫_A SIₙ(t₂)² - ∫_A SIₙ(s₂)² → ∫_A SI(t₂)² - ∫_A SI(s₂)²
+  -- h_simple_id n : ∫_A SIₙ(t₂)² - ∫_A SIₙ(s₂)² = ∫_A ∫ Hₙ²
+  -- So ∫_A ∫ Hₙ² → ∫_A SI(t₂)² - ∫_A SI(s₂)²
+  -- Tendsto.congr h ht : given h : ∀ x, f₁ x = f₂ x and ht : Tendsto f₁, get Tendsto f₂
+  have hRHS_also := Tendsto.congr h_simple_id hLHS_tendsto
+  -- hRHS_also : ∫_A ∫ Hₙ² → ∫_A SI(t₂)² - ∫_A SI(s₂)²
+  -- hA_diff : ∫_A ∫ Hₙ² → ∫_A ∫ σ²
+  -- By uniqueness of limits: ∫_A SI(t₂)² - ∫_A SI(s₂)² = ∫_A ∫ σ²
+  exact tendsto_nhds_unique hRHS_also hA_diff
 
 /-! ## Squared Orthogonality -/
 
@@ -1103,7 +1579,7 @@ theorem ItoProcess.stoch_integral_squared_orthogonal {F : Filtration Ω ℝ}
     · exact hZ₂_int
     · exact hΔ₁_sq_Z₂_int
     · -- Conditional isometry: ∫_A Z₂ = 0 for A ∈ F_{s₂}
-      exact X.compensated_sq_setIntegral_zero s₂ t₂ hs₂ hst₂
+      exact X.compensated_sq_setIntegral_zero hMσ s₂ t₂ hs₂ hst₂
   -- Step 3: E[Q₁·Z₂] = 0 by approximation
   have h_part2 : ∫ ω, (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω ∂μ = 0 := by
     sorry
