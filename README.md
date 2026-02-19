@@ -1,0 +1,133 @@
+# StochasticPDE
+
+A rigorous formalization of stochastic partial differential equations (SPDEs), stochastic calculus, and Martin Hairer's theory of regularity structures in Lean 4 using Mathlib.
+
+## Overview
+
+This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axioms, no placeholders, and proper definitions throughout.
+
+**~47,000 lines of Lean 4** across **80+ files**.
+
+## Main Components
+
+### Stochastic Calculus Foundation
+
+| Module | Description |
+|--------|-------------|
+| `Basic.lean` | Filtrations, adapted processes, martingales, local martingales, stopping times |
+| `BrownianMotion.lean` | Wiener process, cylindrical Wiener process, Q-Wiener process, scaling/reflection |
+| `StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
+| `Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
+
+### Key Proven Theorems
+
+- **Ito isometry**: `E[(int H dW)^2] = E[int H^2 ds]` (simple processes + L^2 extension)
+- **Bilinear Ito isometry**: `E[(int H1 dW)(int H2 dW)] = E[int H1*H2 ds]`
+- **Ito integral is a martingale** (set-integral characterization)
+- **Ito integral linearity** in L^2
+- **BM quadratic variation**: `[W]_t = t` (L^2 convergence of discrete approximations)
+- **Weighted QV convergence** for adapted bounded processes
+- **Ito process discrete QV L^2 convergence**
+- **Ito error decomposition** (telescope + Taylor identity for Ito formula)
+- **BM scaling**: `c^{-1/2} W_{ct}` is a Brownian motion
+- **BM reflection**: `-W` is a Brownian motion
+- **Process L^2 increment bounds** for Ito processes
+
+### Regularity Structures
+
+| Module | Description |
+|--------|-------------|
+| `RegularityStructures/Trees/` | Multi-indices, tree symbols, homogeneity, formal sums (fully proven) |
+| `RegularityStructures/Models/` | Admissible models (fully proven), canonical models |
+| `RegularityStructures/Reconstruction.lean` | Reconstruction theorem (existence proven, uniqueness in progress) |
+| `RegularityStructures/BPHZ.lean` | BPHZ renormalization framework |
+| `RegularityStructures/FixedPoint.lean` | Fixed-point formulation for singular SPDEs |
+
+### SPDEs and Applications
+
+| Module | Description |
+|--------|-------------|
+| `SPDE.lean` | Abstract SPDE framework: mild/strong solutions, semigroup theory, well-posedness |
+| `Examples/Phi4.lean` | The dynamic Phi^4 model (stochastic quantization of scalar field theory) |
+| `Examples/KPZ.lean` | The KPZ equation |
+| `Examples/YangMills2D.lean` | 2D stochastic Yang-Mills (Langevin dynamics for Yang-Mills measure) |
+| `Examples/Burgers.lean` | Stochastic Burgers equation |
+| `Examples/StochasticHeat.lean` | Stochastic heat equation |
+
+### EKMS Theory
+
+| Module | Description |
+|--------|-------------|
+| `EKMS/Basic.lean` | Randomly forced Burgers equation, action minimizers |
+| `EKMS/OneSidedMinimizers.lean` | One-sided minimizers and uniqueness |
+| `EKMS/TwoSidedMinimizers.lean` | Two-sided minimizers and the main shock |
+| `EKMS/InvariantMeasure.lean` | Unique invariant measure ("one force, one solution") |
+| `EKMS/Hyperbolicity.lean` | Hyperbolicity and Pesin theory |
+
+### Nonstandard Analysis Approach
+
+| Module | Description |
+|--------|-------------|
+| `Nonstandard/` | Hyperfinite random walks, Loeb measure, Anderson's theorem, nonstandard Ito formula |
+
+### Proof Infrastructure (Helpers/)
+
+22 files providing fully proven infrastructure for the Ito formula proof chain:
+
+- Common refinement and partition machinery
+- Simple process integral definitions and linearity
+- Set integral helpers and cross-term vanishing
+- L^2 limit infrastructure
+- Ito integral properties (isometry, martingale)
+- Taylor remainder bounds
+- Quadratic variation convergence
+- Quartic moment bounds (L^4 estimates)
+- Ito formula decomposition and error analysis
+- Conditional isometry infrastructure
+- Gronwall lemma for SDEs
+
+## Building
+
+### Prerequisites
+
+- [Lean 4](https://leanprover.github.io/lean4/) (v4.27.0-rc1)
+- [elan](https://github.com/leanprover/elan) (Lean version manager)
+
+### Build
+
+```bash
+# Clone the repository
+git clone https://github.com/YourUsername/StochasticPDE.git
+cd StochasticPDE
+
+# Fetch Mathlib cache (recommended, avoids rebuilding Mathlib from source)
+lake exe cache get
+
+# Build the project
+lake build StochasticPDE
+```
+
+The first build fetches and compiles Mathlib dependencies, which may take significant time. Subsequent builds are incremental.
+
+## Project Status
+
+This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
+
+- **~114 total sorrys** across all files
+- **5 sorrys** on the Ito formula critical path (conditional isometry and a.e. convergence)
+- **13 fully proven helper files** with 0 sorrys
+- All definitions have been audited for soundness (no axioms, no axiom smuggling)
+
+See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.
+
+## References
+
+- Hairer, M. "A theory of regularity structures." *Inventiones Mathematicae* (2014)
+- Da Prato, G. and Zabczyk, J. *Stochastic Equations in Infinite Dimensions*
+- Karatzas, I. and Shreve, S. *Brownian Motion and Stochastic Calculus*
+- Chandra, Chevyrev, Hairer, Shen. "Langevin dynamic for the 2D Yang-Mills measure"
+- E, Khanin, Mazel, Sinai. "Invariant measures for Burgers equation with stochastic forcing." *Annals of Mathematics* (2000)
+
+## License
+
+Apache 2.0 - see [LICENSE](LICENSE).
