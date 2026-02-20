@@ -2,7 +2,7 @@
 
 ## PRIORITY: Complete Itô Formula Proof
 
-**1 sorry remains on the Itô formula critical path:**
+**0 sorrys remain on the Itô formula critical path — FULLY PROVEN!**
 
 1. ~~**Conditional Itô isometry** (`compensated_sq_setIntegral_zero`)~~ — **PROVEN** ✓
    - `simple_compensated_sq_setIntegral_zero` — **PROVEN** ✓ (BM independence + Pythagoras)
@@ -14,21 +14,10 @@
    - For each u ∈ [s₁,t₁]: σ²(u,·) is F_{s₂}-measurable → E[σ²(u,·)·Z₂] = 0
    - Fubini swaps ∫_ω ∫_u to ∫_u ∫_ω → each inner integral = 0
 
-3. **E3 a.e. convergence** (ItoFormulaProof.lean:~2500)
-   - E1, E2, E4 convergence PROVEN; only E3 (weighted QV error) remains
-   - **Proof structure COMPLETE**: E3 = A + B decomposition, Fatou squeeze, L² bound, subsequence extraction all wired up
-   - **1 sub-sorry remains** (down from 9):
-     - `h_B_bound` (line ~1649): **LAST SORRY** — E[B²] ≤ C_B·T/(n+1). Decompose (ΔX)²=(ΔSI+ΔDI)², use orthogonality (`stoch_integral_squared_orthogonal`) + `si_compensated_sq_L2_single` for compensated square, bound cross/drift terms.
-   - **Recently proven (2026-02-19)**:
-     - `h_gω_int`: Integrability of ½f''σ² on [0,u] — **PROVEN** ✓
-     - `h_A_bdd`: Per-interval crude bound — **PROVEN** ✓
-     - `h_peb`: Per-interval UC bound — **PROVEN** ✓
-     - `h_sum_ΔX_sm`: StronglyMeasurable of sum with ΔX² — **PROVEN** ✓
-     - `h_E3_aesm`: E3 AEStronglyMeasurable — **PROVEN** ✓
-     - `h_A_sq_int`: A² integrable — **PROVEN** ✓
-     - `h_E3_sq_int`: E3² integrable (8 errors fixed: Cauchy-Schwarz, abs_of_nonneg, nlinarith chain, K definition) — **PROVEN** ✓
-     - `h_B_sq_int`: B² integrable (via `h_sum_sm.sub h_sum_ΔX_sm` + `mul_sub`/`sum_sub_distrib`) — **PROVEN** ✓
-   - **Key infrastructure (all proven)**: `fatou_squeeze_tendsto_zero_ae`, `L2_zero_ae_subseq`, `si_compensated_sq_L2_single`, `integral_sq_sum_orthogonal`, `stoch_integral_squared_orthogonal`, `compensated_sq_setIntegral_zero`, `integral_mul_eq_zero_of_setIntegral_eq_zero'`, `capped_ito_qv_L2_bound`, `partition_error_bound`
+3. ~~**E3 a.e. convergence** (ItoFormulaProof.lean:~2500)~~ — **PROVEN** ✓
+   - E1, E2, E3, E4 convergence all PROVEN
+   - `h_B_bound` (line ~2149): **PROVEN** ✓ (2026-02-20) — E[B²] ≤ C_B·T/(n+1), via `weighted_capped_qv_L2_bound` from WeightedQVBound.lean
+   - Weight ½f''(τᵢ, X(τᵢ)) bounded by Mf''/2, F_{τᵢ}-measurable by composition of continuous f'' with adapted process
 
 **Dependency chain:**
 ```
@@ -38,15 +27,15 @@ simple_compensated_sq_setIntegral_zero (CI) — PROVEN ✓
   → si_compensated_orthogonal_partition (QVC:215) — PROVEN ✓
   → ito_qv_L2_bound (QVC:672) — PROVEN ✓
   → ito_process_discrete_qv_L2_convergence (QVC:984) — PROVEN ✓
-  → E3 a.e. convergence (IFP:2672) — SORRY
-  → ito_formula (IFP:1416) — PROVEN ✓ (modulo above)
+  → E3 a.e. convergence (IFP:2672) — PROVEN ✓
+  → ito_formula (IFP:1416) — PROVEN ✓
 ```
 
-**Everything else is NOT on the Itô formula critical path.** Do not work on InnerIntegralIntegrability, BDG, SDE existence, etc. until these sorrys are closed.
+**The Itô formula critical path is COMPLETE (0 sorrys).** All remaining sorrys are independent theorems.
 
 ---
 
-## Current Sorry Count (as of 2026-02-19)
+## Current Sorry Count (as of 2026-02-20)
 
 | File | Sorrys | Key Items |
 |------|--------|-----------|
@@ -56,7 +45,8 @@ simple_compensated_sq_setIntegral_zero (CI) — PROVEN ✓
 | **Basic.lean** | **1** | is_martingale_of_bounded (needs uniform integrability) |
 | **RegularityStructures.lean** | **1** | Abstract approach (complementary to folder) |
 | **Probability/Basic.lean** | **2** | condexp_jensen, doob_maximal_L2 |
-| **Helpers/ItoFormulaProof.lean** | **1** | h_B_bound only (E[B²] ≤ C_B·T/(n+1), weighted QV discrepancy L² bound) |
+| **Helpers/ItoFormulaProof.lean** | **0** | FULLY PROVEN ✓ |
+| **Helpers/WeightedQVBound.lean** | **0** | FULLY PROVEN ✓ |
 | **Helpers/IsometryTheorems.lean** | **0** | FULLY PROVEN ✓ |
 | **Helpers/ConditionalIsometry.lean** | **0** | FULLY PROVEN ✓ |
 | **Helpers/QuarticBound.lean** | **0** | FULLY PROVEN |
@@ -72,8 +62,8 @@ simple_compensated_sq_setIntegral_zero (CI) — PROVEN ✓
 | **Nonstandard/Anderson/** | **10** | ItoCorrespondence, ExplicitSolutions, LocalCLT, AndersonTheorem, CylinderConvergenceHelpers |
 | **RegularityStructures/** | **41** | See RegularityStructures/TODO.md |
 
-**Total: ~109 sorrys** (28 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
-**Critical path: 1 sorry** (`h_B_bound` in ItoFormulaProof.lean — weighted QV discrepancy L² bound)
+**Total: ~108 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
+**Critical path: 0 sorrys — Itô formula FULLY PROVEN** ✓
 
 ---
 
@@ -130,7 +120,7 @@ See `RegularityStructures/TODO.md` for full sorry-dependency audit.
 
 ### The theorem: `ito_formula` at ItoFormulaProof.lean
 
-**Status**: Top-level proof term is COMPLETE. **9 sorrys** remain on the critical path (all in E3 block, proof structure done).
+**Status**: FULLY PROVEN ✓. **0 sorrys** on the critical path.
 
 **Statement:**
 For C^{1,2} function f and Ito process dX_t = mu_t dt + sigma_t dW_t:
@@ -139,25 +129,25 @@ f(t, X_t) = f(0, X_0) + int_0^t [d_t f + d_x f * mu + 1/2 d^2_x f * sigma^2] ds 
 ```
 where M_t is a martingale (the stochastic integral int_0^t d_x f * sigma dW).
 
-### Critical Path: 1 sorry blocking `ito_formula`
+### Critical Path: COMPLETE (0 sorrys)
 
 ```
-ito_formula -- PROVED, wires to:
-  ito_formula_martingale -- PROVED, wires to:
-    si_increment_L2_convergence (ItoFormulaProof.lean:1623)
+ito_formula -- PROVED ✓
+  ito_formula_martingale -- PROVED ✓
+    si_increment_L2_convergence (ItoFormulaProof.lean:1623) -- PROVED ✓
       ito_error_decomposition -- PROVED ✓
       fatou_squeeze_tendsto_zero_ae -- PROVED ✓
       Error bound: 0 ≤ error² ≤ 4*(E1²+E2²+E3²+E4²) -- PROVED ✓
       Dominator g_k → G a.e. -- PROVED ✓
-      a.e. convergence: error²(k) → 0 -- PROVED ✓ (modulo h_B_bound)
+      a.e. convergence: error²(k) → 0 -- PROVED ✓
         E1,E2,E4 → 0: UC pattern -- PROVED ✓
         E3 → 0: A + B decomposition -- PROVED ✓
           A L² → 0: Fatou squeeze -- PROVED ✓
           B L² → 0: squeeze_zero from h_B_bound -- PROVED ✓
-          *** h_B_bound: E[B²] ≤ C_B·T/(n+1) (line ~1649) -- SORRY [1] ***
+          h_B_bound: E[B²] ≤ C_B·T/(n+1) -- PROVED ✓ (via weighted_capped_qv_L2_bound)
 ```
 
-#### Layer 1: ItoFormulaProof.lean (1 sorry — `h_B_bound`)
+#### Layer 1: ItoFormulaProof.lean (0 sorrys — FULLY PROVEN ✓)
 
 **What's proved in si_increment_L2_convergence:**
 - Subsequence extraction (tendsto_of_subseq_tendsto + QV a.e. sub-subsequence) — PROVEN ✓
@@ -170,11 +160,11 @@ ito_formula -- PROVED, wires to:
 - All measurability/integrability (h_E3_aesm, h_E3_sq_int, h_A_sq_int, h_B_sq_int) — PROVEN ✓
 - Final squeeze combining E1-E4 — PROVEN ✓
 
-**1 remaining sorry:**
-
-| Line | Goal | Description | Difficulty | Approach |
-|------|------|-------------|------------|----------|
-| ~1649 | h_B_bound | E[B²] ≤ C_B·T/(n+1) | **Hard** | Decompose ΔX=ΔSI+ΔDI (via `integral_form`), get B=B₁+B₂+B₃ where B₁=Σwᵢ·Zᵢ (compensated square), B₂=cross terms, B₃=drift². Use `integral_sq_sum_orthogonal` + `stoch_integral_squared_orthogonal` for B₁ orthogonality, `si_compensated_sq_L2_single` for E[Zᵢ²], Cauchy-Schwarz + isometry for B₂, deterministic bound for B₃. |
+**0 remaining sorrys.** `h_B_bound` proved 2026-02-20 via `weighted_capped_qv_L2_bound` (WeightedQVBound.lean).
+Weight = ½f''(τᵢ, X(τᵢ)), C_w = Mf''/2. Three-way decomposition B₁+2B₂+B₃ with:
+- B₁ orthogonality via `weighted_compensated_orthogonal_partition`
+- B₂ cross terms via isometry + Cauchy-Schwarz
+- B₃ drift terms via deterministic bound
 
 #### Layer 2: IsometryTheorems.lean (0 sorrys) + ConditionalIsometry.lean (0 sorrys) — FULLY PROVEN ✓
 
@@ -247,6 +237,7 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 | `ito_process_discrete_qv_L2_convergence` | QVConvergence.lean:984 |
 | `ito_qv_L2_bound` | QVConvergence.lean:672 |
 | `stoch_integral_isometry` (ItoProcess) | IsometryTheorems.lean:223 |
+| `weighted_capped_qv_L2_bound` | WeightedQVBound.lean:267 |
 | `stoch_integral_increment_L4_bound_proof` | QuarticBound.lean:1363 |
 | `stoch_integral_increment_L4_integrable_proof` | QuarticBound.lean:1245 |
 | `taylor_remainders_ae_tendsto_zero` | ItoFormulaDecomposition.lean |
@@ -303,6 +294,7 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 - **ItoFormulaInfrastructure.lean** — BM QV L^2 convergence, weighted QV convergence
 - **ItoFormulaDecomposition.lean** — Taylor remainder, Fatou squeeze, QV L^2 infrastructure
 - **QVConvergence.lean** — Compensated SI squared bounds, QV L^2 bound, discrete QV convergence
+- **WeightedQVBound.lean** — Weighted QV discrepancy L² bound for Itô formula
 - **QuadraticVariation.lean** — QV definitions, discrete QV structure
 - **TaylorRemainder.lean** — Taylor remainder bounds
 

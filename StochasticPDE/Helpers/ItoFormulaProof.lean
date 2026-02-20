@@ -8,6 +8,7 @@ import StochasticPDE.Helpers.ItoFormulaInfrastructure
 import StochasticPDE.Helpers.ItoFormulaDecomposition
 import StochasticPDE.Helpers.ItoIntegralProperties
 import StochasticPDE.Helpers.QVConvergence
+import StochasticPDE.Helpers.WeightedQVBound
 import Mathlib.Analysis.Calculus.Taylor
 
 /-!
@@ -2146,7 +2147,28 @@ theorem si_increment_L2_convergence {F : Filtration Ω ℝ}
            (X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
             X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2)) ^ 2 ∂μ ≤
       C_B * T / ↑(n + 1) := by
-    sorry  -- Decompose (ΔX)² = (ΔSI+ΔDI)², orthogonality for compensated terms
+    -- Apply weighted_capped_qv_L2_bound with weight = ½f''(τᵢ, X(τᵢ,ω)), C_w = Mf''/2
+    intro n
+    have h := weighted_capped_qv_L2_bound X hMμ hMσ T u hT hu huT n
+      (fun i ω => (1 : ℝ) / 2 * deriv (deriv (fun x =>
+          f (min (↑(i : ℕ) * T / ↑(n + 1)) u) x))
+        (X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω))
+      (C_w := Mf'' / 2) (div_nonneg hMf''_nn (by norm_num))
+      (fun i ω => by
+        rw [abs_mul, abs_of_nonneg (show (0:ℝ) ≤ 1/2 from by norm_num)]
+        calc 1 / 2 * |deriv (deriv (fun x => f _ x)) (X.process _ ω)|
+            ≤ 1 / 2 * Mf'' :=
+              mul_le_mul_of_nonneg_left (hMf'' _ _) (by norm_num)
+          _ = Mf'' / 2 := by ring)
+      (fun i => measurable_const.mul
+        ((contDiff_two_snd_deriv_continuous (hf_x _)).measurable.comp
+          (X.process_adapted _)))
+    -- Algebraic identity: 3·((Mf''/2)²·8Mσ⁴u + ...) = C_B
+    have h_eq : 3 * ((Mf'' / 2) ^ 2 * 8 * Mσ ^ 4 * u +
+        4 * (Mf'' / 2) ^ 2 * Mμ ^ 2 * Mσ ^ 2 * u * T +
+        (Mf'' / 2) ^ 2 * Mμ ^ 4 * u ^ 2 * T) * T / ↑(n + 1) =
+        C_B * T / ↑(n + 1) := by rw [hCB_def]; ring
+    linarith
   -- Step 3: B L² convergence from quantitative bound
   have h_B_L2 : Filter.Tendsto (fun n =>
       ∫ ω, (∑ i : Fin (n + 1),
