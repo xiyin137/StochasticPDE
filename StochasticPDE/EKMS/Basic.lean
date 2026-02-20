@@ -3,7 +3,7 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Basic
+import StochasticPDE.ItoCalculus.Basic
 import Mathlib.Probability.Process.Filtration
 import Mathlib.Probability.Process.Adapted
 import Mathlib.MeasureTheory.Integral.Lebesgue.Basic

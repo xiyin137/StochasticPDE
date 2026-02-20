@@ -3,12 +3,12 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Helpers.CommonRefinement
-import StochasticPDE.Helpers.SimpleProcessLinear
-import StochasticPDE.Helpers.MergedValueAtTime
-import StochasticPDE.Helpers.ItoIntegralProperties
-import StochasticPDE.Probability.IndependenceHelpers
-import StochasticPDE.Probability.Pythagoras
+import StochasticPDE.ItoCalculus.CommonRefinement
+import StochasticPDE.ItoCalculus.SimpleProcessLinear
+import StochasticPDE.ItoCalculus.MergedValueAtTime
+import StochasticPDE.ItoCalculus.ItoIntegralProperties
+import StochasticPDE.ItoCalculus.Probability.IndependenceHelpers
+import StochasticPDE.ItoCalculus.Probability.Pythagoras
 
 /-!
 # Simple Process Isometry at Time t

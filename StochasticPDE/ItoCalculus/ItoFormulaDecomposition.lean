@@ -3,12 +3,12 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.StochasticIntegration
-import StochasticPDE.Helpers.ItoFormulaInfrastructure
-import StochasticPDE.Helpers.QuarticBound
-import StochasticPDE.Helpers.QuadraticVariation
-import StochasticPDE.Helpers.QVConvergence
-import StochasticPDE.Helpers.IsometryTheorems
+import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoFormulaInfrastructure
+import StochasticPDE.ItoCalculus.QuarticBound
+import StochasticPDE.ItoCalculus.QuadraticVariation
+import StochasticPDE.ItoCalculus.QVConvergence
+import StochasticPDE.ItoCalculus.IsometryTheorems
 import Mathlib.Analysis.Calculus.Taylor
 import Mathlib.MeasureTheory.Function.ConditionalExpectation.PullOut
 

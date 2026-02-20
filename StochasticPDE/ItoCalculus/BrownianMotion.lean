@@ -3,12 +3,12 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Basic
-import StochasticPDE.Probability.Basic
-import StochasticPDE.Probability.IndependenceHelpers
+import StochasticPDE.ItoCalculus.Basic
+import StochasticPDE.ItoCalculus.Probability.Basic
+import StochasticPDE.ItoCalculus.Probability.IndependenceHelpers
 import Mathlib.Probability.Independence.Basic
 import Mathlib.MeasureTheory.Group.MeasurableEquiv
-import StochasticPDE.Helpers.SetIntegralHelpers
+import StochasticPDE.ItoCalculus.SetIntegralHelpers
 import Mathlib.MeasureTheory.Measure.CharacteristicFunction
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 

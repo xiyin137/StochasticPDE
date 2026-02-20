@@ -3,10 +3,10 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.StochasticIntegration
-import StochasticPDE.Helpers.ItoFormulaInfrastructure
-import StochasticPDE.Helpers.ItoIntegralProperties
-import StochasticPDE.Probability.IndependenceHelpers
+import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoFormulaInfrastructure
+import StochasticPDE.ItoCalculus.ItoIntegralProperties
+import StochasticPDE.ItoCalculus.Probability.IndependenceHelpers
 
 /-!
 # Quartic Moment Bound for Stochastic Integrals

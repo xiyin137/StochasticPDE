@@ -3,14 +3,14 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Helpers.ItoIntegralProperties
-import StochasticPDE.Helpers.SimpleProcessLinear
-import StochasticPDE.Helpers.MergedValueAtTime
-import StochasticPDE.Helpers.IsometryAt
-import StochasticPDE.Helpers.GronwallForSDE
-import StochasticPDE.Helpers.ProductL2Convergence
-import StochasticPDE.Helpers.IteratedProductConvergence
-import StochasticPDE.Probability.IndependenceHelpers
+import StochasticPDE.ItoCalculus.ItoIntegralProperties
+import StochasticPDE.ItoCalculus.SimpleProcessLinear
+import StochasticPDE.ItoCalculus.MergedValueAtTime
+import StochasticPDE.ItoCalculus.IsometryAt
+import StochasticPDE.ItoCalculus.GronwallForSDE
+import StochasticPDE.ItoCalculus.ProductL2Convergence
+import StochasticPDE.ItoCalculus.IteratedProductConvergence
+import StochasticPDE.ItoCalculus.Probability.IndependenceHelpers
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.ContDiff.Defs

@@ -3,9 +3,9 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.BrownianMotion
-import StochasticPDE.Probability.Pythagoras
-import StochasticPDE.Probability.IndependenceHelpers
+import StochasticPDE.ItoCalculus.BrownianMotion
+import StochasticPDE.ItoCalculus.Probability.Pythagoras
+import StochasticPDE.ItoCalculus.Probability.IndependenceHelpers
 import Mathlib.Probability.Distributions.Gaussian.Real
 import Mathlib.Probability.Moments.MGFAnalytic
 import Mathlib.Algebra.Order.Chebyshev

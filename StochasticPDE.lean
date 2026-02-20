@@ -4,18 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
 
-import StochasticPDE.Basic
-import StochasticPDE.BrownianMotion
-import StochasticPDE.StochasticIntegration
+import StochasticPDE.ItoCalculus
 import StochasticPDE.RegularityStructures
 import StochasticPDE.SPDE
 import StochasticPDE.Examples
 import StochasticPDE.EKMS
-import StochasticPDE.Helpers.SimpleProcessDef
-import StochasticPDE.Helpers.SetIntegralHelpers
-import StochasticPDE.Helpers.SimpleIntegralMartingale
-import StochasticPDE.Helpers.ItoIntegralProperties
-import StochasticPDE.Helpers.L2LimitInfrastructure
 
 /-!
 # Stochastic Partial Differential Equations

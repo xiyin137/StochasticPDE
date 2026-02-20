@@ -3,12 +3,12 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.StochasticIntegration
-import StochasticPDE.Helpers.ItoFormulaInfrastructure
-import StochasticPDE.Helpers.ItoFormulaDecomposition
-import StochasticPDE.Helpers.ItoIntegralProperties
-import StochasticPDE.Helpers.QVConvergence
-import StochasticPDE.Helpers.WeightedQVBound
+import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoFormulaInfrastructure
+import StochasticPDE.ItoCalculus.ItoFormulaDecomposition
+import StochasticPDE.ItoCalculus.ItoIntegralProperties
+import StochasticPDE.ItoCalculus.QVConvergence
+import StochasticPDE.ItoCalculus.WeightedQVBound
 import Mathlib.Analysis.Calculus.Taylor
 
 /-!

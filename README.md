@@ -10,17 +10,21 @@ This project provides machine-checked proofs for core results in stochastic anal
 
 ## Main Components
 
-### Stochastic Calculus Foundation
+### Ito Calculus (`ItoCalculus/`)
+
+Self-contained module (28 files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)**.
 
 | Module | Description |
 |--------|-------------|
-| `Basic.lean` | Filtrations, adapted processes, martingales, local martingales, stopping times |
-| `BrownianMotion.lean` | Wiener process, cylindrical Wiener process, Q-Wiener process, scaling/reflection |
-| `StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
-| `Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
+| `ItoCalculus/Basic.lean` | Filtrations, adapted processes, martingales, local martingales, stopping times |
+| `ItoCalculus/BrownianMotion.lean` | Wiener process, cylindrical Wiener process, Q-Wiener process, scaling/reflection |
+| `ItoCalculus/StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
+| `ItoCalculus/Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
+| `ItoCalculus/ItoFormulaProof.lean` | Complete Ito formula proof (0 sorrys) |
 
 ### Key Proven Theorems
 
+- **Ito formula**: `f(t, X_t) = f(0, X_0) + int_0^t [∂_t f + ∂_x f · μ + ½ ∂²_x f · σ²] ds + M_t` (**fully proven, 0 sorrys**)
 - **Ito isometry**: `E[(int H dW)^2] = E[int H^2 ds]` (simple processes + L^2 extension)
 - **Bilinear Ito isometry**: `E[(int H1 dW)(int H2 dW)] = E[int H1*H2 ds]`
 - **Ito integral is a martingale** (set-integral characterization)
@@ -70,9 +74,9 @@ This project provides machine-checked proofs for core results in stochastic anal
 |--------|-------------|
 | `Nonstandard/` | Hyperfinite random walks, Loeb measure, Anderson's theorem, nonstandard Ito formula |
 
-### Proof Infrastructure (Helpers/)
+### Proof Infrastructure
 
-22 files providing fully proven infrastructure for the Ito formula proof chain:
+The `ItoCalculus/` module includes 25+ fully proven infrastructure files for the Ito formula proof chain:
 
 - Common refinement and partition machinery
 - Simple process integral definitions and linearity
@@ -84,6 +88,7 @@ This project provides machine-checked proofs for core results in stochastic anal
 - Quartic moment bounds (L^4 estimates)
 - Ito formula decomposition and error analysis
 - Conditional isometry infrastructure
+- Weighted QV L^2 bounds
 - Gronwall lemma for SDEs
 
 ## Building
@@ -113,9 +118,9 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~109 total sorrys** across all files
-- **1 sorry** on the Ito formula critical path (QV discrepancy L² bound)
-- **13 fully proven helper files** with 0 sorrys
+- **~108 total sorrys** across all files
+- **0 sorrys** on the Ito formula critical path — **fully proven**
+- **28 files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions have been audited for soundness (no axioms, no axiom smuggling)
 
 See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.

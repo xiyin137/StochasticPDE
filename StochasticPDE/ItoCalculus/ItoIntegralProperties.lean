@@ -3,8 +3,8 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Helpers.SimpleIntegralMartingale
-import StochasticPDE.Helpers.L2LimitInfrastructure
+import StochasticPDE.ItoCalculus.SimpleIntegralMartingale
+import StochasticPDE.ItoCalculus.L2LimitInfrastructure
 
 /-!
 Note: `ItoIntegral.is_martingale_proof` and `ItoIntegral.ito_isometry_proof` were

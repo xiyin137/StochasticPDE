@@ -3,10 +3,10 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.StochasticIntegration
-import StochasticPDE.Helpers.ItoFormulaInfrastructure
-import StochasticPDE.Helpers.QuarticBound
-import StochasticPDE.Helpers.TaylorRemainder
+import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoFormulaInfrastructure
+import StochasticPDE.ItoCalculus.QuarticBound
+import StochasticPDE.ItoCalculus.TaylorRemainder
 import Mathlib.MeasureTheory.Integral.Prod
 import Mathlib.MeasureTheory.Function.ConvergenceInMeasure
 

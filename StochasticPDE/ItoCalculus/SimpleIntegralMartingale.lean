@@ -3,8 +3,8 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Helpers.SimpleProcessDef
-import StochasticPDE.Helpers.SetIntegralHelpers
+import StochasticPDE.ItoCalculus.SimpleProcessDef
+import StochasticPDE.ItoCalculus.SetIntegralHelpers
 
 /-!
 # Simple Stochastic Integral Martingale Property

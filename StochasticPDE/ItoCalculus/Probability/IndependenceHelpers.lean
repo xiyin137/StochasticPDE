@@ -3,8 +3,8 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Basic
-import StochasticPDE.Probability.Basic
+import StochasticPDE.ItoCalculus.Basic
+import StochasticPDE.ItoCalculus.Probability.Basic
 import Mathlib.Probability.Independence.Basic
 import Mathlib.Probability.Independence.Integration
 

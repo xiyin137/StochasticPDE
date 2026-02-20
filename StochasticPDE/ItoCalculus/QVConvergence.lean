@@ -3,9 +3,9 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.Helpers.QuadraticVariation
-import StochasticPDE.Helpers.QuarticBound
-import StochasticPDE.Helpers.ConditionalIsometry
+import StochasticPDE.ItoCalculus.QuadraticVariation
+import StochasticPDE.ItoCalculus.QuarticBound
+import StochasticPDE.ItoCalculus.ConditionalIsometry
 
 /-!
 # Quadratic Variation Convergence Helpers
