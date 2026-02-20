@@ -113,8 +113,8 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~114 total sorrys** across all files
-- **5 sorrys** on the Ito formula critical path (conditional isometry and a.e. convergence)
+- **~109 total sorrys** across all files
+- **1 sorry** on the Ito formula critical path (QV discrepancy L² bound)
 - **13 fully proven helper files** with 0 sorrys
 - All definitions have been audited for soundness (no axioms, no axiom smuggling)
 

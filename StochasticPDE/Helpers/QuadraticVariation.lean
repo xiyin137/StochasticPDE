@@ -434,6 +434,22 @@ theorem L2_to_ae_subseq [IsProbabilityMeasure μ]
   -- Step 2: Extract a.e.-convergent subsequence
   exact h_tim.exists_seq_tendsto_ae
 
+/-- Variant of `L2_to_ae_subseq` for convergence to zero:
+    if ∫ (f n)² → 0, extract a subsequence with f(ms k) → 0 a.e. -/
+theorem L2_zero_ae_subseq [IsProbabilityMeasure μ]
+    {f : ℕ → Ω → ℝ}
+    (hL2 : Filter.Tendsto (fun n => ∫ ω, (f n ω) ^ 2 ∂μ) atTop (nhds 0))
+    (hint : ∀ n, Integrable (fun ω => (f n ω) ^ 2) μ)
+    (hf_asm : ∀ n, AEStronglyMeasurable (f n) μ) :
+    ∃ (ms : ℕ → ℕ), StrictMono ms ∧
+      ∀ᵐ ω ∂μ, Filter.Tendsto (fun k => f (ms k) ω) atTop (nhds 0) := by
+  have h := L2_to_ae_subseq (g := fun _ => (0 : ℝ))
+    (by simp only [sub_zero]; exact hL2)
+    (by intro n; simp only [sub_zero]; exact hint n)
+    hf_asm aestronglyMeasurable_const
+  obtain ⟨ms, hms, hae⟩ := h
+  exact ⟨ms, hms, by filter_upwards [hae] with ω hω; simpa using hω⟩
+
 /-! ## Taylor remainder a.e. convergence -/
 
 /-- Along an a.e.-convergent subsequence for QV, the Taylor remainders

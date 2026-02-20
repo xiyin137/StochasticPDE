@@ -1394,6 +1394,13 @@ structure ItoProcess (F : Filtration Ω ℝ) (μ : Measure Ω) where
       convention for non-integrable functions), making the drift contribution vacuous. -/
   drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
     IntegrableOn (fun s => drift s ω) (Set.Icc 0 t) volume
+  /-- The diffusion coefficient is adapted to the filtration F:
+      σ(t, ·) is F_t-measurable for each t. This is a standard requirement in
+      stochastic analysis — the diffusion coefficient must use only information
+      available at time t. Together with joint measurability, this gives progressive
+      measurability. Adaptedness is essential for the conditional isometry
+      E[Z₁·Z₂] = 0 on disjoint intervals (needed for QV convergence and Itô's formula). -/
+  diffusion_adapted : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (diffusion t)
   /-- The diffusion coefficient is jointly measurable in (t, ω).
       This is a standard requirement in stochastic analysis: σ(t, ω) must be
       progressively measurable (adapted + jointly measurable). Joint measurability

@@ -1580,9 +1580,69 @@ theorem ItoProcess.stoch_integral_squared_orthogonal {F : Filtration Ω ℝ}
     · exact hΔ₁_sq_Z₂_int
     · -- Conditional isometry: ∫_A Z₂ = 0 for A ∈ F_{s₂}
       exact X.compensated_sq_setIntegral_zero hMσ s₂ t₂ hs₂ hst₂
-  -- Step 3: E[Q₁·Z₂] = 0 by approximation
+  -- Step 3: E[Q₁·Z₂] = 0 by Fubini + pointwise orthogonality
+  -- Strategy: (∫_u σ² du) * Z₂(ω) = ∫_u (σ² * Z₂) du, then swap ∫_ω ∫_u to ∫_u ∫_ω.
+  -- For each u ∈ [s₁,t₁]: σ²(u,·) is F_{s₂}-measurable (by diffusion_adapted + u ≤ t₁ ≤ s₂),
+  -- and ∫_A Z₂ = 0 for A ∈ F_{s₂} (conditional isometry), so E[σ²(u,·)·Z₂] = 0.
   have h_part2 : ∫ ω, (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω ∂μ = 0 := by
-    sorry
+    -- Sub-step 3a: σ²(u,·) is F_{s₂}-measurable for u ∈ [s₁,t₁]
+    have h_diff_Fs₂ : ∀ u, u ∈ Set.Icc s₁ t₁ →
+        @Measurable Ω ℝ (F.σ_algebra s₂) _ (fun ω => (X.diffusion u ω) ^ 2) := by
+      intro u ⟨_, hut⟩
+      exact ((X.diffusion_adapted u).mono (F.mono u s₂ (le_trans hut ht₁s₂)) le_rfl).pow_const 2
+    -- Sub-step 3b: For each u ∈ [s₁,t₁], E[σ²(u,·) · Z₂] = 0
+    have h_inner_zero : ∀ u, u ∈ Set.Icc s₁ t₁ →
+        ∫ ω, (X.diffusion u ω) ^ 2 * Z₂ ω ∂μ = 0 := by
+      intro u hu
+      apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s₂)
+      · exact h_diff_Fs₂ u hu
+      · exact hZ₂_int
+      · -- σ²(u,·) * Z₂ integrable: |σ²| ≤ Mσ², so dominated by Mσ² * |Z₂|
+        exact (hZ₂_int.norm.const_mul (Mσ ^ 2)).mono'
+          ((h_diff_Fs₂ u hu |>.mono (F.le_ambient s₂) le_rfl
+            |>.aestronglyMeasurable).mul hZ₂_int.aestronglyMeasurable)
+          (ae_of_all _ fun ω => by
+            rw [Real.norm_eq_abs, abs_mul, abs_of_nonneg (sq_nonneg _)]
+            exact mul_le_mul_of_nonneg_right
+              (by calc (X.diffusion u ω) ^ 2 = |X.diffusion u ω| ^ 2 := (sq_abs _).symm
+                  _ ≤ Mσ ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
+              (abs_nonneg _))
+      · exact X.compensated_sq_setIntegral_zero hMσ s₂ t₂ hs₂ hst₂
+    -- Sub-step 3c: Pull Z₂(ω) inside the inner integral
+    -- (∫_u σ²(u,ω) du) * Z₂(ω) = ∫_u σ²(u,ω) * Z₂(ω) du
+    simp_rw [show ∀ ω, (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω =
+        ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 * Z₂ ω ∂volume from
+      fun ω => (integral_mul_const (Z₂ ω) _).symm]
+    -- Sub-step 3d: Swap integrals by Fubini
+    set ν := volume.restrict (Icc s₁ t₁)
+    -- Product integrability: |σ²(u,ω) * Z₂(ω)| ≤ Mσ² * |Z₂(ω)| is integrable
+    have hν_finite : IsFiniteMeasure ν :=
+      ⟨by rw [Measure.restrict_apply_univ]; exact measure_Icc_lt_top⟩
+    -- AEStronglyMeasurable for the uncurried product function
+    have h_meas_σ_sq : Measurable (fun p : Ω × ℝ => (X.diffusion p.2 p.1) ^ 2) :=
+      (X.diffusion_jointly_measurable.comp measurable_swap).pow_const 2
+    have h_meas_Z₂_fst : AEStronglyMeasurable (fun p : Ω × ℝ => Z₂ p.1) (μ.prod ν) :=
+      hZ₂_int.aestronglyMeasurable.comp_fst
+    have h_meas_uncurry : AEStronglyMeasurable
+        (Function.uncurry (fun ω u => (X.diffusion u ω) ^ 2 * Z₂ ω)) (μ.prod ν) :=
+      h_meas_σ_sq.aestronglyMeasurable.mul h_meas_Z₂_fst
+    -- Product integrability via domination: |σ²·Z₂| ≤ Mσ²·|Z₂| (integrable on product)
+    have h_product_int : Integrable
+        (Function.uncurry (fun ω u => (X.diffusion u ω) ^ 2 * Z₂ ω)) (μ.prod ν) := by
+      apply Integrable.mono' ((hZ₂_int.norm.const_mul (Mσ ^ 2)).comp_fst (ν := ν))
+        h_meas_uncurry
+      apply ae_of_all; intro ⟨ω, u⟩
+      simp only [Function.uncurry, Real.norm_eq_abs]
+      rw [abs_mul, abs_of_nonneg (sq_nonneg _)]
+      exact mul_le_mul_of_nonneg_right
+        (by calc (X.diffusion u ω) ^ 2 = |X.diffusion u ω| ^ 2 := (sq_abs _).symm
+            _ ≤ Mσ ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
+        (abs_nonneg _)
+    rw [integral_integral_swap h_product_int]
+    -- Sub-step 3e: Each inner integral is 0, so the whole integral is 0
+    apply integral_eq_zero_of_ae
+    filter_upwards [ae_restrict_mem measurableSet_Icc] with u hu
+    exact h_inner_zero u hu
   linarith
 
 end SPDE
