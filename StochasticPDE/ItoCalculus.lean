@@ -4,6 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
 
+-- Import the top-level results (these transitively pull in everything)
+import StochasticPDE.ItoCalculus.ItoFormulaProof
+import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.IsometryTheorems
+
 /-!
 # Itô Calculus
 
@@ -57,9 +62,16 @@ depending only on Mathlib.
 * `QVConvergence` — QV convergence theorems
 * `WeightedQVBound` — Weighted quadratic variation L² bound
 * `ItoFormulaProof` — Complete Itô formula proof
--/
 
--- Import the top-level results (these transitively pull in everything)
-import StochasticPDE.ItoCalculus.ItoFormulaProof
-import StochasticPDE.ItoCalculus.StochasticIntegration
-import StochasticPDE.ItoCalculus.IsometryTheorems
+### Kolmogorov-Chentsov Theorem
+* `KolmogorovChentsov.DyadicPartition` — Dyadic interval infrastructure
+* `KolmogorovChentsov.MomentToTail` — Markov inequality for p-th moments
+* `KolmogorovChentsov.DyadicIncrement` — Dyadic increment bounds + Borel-Cantelli
+* `KolmogorovChentsov.ContinuousModification` — KC theorem
+
+### Derived Properties
+* `AdaptedLimit` — L² limits of adapted processes
+* `SIContinuity` — Stochastic integral continuous modification
+* `ProcessContinuity` — Itô process path continuity
+* `RemainderIntegrability` — Itô remainder integrability
+-/

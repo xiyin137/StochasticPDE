@@ -129,8 +129,8 @@ theorem ItoProcess.weighted_compensated_orthogonal {F : Filtration Ω ℝ}
       φ₂ ω) * Z₂ ω ∂μ = 0 :=
     integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s₂)
       ((hφ₁_meas.mul
-        (((X.stoch_integral_adapted t₁).sub
-          ((X.stoch_integral_adapted s₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
+        (((X.stoch_integral_adapted t₁ (le_trans hs₁ hst₁)).sub
+          ((X.stoch_integral_adapted s₁ hs₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
           |>.mono (F.mono t₁ s₂ ht₁s₂) le_rfl)).mul hφ₂_meas)
       hZ₂_int h_term1_int
       (X.compensated_sq_setIntegral_zero hMσ s₂ t₂ hs₂ hst₂)
@@ -414,8 +414,8 @@ theorem weighted_capped_qv_L2_bound {F : Filtration Ω ℝ}
     fun i => (hw_meas i).mono (F.le_ambient _) le_rfl
   have hΔSI_m : ∀ i : Fin (n + 1), Measurable (ΔSI i) := by
     intro i; simp only [ΔSI]
-    exact ((X.stoch_integral_adapted _).mono (F.le_ambient _) le_rfl).sub
-      ((X.stoch_integral_adapted _).mono (F.le_ambient _) le_rfl)
+    exact (X.stoch_integral_measurable _).sub
+      (X.stoch_integral_measurable _)
   have hZ_m : ∀ i : Fin (n + 1), AEStronglyMeasurable (Z i) μ :=
     fun i => (hZ_int i).aestronglyMeasurable
   -- === INTEGRABILITY: wᵢZᵢ products (for orthogonality) ===

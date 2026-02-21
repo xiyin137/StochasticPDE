@@ -6,13 +6,13 @@ A rigorous formalization of stochastic partial differential equations (SPDEs), s
 
 This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axioms, no placeholders, and proper definitions throughout.
 
-**~47,000 lines of Lean 4** across **80+ files**.
+**~51,000 lines of Lean 4** across **99 files**.
 
 ## Main Components
 
 ### Ito Calculus (`ItoCalculus/`)
 
-Self-contained module (28 files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)**.
+Self-contained module (37 files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)** and a **Kolmogorov-Chentsov theorem** for continuous modifications. All definitions have been audited for soundness — no axiom smuggling, and derivable properties (e.g. `stoch_integral_adapted`) are proved as theorems rather than assumed as fields.
 
 | Module | Description |
 |--------|-------------|
@@ -21,6 +21,9 @@ Self-contained module (28 files, depends only on Mathlib) providing a complete f
 | `ItoCalculus/StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
 | `ItoCalculus/Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
 | `ItoCalculus/ItoFormulaProof.lean` | Complete Ito formula proof (0 sorrys) |
+| `ItoCalculus/KolmogorovChentsov/` | Kolmogorov-Chentsov theorem: Hölder continuous modifications (0 sorrys) |
+| `ItoCalculus/AdaptedLimit.lean` | Measurability of L^2 limits under usual conditions |
+| `ItoCalculus/RemainderIntegrability.lean` | Ito remainder integrability derived from boundedness (0 sorrys) |
 
 ### Key Proven Theorems
 
@@ -33,6 +36,9 @@ Self-contained module (28 files, depends only on Mathlib) providing a complete f
 - **Weighted QV convergence** for adapted bounded processes
 - **Ito process discrete QV L^2 convergence**
 - **Ito error decomposition** (telescope + Taylor identity for Ito formula)
+- **Kolmogorov-Chentsov theorem**: processes with `E[|X_t - X_s|^p] ≤ M|t-s|^q` (q>1) have Hölder continuous modifications
+- **Stochastic integral continuous modification** via KC (p=4, q=2)
+- **Ito remainder integrability**: derived from boundedness, not assumed
 - **BM scaling**: `c^{-1/2} W_{ct}` is a Brownian motion
 - **BM reflection**: `-W` is a Brownian motion
 - **Process L^2 increment bounds** for Ito processes
@@ -118,10 +124,11 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~108 total sorrys** across all files
+- **~114 total sorrys** across all files
 - **0 sorrys** on the Ito formula critical path — **fully proven**
-- **28 files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
+- **37 files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions have been audited for soundness (no axioms, no axiom smuggling)
+- `stoch_integral_adapted` derived as a theorem from L^2 limit + usual conditions (not assumed)
 
 See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.
 

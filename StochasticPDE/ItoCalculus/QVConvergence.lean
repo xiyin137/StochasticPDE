@@ -754,10 +754,10 @@ theorem ito_qv_L2_bound {F : Filtration Ω ℝ}
         -- Strong measurability of ΔSI and ΔX increments
         have hΔSI_sm : ∀ i : Fin (n+1), StronglyMeasurable (ΔSI i) := by
           intro i; simp only [ΔSI]
-          exact ((X.stoch_integral_adapted ((↑(i : ℕ) + 1) * t / ↑(n + 1))).mono
-              (F.le_ambient _) le_rfl).stronglyMeasurable.sub
-            ((X.stoch_integral_adapted (↑(i : ℕ) * t / ↑(n + 1))).mono
-              (F.le_ambient _) le_rfl).stronglyMeasurable
+          exact (X.stoch_integral_measurable ((↑(i : ℕ) + 1) * t / ↑(n + 1))
+              ).stronglyMeasurable.sub
+            (X.stoch_integral_measurable (↑(i : ℕ) * t / ↑(n + 1))
+              ).stronglyMeasurable
         have hΔX_sm : ∀ i : Fin (n+1), StronglyMeasurable (fun ω =>
             X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
             X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
@@ -1205,8 +1205,8 @@ theorem capped_ito_qv_L2_bound {F : Filtration Ω ℝ}
   -- Strong measurability of ΔSI and ΔX
   have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
     intro i; simp only [ΔSI]
-    exact ((X.stoch_integral_adapted _).mono (F.le_ambient _) le_rfl).stronglyMeasurable.sub
-      ((X.stoch_integral_adapted _).mono (F.le_ambient _) le_rfl).stronglyMeasurable
+    exact (X.stoch_integral_measurable _).stronglyMeasurable.sub
+      (X.stoch_integral_measurable _).stronglyMeasurable
   have hΔX_sm : ∀ i : Fin (n + 1), StronglyMeasurable (fun ω =>
       X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω) := by
     intro i

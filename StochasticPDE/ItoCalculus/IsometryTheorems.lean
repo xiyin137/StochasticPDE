@@ -51,7 +51,11 @@ theorem ItoProcess.stoch_integral_isometry_base {F : Filtration Ω ℝ}
     (t : ℝ) (ht : 0 ≤ t) :
     ∫ ω, (X.stoch_integral t ω) ^ 2 ∂μ =
     ∫ ω, (∫ s in Icc 0 t, (X.diffusion s ω) ^ 2 ∂volume) ∂μ := by
-  obtain ⟨approx, hadapted, hbdd, hnn, hL2, hiso, _⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, hiso, _⟩ := X.stoch_integral_is_L2_limit
+  -- Convert F-adapted to BM.F-adapted for SimpleProcess integration lemmas
+  have hadapted : ∀ n, ∀ i : Fin (approx n).n,
+      @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=
+    fun n i => (hadapted_F n i).mono (X.F_le_BM_F _) le_rfl
   -- Step 1: ∫ SI_n(t)² → ∫ SI(t)² (from L² convergence via sq_integral_tendsto)
   have hSI_sq := X.stoch_integral_sq_integrable t (ht)
   have hSI_int := X.stoch_integral_integrable t (ht)
@@ -177,7 +181,7 @@ theorem ItoProcess.stoch_integral_cross_term {F : Filtration Ω ℝ}
   -- Apply orthogonality: SI(s) is F_s-measurable, SI(t)-SI(s) has zero set-integrals
   apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s)
   · -- SI(s) is F_s-measurable
-    exact X.stoch_integral_adapted s
+    exact X.stoch_integral_adapted s hs
   · -- SI(t)-SI(s) is integrable
     exact hSI_t_int.sub hSI_s_int
   · -- SI(s)·(SI(t)-SI(s)) is integrable
@@ -322,8 +326,8 @@ lemma si_increment_sq_integrable' {F : Filtration Ω ℝ}
   -- AEStronglyMeasurable via Measurable (adapted → measurable)
   have hasm : AEStronglyMeasurable
       (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ :=
-    (((X.stoch_integral_adapted t).mono (F.le_ambient t) le_rfl).sub
-      ((X.stoch_integral_adapted s).mono (F.le_ambient s) le_rfl)).pow_const 2
+    ((X.stoch_integral_measurable t).sub
+      (X.stoch_integral_measurable s)).pow_const 2
       |>.aestronglyMeasurable
   -- (a-b)² ≤ 2a² + 2b²
   exact ((ha.const_mul 2).add (hb.const_mul 2)).mono' hasm

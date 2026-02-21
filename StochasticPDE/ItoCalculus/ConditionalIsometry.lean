@@ -62,7 +62,7 @@ theorem ItoProcess.setIntegral_cross_term_zero {F : Filtration Ω ℝ}
   -- Apply orthogonality lemma with X = 1_A·SI(s), Y = SI(t)-SI(s)
   apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s)
   · -- 1_A·SI(s) is F_s-measurable
-    exact (X.stoch_integral_adapted s).indicator hA
+    exact (X.stoch_integral_adapted s hs).indicator hA
   · -- SI(t)-SI(s) is integrable
     exact (X.stoch_integral_integrable t (le_trans hs hst)).sub
       (X.stoch_integral_integrable s hs)
@@ -1356,7 +1356,11 @@ theorem ItoProcess.compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
       hQ_s₂t₂_int.integrableOn, h_sq_diff]
     linarith
   -- Step 2: Get approximation sequence
-  obtain ⟨approx, hadapted, hbdd, hnn, hL2, _, hL2_int⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int⟩ := X.stoch_integral_is_L2_limit
+  -- Convert F-adapted to BM.F-adapted for SimpleProcess integration lemmas
+  have hadapted : ∀ n, ∀ i : Fin (approx n).n,
+      @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=
+    fun n i => (hadapted_F n i).mono (X.F_le_BM_F _) le_rfl
   -- Step 3: For each n, simple_compensated_sq_setIntegral_zero gives the identity
   -- ∫_A SI_n(t₂)² - ∫_A SI_n(s₂)² = ∫_A ∫_{s₂}^{t₂} H_n²
   -- Bridge filtration: F ≤ BM.F
@@ -1573,8 +1577,8 @@ theorem ItoProcess.stoch_integral_squared_orthogonal {F : Filtration Ω ℝ}
   have h_part1 : ∫ ω, (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω ∂μ = 0 := by
     apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s₂)
     · -- Δ₁² is F_{s₂}-measurable: SI(t₁), SI(s₁) are F_{t₁}-meas, t₁ ≤ s₂
-      exact ((X.stoch_integral_adapted t₁).sub
-        ((X.stoch_integral_adapted s₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
+      exact ((X.stoch_integral_adapted t₁ ht₁).sub
+        ((X.stoch_integral_adapted s₁ hs₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
         |>.mono (F.mono t₁ s₂ ht₁s₂) le_rfl
     · exact hZ₂_int
     · exact hΔ₁_sq_Z₂_int

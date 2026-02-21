@@ -9,6 +9,7 @@ import StochasticPDE.ItoCalculus.ItoFormulaDecomposition
 import StochasticPDE.ItoCalculus.ItoIntegralProperties
 import StochasticPDE.ItoCalculus.QVConvergence
 import StochasticPDE.ItoCalculus.WeightedQVBound
+import StochasticPDE.ItoCalculus.RemainderIntegrability
 import Mathlib.Analysis.Calculus.Taylor
 
 /-!
@@ -316,7 +317,6 @@ theorem partitionTime_step {T : ℝ} {n : ℕ} (_hn : 0 < n) (i : ℕ) :
 def itoPartitionProcess {F : Filtration Ω ℝ}
     (X : ItoProcess F μ) (f : ℝ → ℝ → ℝ)
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_meas : ∀ t, Measurable (X.diffusion t))
     (T : ℝ) (hT : 0 < T) (n : ℕ) (hn : 0 < n) : SimpleProcess F where
   n := n + 1
   times i := partitionTime T n (i : ℕ)
@@ -332,7 +332,8 @@ def itoPartitionProcess {F : Filtration Ω ℝ}
       contDiff_two_deriv_continuous (hf_x _)
     have hX_meas : Measurable (X.process (partitionTime T n (i : ℕ))) :=
       (X.process_adapted _).mono (F.le_ambient _) le_rfl
-    exact (hderiv_cont.measurable.comp hX_meas).mul (hdiff_meas _)
+    exact (hderiv_cont.measurable.comp hX_meas).mul
+      ((X.diffusion_adapted _).mono (F.le_ambient _) le_rfl)
 
 /-! ## Adapted properties of the partition process
 
@@ -344,13 +345,11 @@ needed for `ito_integral_martingale_setIntegral`. -/
 theorem itoPartitionProcess_adapted {F : Filtration Ω ℝ}
     (X : ItoProcess F μ)
     (f : ℝ → ℝ → ℝ) (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_meas : ∀ t, Measurable (X.diffusion t))
-    (T : ℝ) (hT : 0 < T) (n : ℕ) (hn : 0 < n)
-    (hdiff_adapted : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t)) :
-    ∀ i : Fin (itoPartitionProcess X f hf_x hdiff_meas T hT n hn).n,
+    (T : ℝ) (hT : 0 < T) (n : ℕ) (hn : 0 < n) :
+    ∀ i : Fin (itoPartitionProcess X f hf_x T hT n hn).n,
       @Measurable Ω ℝ (X.BM.F.σ_algebra
-        ((itoPartitionProcess X f hf_x hdiff_meas T hT n hn).times i)) _
-        ((itoPartitionProcess X f hf_x hdiff_meas T hT n hn).values i) := by
+        ((itoPartitionProcess X f hf_x T hT n hn).times i)) _
+        ((itoPartitionProcess X f hf_x T hT n hn).values i) := by
   intro i
   show @Measurable Ω ℝ (X.BM.F.σ_algebra (partitionTime T n (i : ℕ))) _
     (fun ω => deriv (fun x => f (partitionTime T n (i : ℕ)) x)
@@ -364,7 +363,7 @@ theorem itoPartitionProcess_adapted {F : Filtration Ω ℝ}
     (X.process_adapted _).mono (X.F_le_BM_F _) le_rfl
   have hdiff_BM : @Measurable Ω ℝ (X.BM.F.σ_algebra (partitionTime T n (i : ℕ))) _
       (X.diffusion (partitionTime T n (i : ℕ))) :=
-    (hdiff_adapted _).mono (X.F_le_BM_F _) le_rfl
+    (X.diffusion_adapted _).mono (X.F_le_BM_F _) le_rfl
   exact (hderiv_cont.measurable.comp hX_BM).mul hdiff_BM
 
 /-- The partition process values are bounded when f' and σ are bounded. -/
@@ -372,12 +371,11 @@ theorem itoPartitionProcess_bounded {F : Filtration Ω ℝ}
     (X : ItoProcess F μ)
     (f : ℝ → ℝ → ℝ)
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_meas : ∀ t, Measurable (X.diffusion t))
     (T : ℝ) (hT : 0 < T) (n : ℕ) (hn : 0 < n)
     (hf_x_bdd : ∃ M : ℝ, ∀ t x, |deriv (fun x => f t x) x| ≤ M)
     (hdiff_bdd : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M) :
-    ∀ i : Fin (itoPartitionProcess X f hf_x hdiff_meas T hT n hn).n,
-      ∃ C : ℝ, ∀ ω, |(itoPartitionProcess X f hf_x hdiff_meas T hT n hn).values i ω| ≤ C := by
+    ∀ i : Fin (itoPartitionProcess X f hf_x T hT n hn).n,
+      ∃ C : ℝ, ∀ ω, |(itoPartitionProcess X f hf_x T hT n hn).values i ω| ≤ C := by
   intro i
   obtain ⟨M₁, hM₁⟩ := hf_x_bdd
   obtain ⟨M₂, hM₂⟩ := hdiff_bdd
@@ -394,27 +392,17 @@ theorem itoPartitionProcess_times_nonneg {F : Filtration Ω ℝ}
     (X : ItoProcess F μ)
     (f : ℝ → ℝ → ℝ)
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_meas : ∀ t, Measurable (X.diffusion t))
     (T : ℝ) (hT : 0 < T) (n : ℕ) (hn : 0 < n) :
-    ∀ i : Fin (itoPartitionProcess X f hf_x hdiff_meas T hT n hn).n,
-      0 ≤ (itoPartitionProcess X f hf_x hdiff_meas T hT n hn).times i := by
+    ∀ i : Fin (itoPartitionProcess X f hf_x T hT n hn).n,
+      0 ≤ (itoPartitionProcess X f hf_x T hT n hn).times i := by
   intro i
   show 0 ≤ partitionTime T n _
   exact partitionTime_nonneg hT.le hn _
 
-/-! ## Itô formula remainder definition -/
+/-! ## Itô formula remainder
 
-/-- The Itô formula remainder (stochastic integral part):
-    M_t = f(t, X_t) - f(0, X_0) - ∫₀ᵗ [∂_t f + ∂_x f · μ + ½∂²_x f · σ²] ds
-
-    This is the process that the Itô formula asserts is a martingale. -/
-def itoRemainder {F : Filtration Ω ℝ}
-    (X : ItoProcess F μ) (f : ℝ → ℝ → ℝ) (t : ℝ) (ω : Ω) : ℝ :=
-  f t (X.process t ω) - f 0 (X.process 0 ω) -
-  ∫ s in Set.Icc 0 t,
-    (deriv (fun u => f u (X.process s ω)) s +
-     deriv (fun x => f s x) (X.process s ω) * X.drift s ω +
-     (1/2) * deriv (deriv (fun x => f s x)) (X.process s ω) * (X.diffusion s ω)^2) ∂volume
+The `itoRemainder` definition is imported from `ItoRemainderDef.lean`.
+Remainder integrability theorems are imported from `RemainderIntegrability.lean`. -/
 
 /-! ## Second derivative continuity -/
 
@@ -438,7 +426,6 @@ This is the mathematical core of the Itô formula proof, using
 theorem ito_qv_weights_adapted {F : Filtration Ω ℝ}
     (X : ItoProcess F μ) (f : ℝ → ℝ → ℝ)
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_adapted : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t))
     (t : ℝ) (n : ℕ) :
     ∀ i : Fin (n + 1),
     @Measurable Ω ℝ (X.BM.F.σ_algebra (↑(i : ℕ) * t / ↑(n + 1))) _
@@ -458,7 +445,7 @@ theorem ito_qv_weights_adapted {F : Filtration Ω ℝ}
   -- σ is BM.F-adapted
   have hσ_BM : @Measurable Ω ℝ (X.BM.F.σ_algebra (↑(i : ℕ) * t / ↑(n + 1))) _
       (X.diffusion (↑(i : ℕ) * t / ↑(n + 1))) :=
-    (hdiff_adapted _).mono (X.F_le_BM_F _) le_rfl
+    (X.diffusion_adapted _).mono (X.F_le_BM_F _) le_rfl
   -- f''(X(·)) is BM.F-measurable (composition of continuous and measurable)
   have hf''_comp := hf''_cont.measurable.comp hX_BM
   -- Full weight: (1/2 * f''(X)) * σ² is BM.F-measurable
@@ -511,7 +498,6 @@ theorem ito_weighted_qv_convergence {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcess F μ) (f : ℝ → ℝ → ℝ)
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
-    (hdiff_adapted : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t))
     (hdiff_bdd : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M)
     (hf_xx_bdd : ∃ M : ℝ, ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ M)
     (t : ℝ) (ht : 0 ≤ t) :
@@ -535,7 +521,7 @@ theorem ito_weighted_qv_convergence {F : Filtration Ω ℝ}
       deriv (deriv (fun x => f (↑(i : ℕ) * t / ↑(n + 1)) x))
         (X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) *
       (X.diffusion (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2)
-    (fun n => ito_qv_weights_adapted X f hf_x hdiff_adapted t n)
+    (fun n => ito_qv_weights_adapted X f hf_x t n)
     (fun n i ω => ito_qv_weights_bounded X f hMf hMσ t n i ω)
 
 /-! ## SI-increment martingale approach
@@ -974,8 +960,8 @@ theorem process_L2_increment_bound {F : Filtration Ω ℝ}
     have h2 := X.stoch_integral_sq_integrable s hs
     -- Dominate by 2(SI_t² + SI_s²) via (a-b)² ≤ 2(a²+b²)
     apply Integrable.mono' ((h1.const_mul 2).add (h2.const_mul 2))
-    · exact (((X.stoch_integral_adapted t).mono (F.le_ambient t) le_rfl).sub
-        ((X.stoch_integral_adapted s).mono (F.le_ambient s) le_rfl)).pow_const 2
+    · exact ((X.stoch_integral_measurable t).sub
+        (X.stoch_integral_measurable s)).pow_const 2
         |>.aestronglyMeasurable
     · filter_upwards with ω
       simp only [Real.norm_eq_abs, Pi.add_apply]
@@ -992,7 +978,7 @@ theorem process_L2_increment_bound {F : Filtration Ω ℝ}
       have h_proc_meas : ∀ r, AEStronglyMeasurable (X.process r) μ :=
         fun r => ((X.process_adapted r).mono (F.le_ambient r) le_rfl).aestronglyMeasurable
       have h_SI_meas : ∀ r, AEStronglyMeasurable (X.stoch_integral r) μ :=
-        fun r => ((X.stoch_integral_adapted r).mono (F.le_ambient r) le_rfl).aestronglyMeasurable
+        fun r => (X.stoch_integral_measurable r).aestronglyMeasurable
       have h_drift_int_meas : ∀ r, 0 ≤ r →
           AEStronglyMeasurable (fun ω => ∫ u in Set.Icc 0 r, X.drift u ω ∂volume) μ :=
         fun r hr => (((h_proc_meas r).sub (h_proc_meas 0)).sub (h_SI_meas r)).congr
@@ -4009,8 +3995,6 @@ theorem ito_formula_martingale {F : Filtration Ω ℝ}
     (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
     -- Regularity of diffusion
-    (_hdiff_meas : ∀ t, Measurable (X.diffusion t))
-    (_hdiff_adapted : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t))
     (hdiff_bdd : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M)
     -- Regularity of drift
     (hdrift_bdd : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M)
@@ -4089,8 +4073,6 @@ theorem ito_formula {F : Filtration Ω ℝ}
     (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
     -- Regularity of diffusion
-    (hdiff_meas : ∀ t, Measurable (X.diffusion t))
-    (hdiff_adapted : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t))
     (hdiff_bdd : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M)
     -- Regularity of drift
     (hdrift_bdd : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M)
@@ -4102,9 +4084,8 @@ theorem ito_formula {F : Filtration Ω ℝ}
     (hf_t_cont : Continuous (fun p : ℝ × ℝ => deriv (fun t => f t p.2) p.1))
     (hf'_cont : Continuous (fun p : ℝ × ℝ => deriv (fun x => f p.1 x) p.2))
     (hf''_cont : Continuous (fun p : ℝ × ℝ => deriv (deriv (fun x => f p.1 x)) p.2))
-    -- Integrability of the remainder
-    (hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainder X f t') μ)
-    (hrem_sq_int : ∀ t', 0 ≤ t' → Integrable (fun ω => (itoRemainder X f t' ω)^2) μ) :
+    -- Initial condition integrability
+    (hX0_sq : Integrable (fun ω => (X.process 0 ω) ^ 2) μ) :
     ∃ (stoch_int : ℝ → Ω → ℝ),
     -- (i) Initial condition: the stochastic integral starts at 0
     (∀ᵐ ω ∂μ, stoch_int 0 ω = 0) ∧
@@ -4121,6 +4102,21 @@ theorem ito_formula {F : Filtration Ω ℝ}
            (1/2) * deriv (deriv (fun x => f s x)) (X.process s ω) * (X.diffusion s ω)^2)
           ∂volume) +
         stoch_int t ω) := by
+  -- Derive remainder integrability from boundedness hypotheses
+  have hX0 : Integrable (X.process 0) μ :=
+    integrable_of_sq_integrable
+      ((X.process_adapted 0).mono (F.le_ambient 0) le_rfl).aestronglyMeasurable hX0_sq
+  have hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainder X f t') μ :=
+    fun t' ht' => itoRemainder_integrable X f hf_t hf_x
+      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
+      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
+      hf_t_cont hf'_cont hf''_cont hX0 t' ht'
+  have hrem_sq_int : ∀ t', 0 ≤ t' →
+      Integrable (fun ω => (itoRemainder X f t' ω)^2) μ :=
+    fun t' ht' => itoRemainder_sq_integrable X f hf_t hf_x
+      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
+      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
+      hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
   -- The stochastic integral is the Itô remainder
   refine ⟨itoRemainder X f, ?_, ?_, ?_⟩
   · -- (i) Initial condition: itoRemainder at t=0 is 0
@@ -4131,7 +4127,7 @@ theorem ito_formula {F : Filtration Ω ℝ}
     rw [hmeas_zero, integral_zero_measure]
     ring
   · -- (ii) Martingale property: from ito_formula_martingale
-    exact ito_formula_martingale X f hf_t hf_x hdiff_meas hdiff_adapted hdiff_bdd
+    exact ito_formula_martingale X f hf_t hf_x hdiff_bdd
       hdrift_bdd hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont
       hrem_int hrem_sq_int
   · -- (iii) Itô's formula: by definition of itoRemainder

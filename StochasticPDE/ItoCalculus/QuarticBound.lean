@@ -830,8 +830,12 @@ theorem stoch_integral_bounded_approx {F : Filtration Ω ℝ}
                                          X.stoch_integral t ω)^2 ∂μ)
           Filter.atTop (nhds 0)) := by
   -- Step 1: Extract existing approximants from L² limit construction
-  obtain ⟨orig, horig_adapt, horig_bdd, horig_nn, horig_conv, _horig_iso, horig_integrand⟩ :=
+  obtain ⟨orig, horig_adapt_F, horig_bdd, horig_nn, horig_conv, _horig_iso, horig_integrand⟩ :=
     X.stoch_integral_is_L2_limit
+  -- Convert F-adapted to BM.F-adapted for SimpleProcess integration lemmas
+  have horig_adapt : ∀ n, ∀ i : Fin (orig n).n,
+      @Measurable Ω ℝ (X.BM.F.σ_algebra ((orig n).times i)) _ ((orig n).values i) :=
+    fun n i => (horig_adapt_F n i).mono (X.F_le_BM_F _) le_rfl
   -- Step 2: Define clamped approximants with values in [-Mσ, Mσ]
   set clamp : ℕ → SimpleProcess F := fun n => {
     n := (orig n).n

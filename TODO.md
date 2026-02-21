@@ -33,6 +33,58 @@ simple_compensated_sq_setIntegral_zero (CI) — PROVEN ✓
 
 **The Itô formula critical path is COMPLETE (0 sorrys).** All remaining sorrys are independent theorems.
 
+### ItoProcess Structural Improvement: stoch_integral_adapted (2026-02-21)
+
+Per CLAUDE.md rule 16 ("Computational result cannot be assumed in definition or structure"),
+`stoch_integral_adapted` was removed from the `ItoProcess` structure and derived as a theorem.
+
+**Changes to ItoProcess structure:**
+- **Removed**: `stoch_integral_adapted` field (was: `∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (stoch_integral t)`)
+- **Added**: `BM_adapted_to_F` field — BM is adapted to the working filtration F (standard: Karatzas-Shreve §2.7)
+- **Added**: `usual_conditions` field — F is right-continuous and complete (standard assumption)
+- **Added**: `stoch_integral_measurable` field — ambient measurability of stochastic integral (breaks circularity in proof)
+- **Changed**: `stoch_integral_is_L2_limit` adaptedness from `BM.F.σ_algebra` to `F.σ_algebra`
+  (approximants are F-adapted from `diffusion_adapted`; BM.F-adapted follows from `F_le_BM_F`)
+
+**Derived theorem** (`ItoProcess.stoch_integral_adapted`):
+Proved via Chebyshev → TendstoInMeasure → a.e. convergent subsequence → indicator trick →
+`measurable_of_tendsto_metrizable` → `Filtration.measurable_of_ae_eq` under usual conditions.
+
+**Why `stoch_integral_measurable` is a genuine field (not derivable):**
+L² convergence SI_n → SI needs AEStronglyMeasurable of SI for the Bochner integral to be meaningful.
+`stoch_integral_sq_integrable` gives AEStronglyMeasurable of SI² but NOT of SI (counterexample:
+non-measurable f with measurable f²). Ambient measurability is strictly weaker than F_t-measurability.
+
+**Why `process_adapted` and `process_continuous` remain as fields:**
+- `process_adapted`: needs progressive measurability of drift (future infrastructure)
+- `process_continuous`: KC gives a continuous *modification*, but `integral_form` is a.e. at each t,
+  not pathwise — the null set depends on t. Continuity is a choice of version.
+
+**Ito formula critical path: still 0 sorrys.** All downstream files updated and compile successfully.
+
+### Kolmogorov-Chentsov Theorem (NEW — 0 sorrys)
+
+Built from scratch as `ItoCalculus/KolmogorovChentsov/` (4 files, ~1200 lines):
+- **DyadicPartition.lean** — Dyadic interval infrastructure
+- **MomentToTail.lean** — Markov inequality for p-th moments
+- **DyadicIncrement.lean** — Dyadic increment bounds + Borel-Cantelli
+- **ContinuousModification.lean** — Main KC theorem: Hölder continuous modification
+
+Derived property infrastructure (4 files):
+- **AdaptedLimit.lean** — L² limits of adapted processes preserve adaptedness
+- **SIContinuity.lean** — Stochastic integral has continuous modification (applies KC with p=4, q=2)
+- **ProcessContinuity.lean** — Itô process has continuous paths (from drift continuity + SI continuity)
+- **RemainderIntegrability.lean** — Itô remainder is L¹ and L² integrable (from boundedness)
+- **ItoRemainderDef.lean** — Shared definition of itoRemainder (factored to avoid circular imports)
+
+### ito_formula Structural Improvement (2026-02-20)
+
+Removed `hrem_int` and `hrem_sq_int` hypotheses from `ito_formula`. These are now
+derived internally from the boundedness hypotheses (`hdiff_bdd`, `hdrift_bdd`, `hf_x_bdd`,
+`hf_xx_bdd`, `hf_t_bdd`) plus joint measurability (`h_proc_jm`, `h_drift_jm`) and initial
+condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
+`itoRemainder_sq_integrable` from `RemainderIntegrability.lean`.
+
 ---
 
 ## Current Sorry Count (as of 2026-02-20)
@@ -306,6 +358,15 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 - **ItoCalculus/ConditionalIsometry.lean** — Conditional Itô isometry
 - **ItoCalculus/QuarticBound.lean** — Fourth moment bounds
 - **ItoCalculus/ItoFormulaProof.lean** — Complete Itô formula proof (0 sorrys)
+- **ItoCalculus/KolmogorovChentsov/DyadicPartition.lean** — Dyadic partition infrastructure (0 sorrys)
+- **ItoCalculus/KolmogorovChentsov/MomentToTail.lean** — Moment-to-tail bounds (0 sorrys)
+- **ItoCalculus/KolmogorovChentsov/DyadicIncrement.lean** — Dyadic increment Borel-Cantelli (0 sorrys)
+- **ItoCalculus/KolmogorovChentsov/ContinuousModification.lean** — KC theorem (0 sorrys)
+- **ItoCalculus/AdaptedLimit.lean** — Adapted L² limits (0 sorrys)
+- **ItoCalculus/SIContinuity.lean** — SI continuous modification (0 sorrys)
+- **ItoCalculus/ProcessContinuity.lean** — Itô process path continuity (0 sorrys)
+- **ItoCalculus/RemainderIntegrability.lean** — Itô remainder integrability (0 sorrys)
+- **ItoCalculus/ItoRemainderDef.lean** — itoRemainder definition (0 sorrys)
 
 ### RegularityStructures/Trees/ (3 files, 0 sorrys)
 - **Basic.lean** — MultiIndex, TreeSymbol, complexity
@@ -328,4 +389,7 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 - **Process L^2 increment bound**: E[(X_t - X_s)^2] <= (2*Mmu^2*T + 2*Msigma^2)*(t-s)
 - **BM scaling**: c^{-1/2}W_{ct} is BM
 - **BM reflection**: -W is BM
+- **Kolmogorov-Chentsov theorem**: processes with E[|X_t - X_s|^p] ≤ M|t-s|^q (q>1) have Hölder continuous modifications
+- **Stochastic integral continuous modification**: SI has continuous paths (KC with p=4, q=2 from quartic bound)
+- **Itô remainder integrability**: itoRemainder ∈ L¹ ∩ L² under boundedness hypotheses (derived, not assumed)
 - **Reconstruction exists**: explicit construction R(f) = Pi_x f(x)
