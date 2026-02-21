@@ -12,7 +12,7 @@ This project provides machine-checked proofs for core results in stochastic anal
 
 ### Ito Calculus (`ItoCalculus/`)
 
-Self-contained module (37 files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)** and a **Kolmogorov-Chentsov theorem** for continuous modifications. All definitions have been audited for soundness — no axiom smuggling, and derivable properties (e.g. `stoch_integral_adapted`) are proved as theorems rather than assumed as fields.
+Self-contained module (37+ files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)** and a **Kolmogorov-Chentsov theorem** for continuous modifications. All definitions have been audited for soundness — no axiom smuggling, no axioms, and all derivable properties (`stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable`) are proved as theorems rather than assumed as structure fields.
 
 | Module | Description |
 |--------|-------------|
@@ -126,9 +126,9 @@ This is an active research project. The codebase contains `sorry` placeholders f
 
 - **~114 total sorrys** across all files
 - **0 sorrys** on the Ito formula critical path — **fully proven**
-- **37 files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
-- All definitions have been audited for soundness (no axioms, no axiom smuggling)
-- `stoch_integral_adapted` derived as a theorem from L^2 limit + usual conditions (not assumed)
+- **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
+- All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
+- `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
 
 See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.
 

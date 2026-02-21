@@ -352,9 +352,9 @@ theorem ito_process_increment_L2_bound {F : Filtration Ω ℝ}
     have hXs : AEStronglyMeasurable (X.process s) μ :=
       ((X.process_adapted s).mono (F.le_ambient s) le_rfl).aestronglyMeasurable
     have hSt : AEStronglyMeasurable (X.stoch_integral t) μ :=
-      (X.stoch_integral_measurable t).aestronglyMeasurable
+      X.stoch_integral_aestronglyMeasurable t (le_trans hs hst)
     have hSs : AEStronglyMeasurable (X.stoch_integral s) μ :=
-      (X.stoch_integral_measurable s).aestronglyMeasurable
+      X.stoch_integral_aestronglyMeasurable s hs
     exact ((hXt.sub hXs).sub (hSt.sub hSs)).congr
       (hdecomp.mono fun ω hω => by simp only [D, S, Pi.sub_apply] at hω ⊢; linarith)
   -- Step 5: D² integrable (bounded on probability space)
@@ -369,8 +369,8 @@ theorem ito_process_increment_L2_bound {F : Filtration Ω ℝ}
     have hSt_sq := X.stoch_integral_sq_integrable t (le_trans hs hst)
     have hSs_sq := X.stoch_integral_sq_integrable s hs
     exact ((hSt_sq.add hSs_sq).const_mul 2).mono'
-      (((X.stoch_integral_measurable t).aestronglyMeasurable).sub
-        ((X.stoch_integral_measurable s).aestronglyMeasurable)
+      ((X.stoch_integral_aestronglyMeasurable t (le_trans hs hst)).sub
+        (X.stoch_integral_aestronglyMeasurable s hs)
         |>.pow 2)
       (ae_of_all _ fun ω => by
         simp only [Real.norm_eq_abs, Pi.add_apply]
@@ -485,9 +485,9 @@ theorem ito_process_increment_L4_bound {F : Filtration Ω ℝ}
     have hXs : AEStronglyMeasurable (X.process s) μ :=
       ((X.process_adapted s).mono (F.le_ambient s) le_rfl).aestronglyMeasurable
     have hSt : AEStronglyMeasurable (X.stoch_integral t) μ :=
-      (X.stoch_integral_measurable t).aestronglyMeasurable
+      X.stoch_integral_aestronglyMeasurable t (le_trans hs hst)
     have hSs : AEStronglyMeasurable (X.stoch_integral s) μ :=
-      (X.stoch_integral_measurable s).aestronglyMeasurable
+      X.stoch_integral_aestronglyMeasurable s hs
     exact ((hXt.sub hXs).sub (hSt.sub hSs)).congr
       (hdecomp.mono fun ω hω => by simp only [D, S, Pi.sub_apply] at hω ⊢; linarith)
   -- Step 4: D⁴ integrable (bounded on probability space)
@@ -1020,9 +1020,9 @@ lemma process_aesm {F : Filtration Ω ℝ}
 
 /-- SI values are AEStronglyMeasurable. -/
 private lemma si_aesm {F : Filtration Ω ℝ}
-    (X : ItoProcess F μ) (t : ℝ) :
+    (X : ItoProcess F μ) (t : ℝ) (ht : 0 ≤ t) :
     AEStronglyMeasurable (X.stoch_integral t) μ :=
-  (X.stoch_integral_measurable t).aestronglyMeasurable
+  X.stoch_integral_aestronglyMeasurable t ht
 
 /-- (X(t) - X(s))⁴ is integrable for bounded-coefficient Itô processes.
     Proof: decompose ΔX = D + S a.e., then (D+S)⁴ ≤ 8(D⁴ + S⁴) where
@@ -1077,7 +1077,7 @@ lemma process_increment_fourth_integrable {F : Filtration Ω ℝ}
   -- D AEStronglyMeasurable
   have hD_asm : AEStronglyMeasurable D μ :=
     ((process_aesm X t).sub (process_aesm X s)).sub
-      ((si_aesm X t).sub (si_aesm X s)) |>.congr
+      ((si_aesm X t (le_trans hs hst)).sub (si_aesm X s hs)) |>.congr
       (hdecomp.mono fun ω hω => by simp only [D, S, Pi.sub_apply] at hω ⊢; linarith)
   -- D⁴ integrable (bounded)
   have hD_fourth_int : Integrable (fun ω => D ω ^ 4) μ :=

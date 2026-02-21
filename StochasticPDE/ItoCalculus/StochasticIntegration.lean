@@ -1347,9 +1347,14 @@ structure ItoProcess (F : Filtration Ω ℝ) (μ : Measure Ω) where
 
       The approximating processes are adapted, bounded, with nonneg partition times.
 
-      Includes isometry convergence and integrand L² convergence — these are
-      construction data from the Itô integral construction, describing properties
-      of the approximating sequence (not theorems about the result). -/
+      Includes isometry convergence, integrand L² convergence, and a.e. pointwise
+      convergence — these are construction data from the Itô integral construction,
+      describing properties of the approximating sequence (not theorems about the result).
+
+      The a.e. convergence is achieved by choosing approximants with fast L² convergence
+      (‖SI_n - SI‖_{L²} < 2^{-n}), so Borel-Cantelli gives a.e. convergence of the
+      full sequence. This breaks the Bochner integral circularity: `stoch_integral_measurable`
+      and `stoch_integral_sq_integrable` are derived as theorems (not assumed as fields). -/
   stoch_integral_is_L2_limit : ∃ (approx : ℕ → SimpleProcess F),
     (∀ n, ∀ i : Fin (approx n).n,
       @Measurable Ω ℝ (F.σ_algebra ((approx n).times i)) _ ((approx n).values i)) ∧
@@ -1370,7 +1375,15 @@ structure ItoProcess (F : Filtration Ω ℝ) (μ : Measure Ω) where
     Filter.Tendsto
       (fun n => ∫ ω, (∫ s in Set.Icc 0 t,
         (SimpleProcess.valueAtTime (approx n) s ω - diffusion s ω) ^ 2 ∂volume) ∂μ)
-      Filter.atTop (nhds 0))
+      Filter.atTop (nhds 0)) ∧
+    -- A.e. pointwise convergence: the approximants converge to SI pointwise a.e.
+    -- Construction data from the Itô integral construction: by choosing
+    -- approximants with fast L² convergence (‖SI_n - SI‖_{L²} < 2^{-n}),
+    -- Borel-Cantelli gives a.e. convergence of the full sequence.
+    (∀ t : ℝ, t ≥ 0 → ∀ᵐ ω ∂μ,
+      Filter.Tendsto (fun n =>
+        SimpleProcess.stochasticIntegral_at (approx n) BM t ω)
+        Filter.atTop (nhds (stoch_integral t ω)))
   /-- Integral form: X_t = X_0 + ∫₀ᵗ μ_s ds + ∫₀ᵗ σ_s dW_s -/
   integral_form : ∀ t : ℝ, t ≥ 0 → ∀ᵐ ω ∂μ,
     process t ω = process 0 ω +
@@ -1378,22 +1391,6 @@ structure ItoProcess (F : Filtration Ω ℝ) (μ : Measure Ω) where
       stoch_integral t ω
   /-- The process X is adapted to F -/
   process_adapted : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (process t)
-  /-- The stochastic integral is measurable (w.r.t. the ambient σ-algebra) at each time.
-      This is needed for the L² limit characterization `stoch_integral_is_L2_limit`
-      to be non-vacuous: without measurability, the Bochner integral ∫ (SI_n - SI)²
-      evaluates to 0 by convention for non-integrable functions, making the convergence
-      trivially satisfied regardless of the actual pointwise relationship between SI_n and SI.
-      In the standard Itô construction, SI(t) is measurable as the L² limit of
-      measurable simple process integrals.
-      The stronger sub-σ-algebra measurability (F_t-measurability) is derived as the
-      theorem `ItoProcess.stoch_integral_adapted`. -/
-  stoch_integral_measurable : ∀ t : ℝ, Measurable (stoch_integral t)
-  /-- The stochastic integral is square-integrable at each t ≥ 0.
-      Part of the L² limit definition: ensures `stoch_integral_is_L2_limit`
-      is not vacuously satisfied due to Bochner integral conventions
-      (∫ of non-integrable function = 0). -/
-  stoch_integral_sq_integrable : ∀ t : ℝ, t ≥ 0 →
-    Integrable (fun ω => (stoch_integral t ω) ^ 2) μ
   /-- The drift is integrable in time for each ω.
       This ensures the drift integral ∫₀ᵗ μ_s ω ds is meaningful and can be
       manipulated (split, bounded, etc.) via standard measure theory.
@@ -1507,6 +1504,91 @@ private theorem stochasticIntegral_at_Ft_measurable
       rw [this]; exact measurable_const
   · simp only [dif_neg hi]; exact measurable_const
 
+/-- The stochastic integral is AEStronglyMeasurable at each t ≥ 0.
+    Derived from a.e. convergence of the approximating sequence: each SI_n(t) is
+    measurable (hence ASM), and SI_n(t) → SI(t) a.e., so SI(t) is ASM by
+    `aestronglyMeasurable_of_tendsto_ae`. -/
+theorem stoch_integral_aestronglyMeasurable (X : ItoProcess F μ)
+    (t : ℝ) (ht : 0 ≤ t) :
+    AEStronglyMeasurable (X.stoch_integral t) μ := by
+  obtain ⟨approx, h_adapted, _, _, _, _, _, hae⟩ := X.stoch_integral_is_L2_limit
+  exact aestronglyMeasurable_of_tendsto_ae Filter.atTop
+    (fun n => ((stochasticIntegral_at_Ft_measurable (approx n) X.BM
+      X.BM_adapted_to_F (h_adapted n) t).mono (F.le_ambient t) le_rfl).aestronglyMeasurable)
+    (hae t ht)
+
+/-- The stochastic integral is square-integrable at each t ≥ 0.
+    Derived from a.e. convergence + Fatou's lemma: SI_n → SI a.e. implies
+    ∫⁻ SI² ≤ liminf ∫⁻ SI_n², and the RHS is finite by isometry convergence.
+
+    Key steps:
+    1. Each SI_n² is integrable (stochasticIntegral_at_sub_sq_integrable with f = 0)
+    2. SI_n → SI a.e. ⟹ ofReal(SI_n²) → ofReal(SI²) a.e. (continuous composition)
+    3. Fatou: ∫⁻ ofReal(SI²) ≤ liminf ∫⁻ ofReal(SI_n²)
+    4. ∫⁻ ofReal(SI_n²) = ofReal(∫ SI_n²) (Bochner = lintegral for nonneg integrable)
+    5. liminf ofReal(∫ SI_n²) = ofReal(L) (Tendsto.liminf_eq from isometry convergence)
+    6. ofReal(L) < ⊤ -/
+theorem stoch_integral_sq_integrable (X : ItoProcess F μ) [IsProbabilityMeasure μ]
+    (t : ℝ) (ht : t ≥ 0) :
+    Integrable (fun ω => (X.stoch_integral t ω) ^ 2) μ := by
+  obtain ⟨approx, h_adapted, h_bounded, h_nonneg, _, hiso, _, hae⟩ :=
+    X.stoch_integral_is_L2_limit
+  have hSI_asm := X.stoch_integral_aestronglyMeasurable t ht
+  -- Each SI_n(t) is measurable
+  have hSI_n_meas : ∀ n, Measurable
+      (fun ω => SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) :=
+    fun n => (stochasticIntegral_at_Ft_measurable (approx n) X.BM
+      X.BM_adapted_to_F (h_adapted n) t).mono (F.le_ambient t) le_rfl
+  -- Each SI_n(t)² is integrable (from sub_sq_integrable with f = 0)
+  have hSI_n_sq_int : ∀ n, Integrable
+      (fun ω => (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) ^ 2) μ := by
+    intro n
+    have h := SimpleProcess.stochasticIntegral_at_sub_sq_integrable (approx n) X.BM
+      (fun i => (h_adapted n i).mono (X.F_le_BM_F _) le_rfl) (h_bounded n) (h_nonneg n)
+      0 (integrable_const 0) (by simp [integrable_const]) t ht
+    simp [sub_zero] at h; exact h
+  -- Integrable = ASM + HasFiniteIntegral
+  refine ⟨hSI_asm.pow _, ?_⟩
+  -- HasFiniteIntegral: ∫⁻ ‖SI²‖ₑ < ⊤
+  show ∫⁻ ω, ‖(X.stoch_integral t ω) ^ 2‖ₑ ∂μ < ⊤
+  -- Convert enorm to ofReal for nonneg values: ‖x²‖ₑ = ofReal(x²)
+  have h_enorm_sq : ∀ (x : ℝ), ‖x ^ 2‖ₑ = ENNReal.ofReal (x ^ 2) :=
+    fun x => Real.enorm_eq_ofReal (sq_nonneg x)
+  simp_rw [h_enorm_sq]
+  -- Goal: ∫⁻ ω, ofReal((SI t ω)²) ∂μ < ⊤
+  -- A.e. convergence of ofReal(SI_n²) → ofReal(SI²)
+  have hae_sq : ∀ᵐ ω ∂μ, Filter.Tendsto
+      (fun n => ENNReal.ofReal
+        ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) ^ 2))
+      Filter.atTop (nhds (ENNReal.ofReal ((X.stoch_integral t ω) ^ 2))) := by
+    filter_upwards [hae t ht] with ω hω
+    exact (ENNReal.continuous_ofReal.tendsto _).comp
+      (((continuous_pow 2).tendsto _).comp hω)
+  -- Fatou chain: ∫⁻ ofReal(SI²) ≤ liminf ∫⁻ ofReal(SI_n²) = ofReal(L) < ⊤
+  calc ∫⁻ ω, ENNReal.ofReal ((X.stoch_integral t ω) ^ 2) ∂μ
+      ≤ ∫⁻ ω, Filter.atTop.liminf
+          (fun n => ENNReal.ofReal
+            ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) ^ 2)) ∂μ := by
+        apply lintegral_mono_ae
+        filter_upwards [hae_sq] with ω hω
+        exact le_of_eq hω.liminf_eq.symm
+    _ ≤ Filter.atTop.liminf
+          (fun n => ∫⁻ ω, ENNReal.ofReal
+            ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) ^ 2) ∂μ) :=
+        lintegral_liminf_le
+          (fun n => ENNReal.measurable_ofReal.comp
+            ((continuous_pow 2).measurable.comp (hSI_n_meas n)))
+    _ = Filter.atTop.liminf
+          (fun n => ENNReal.ofReal (∫ ω,
+            (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω) ^ 2 ∂μ)) := by
+        congr 1; ext n
+        exact (ofReal_integral_eq_lintegral_ofReal (hSI_n_sq_int n)
+          (ae_of_all _ fun ω => sq_nonneg _)).symm
+    _ = ENNReal.ofReal (∫ ω, (∫ s in Set.Icc 0 t,
+          (X.diffusion s ω) ^ 2 ∂volume) ∂μ) :=
+        ((ENNReal.continuous_ofReal.tendsto _).comp (hiso t ht)).liminf_eq
+    _ < ⊤ := ENNReal.ofReal_lt_top
+
 /-- The stochastic integral is integrable at each t ≥ 0.
     On a probability space, follows from `stoch_integral_sq_integrable`:
     L² ⊂ L¹ on finite measure spaces (Cauchy-Schwarz). -/
@@ -1515,177 +1597,77 @@ theorem stoch_integral_integrable (X : ItoProcess F μ) [IsProbabilityMeasure μ
     Integrable (X.stoch_integral t) μ := by
   -- L² ⊂ L¹ on probability spaces: |f(ω)| ≤ f(ω)² + 1
   have hsq := X.stoch_integral_sq_integrable t ht
-  have hasm : AEStronglyMeasurable (X.stoch_integral t) μ :=
-    (X.stoch_integral_measurable t).aestronglyMeasurable
+  have hasm := X.stoch_integral_aestronglyMeasurable t ht
   refine (hsq.add (integrable_const 1)).mono' hasm ?_
   filter_upwards with ω
   simp only [Real.norm_eq_abs, Pi.add_apply]
   nlinarith [sq_nonneg (|X.stoch_integral t ω| - 1), sq_abs (X.stoch_integral t ω),
     abs_nonneg (X.stoch_integral t ω)]
 
-set_option maxHeartbeats 800000 in
 /-- The stochastic integral is adapted to F (F_t-measurable at each t ≥ 0).
     This is DERIVED from the L² limit characterization, not assumed as a structure field.
 
-    Proof outline:
+    Proof outline (simplified using a.e. convergence from construction data):
     1. Each SI_n(t) is F_t-measurable (from `stochasticIntegral_at_Ft_measurable`)
-    2. L² convergence → convergence in measure (Chebyshev)
-    3. Convergence in measure → a.e. convergent subsequence (Riesz)
-    4. Indicator trick: multiply by 1_A (convergence set) for pointwise everywhere convergence
-    5. `measurable_of_tendsto_metrizable` with F.σ_algebra t gives F_t-measurable limit
-    6. `Filtration.measurable_of_ae_eq` under usual conditions transfers to SI(t)
+    2. SI_n(t) → SI(t) a.e. (from construction data)
+    3. Indicator trick: multiply by 1_A (convergence set) for pointwise everywhere convergence
+    4. `measurable_of_tendsto_metrizable` with F.σ_algebra t gives F_t-measurable limit
+    5. `Filtration.measurable_of_ae_eq` under usual conditions transfers to SI(t)
 
-    Uses: `BM_adapted_to_F` (BM is F-adapted), `usual_conditions` (completeness),
-    `stoch_integral_measurable` (ambient measurability for L² limit non-vacuity). -/
+    Uses: `BM_adapted_to_F` (BM is F-adapted), `usual_conditions` (completeness). -/
 theorem stoch_integral_adapted [IsProbabilityMeasure μ]
     (X : ItoProcess F μ) (t : ℝ) (ht : 0 ≤ t) :
     @Measurable Ω ℝ (F.σ_algebra t) _ (X.stoch_integral t) := by
-  -- Step 1: Get F-adapted approximants with L² convergence
-  obtain ⟨approx, h_adapted, h_bounded, h_nonneg, hL2, _, _⟩ :=
-    X.stoch_integral_is_L2_limit
+  -- Step 1: Get F-adapted approximants with a.e. convergence
+  obtain ⟨approx, h_adapted, _, _, _, _, _, hae⟩ := X.stoch_integral_is_L2_limit
   -- Each SI_n(t) is F_t-measurable
   have hSI_Ft : ∀ n, @Measurable Ω ℝ (F.σ_algebra t) _
       (SimpleProcess.stochasticIntegral_at (approx n) X.BM t) :=
     fun n => stochasticIntegral_at_Ft_measurable (approx n) X.BM
       X.BM_adapted_to_F (h_adapted n) t
-  -- Step 2: Integrability of (SI_n - SI)² for Chebyshev
-  -- Convert F-adapted to BM.F-adapted for ItoIntegralProperties lemmas
-  have hL2_int : ∀ n, Integrable
-      (fun ω => (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-        X.stoch_integral t ω) ^ 2) μ :=
-    fun n => SimpleProcess.stochasticIntegral_at_sub_sq_integrable (approx n) X.BM
-      (fun i => (h_adapted n i).mono (X.F_le_BM_F _) le_rfl)
-      (h_bounded n) (h_nonneg n)
-      (X.stoch_integral t) (X.stoch_integral_integrable t ht)
-      (X.stoch_integral_sq_integrable t ht) t ht
-  -- AEStronglyMeasurable of approximants and limit (ambient)
-  have hSI_n_asm : ∀ n, AEStronglyMeasurable
-      (SimpleProcess.stochasticIntegral_at (approx n) X.BM t) μ :=
-    fun n => ((hSI_Ft n).mono (F.le_ambient t) le_rfl).aestronglyMeasurable
-  have hSI_asm : AEStronglyMeasurable (X.stoch_integral t) μ :=
-    (X.stoch_integral_measurable t).aestronglyMeasurable
-  -- Step 3: L² convergence → convergence in measure (Chebyshev)
-  have h_tend_meas : TendstoInMeasure μ
-      (fun n => SimpleProcess.stochasticIntegral_at (approx n) X.BM t)
-      Filter.atTop (X.stoch_integral t) := by
-    rw [tendstoInMeasure_iff_norm]
-    intro ε hε
-    have hε_sq_pos : (0 : ℝ) < ε ^ 2 := by positivity
-    -- lintegral of (SI_n - SI)² → 0
-    have h_lint_eq : ∀ n, ∫⁻ ω, ENNReal.ofReal
-        ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-          X.stoch_integral t ω) ^ 2) ∂μ =
-        ENNReal.ofReal (∫ ω, (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-          X.stoch_integral t ω) ^ 2 ∂μ) :=
-      fun n => (ofReal_integral_eq_lintegral_ofReal (hL2_int n)
-        (ae_of_all _ fun ω => by positivity)).symm
-    have h_tend_lint : Filter.Tendsto
-        (fun n => ∫⁻ ω, ENNReal.ofReal
-          ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-            X.stoch_integral t ω) ^ 2) ∂μ) Filter.atTop (nhds 0) := by
-      simp_rw [h_lint_eq]
-      have : Filter.Tendsto (fun n => ENNReal.ofReal
-          (∫ ω, (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-            X.stoch_integral t ω) ^ 2 ∂μ))
-          Filter.atTop (nhds (ENNReal.ofReal 0)) :=
-        (ENNReal.continuous_ofReal.tendsto 0).comp (hL2 t ht)
-      rwa [ENNReal.ofReal_zero] at this
-    -- Chebyshev bound: μ({ε ≤ ‖SI_n - SI‖}) ≤ ∫⁻(SI_n - SI)² / ε²
-    have hε2_pos : ENNReal.ofReal (ε ^ 2) ≠ 0 := by positivity
-    have hε2_top : ENNReal.ofReal (ε ^ 2) ≠ ⊤ := ENNReal.ofReal_ne_top
-    have h_div_tend : Filter.Tendsto
-        (fun n => (∫⁻ ω, ENNReal.ofReal
-          ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-            X.stoch_integral t ω) ^ 2) ∂μ) /
-          ENNReal.ofReal (ε ^ 2)) Filter.atTop (nhds 0) := by
-      have h := ENNReal.Tendsto.div_const h_tend_lint (Or.inr hε2_pos)
-      rwa [ENNReal.zero_div] at h
-    apply tendsto_of_tendsto_of_tendsto_of_le_of_le tendsto_const_nhds h_div_tend
-    · intro n; exact zero_le _
-    · intro n
-      have h_subset : {ω | (ε : ℝ) ≤ ‖SimpleProcess.stochasticIntegral_at (approx n)
-          X.BM t ω - X.stoch_integral t ω‖} ⊆
-          {ω | ε ^ 2 ≤ (SimpleProcess.stochasticIntegral_at (approx n)
-            X.BM t ω - X.stoch_integral t ω) ^ 2} := by
-        intro ω (hω : ε ≤ ‖_ - _‖)
-        show ε ^ 2 ≤ (_ - _) ^ 2
-        rw [Real.norm_eq_abs] at hω
-        nlinarith [abs_nonneg (SimpleProcess.stochasticIntegral_at (approx n)
-          X.BM t ω - X.stoch_integral t ω),
-          sq_abs (SimpleProcess.stochasticIntegral_at (approx n)
-            X.BM t ω - X.stoch_integral t ω)]
-      have h_aem : AEMeasurable (fun ω => ENNReal.ofReal
-          ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-            X.stoch_integral t ω) ^ 2)) μ :=
-        ENNReal.measurable_ofReal.comp_aemeasurable
-          ((continuous_pow 2).measurable.comp_aemeasurable
-            ((hSI_n_asm n).sub hSI_asm).aemeasurable)
-      have h_cheb := mul_meas_ge_le_lintegral₀ h_aem (ENNReal.ofReal (ε ^ 2))
-      have h_set_eq : {ω | ENNReal.ofReal (ε ^ 2) ≤ ENNReal.ofReal
-          ((SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
-            X.stoch_integral t ω) ^ 2)} =
-          {ω | ε ^ 2 ≤ (SimpleProcess.stochasticIntegral_at (approx n)
-            X.BM t ω - X.stoch_integral t ω) ^ 2} := by
-        ext ω; simp only [Set.mem_setOf_eq]
-        exact ENNReal.ofReal_le_ofReal_iff (by positivity)
-      rw [h_set_eq] at h_cheb
-      calc μ {ω | (ε : ℝ) ≤ ‖SimpleProcess.stochasticIntegral_at (approx n)
-              X.BM t ω - X.stoch_integral t ω‖}
-          ≤ μ {ω | ε ^ 2 ≤ (SimpleProcess.stochasticIntegral_at (approx n)
-              X.BM t ω - X.stoch_integral t ω) ^ 2} := measure_mono h_subset
-        _ ≤ (∫⁻ ω, ENNReal.ofReal ((SimpleProcess.stochasticIntegral_at (approx n)
-              X.BM t ω - X.stoch_integral t ω) ^ 2) ∂μ) /
-            ENNReal.ofReal (ε ^ 2) :=
-            ENNReal.le_div_iff_mul_le (Or.inl hε2_pos) (Or.inl hε2_top) |>.mpr <| by
-              rw [mul_comm]; exact h_cheb
-  -- Step 4: Extract a.e. convergent subsequence
-  obtain ⟨ns, _, hns_ae⟩ := h_tend_meas.exists_seq_tendsto_ae
-  -- Step 5: Indicator trick for sub-σ-algebra measurability
-  -- Define the convergence set A
+  -- Step 2: Use a.e. convergence directly (from construction data)
+  have hae_t := hae t ht
+  -- Step 3: Indicator trick for sub-σ-algebra measurability
   set A : Set Ω := {ω | Filter.Tendsto
-    (fun k => SimpleProcess.stochasticIntegral_at (approx (ns k)) X.BM t ω)
+    (fun n => SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω)
     Filter.atTop (nhds (X.stoch_integral t ω))} with hA_def
-  have hA_compl_null : μ Aᶜ = 0 := by
-    rwa [ae_iff] at hns_ae
-  -- A is F_t-MeasurableSet (under usual conditions: null set complement is measurable)
+  have hA_compl_null : μ Aᶜ = 0 := by rwa [ae_iff] at hae_t
   have hAc_meas : @MeasurableSet Ω (F.σ_algebra t) Aᶜ :=
     X.usual_conditions.2 t Aᶜ hA_compl_null
   have hA_meas : @MeasurableSet Ω (F.σ_algebra t) A := compl_compl A ▸ hAc_meas.compl
-  -- g_k = SI_{n_k}(t) · 1_A converges pointwise everywhere to h = SI(t) · 1_A
-  set g : ℕ → Ω → ℝ := fun k => A.indicator
-    (SimpleProcess.stochasticIntegral_at (approx (ns k)) X.BM t)
+  -- g_n = SI_n(t) · 1_A converges pointwise everywhere to h = SI(t) · 1_A
+  set g : ℕ → Ω → ℝ := fun n => A.indicator
+    (SimpleProcess.stochasticIntegral_at (approx n) X.BM t)
   set h : Ω → ℝ := A.indicator (X.stoch_integral t)
-  -- Each g_k is F_t-measurable (indicator of F_t-meas on F_t-meas set)
-  have hg_Ft : ∀ k, @Measurable Ω ℝ (F.σ_algebra t) _ (g k) :=
-    fun k => (hSI_Ft (ns k)).indicator hA_meas
-  -- g_k → h pointwise everywhere
-  have hg_tendsto : ∀ ω, Filter.Tendsto (fun k => g k ω) Filter.atTop (nhds (h ω)) := by
+  have hg_Ft : ∀ n, @Measurable Ω ℝ (F.σ_algebra t) _ (g n) :=
+    fun n => (hSI_Ft n).indicator hA_meas
+  have hg_tendsto : ∀ ω, Filter.Tendsto (fun n => g n ω) Filter.atTop (nhds (h ω)) := by
     intro ω
     by_cases hω : ω ∈ A
-    · -- On A: g_k(ω) = SI_{n_k}(t)(ω) → SI(t)(ω) = h(ω)
-      simp only [g, h, Set.indicator_of_mem hω]
-      exact hω
-    · -- Off A: g_k(ω) = 0 → 0 = h(ω)
-      simp only [g, h, Set.indicator_of_notMem hω]
-      exact tendsto_const_nhds
-  -- h is F_t-measurable (pointwise limit of F_t-measurable functions)
+    · simp only [g, h, Set.indicator_of_mem hω]; exact hω
+    · simp only [g, h, Set.indicator_of_notMem hω]; exact tendsto_const_nhds
   have hh_Ft : @Measurable Ω ℝ (F.σ_algebra t) _ h :=
     @measurable_of_tendsto_metrizable Ω ℝ (F.σ_algebra t) _ _ _ _
       g h hg_Ft (tendsto_pi_nhds.mpr hg_tendsto)
-  -- h =ᵃᵉ SI(t): they agree on A (full measure)
   have hh_ae : X.stoch_integral t =ᵐ[μ] h := by
     have hA_ae : A ∈ ae μ := compl_compl A ▸ compl_mem_ae_iff.mpr hA_compl_null
     filter_upwards [hA_ae] with ω hω
     exact (Set.indicator_of_mem hω _).symm
-  -- Step 6: SI(t) is F_t-measurable (by measurable_of_ae_eq under usual conditions)
   exact Filtration.measurable_of_ae_eq X.usual_conditions hh_Ft hh_ae
+
+/-- The stochastic integral is measurable (in the ambient σ-algebra) at each t ≥ 0.
+    Follows from F_t-measurability (stoch_integral_adapted) since F_t ≤ ambient. -/
+theorem stoch_integral_measurable (X : ItoProcess F μ) [IsProbabilityMeasure μ]
+    (t : ℝ) (ht : 0 ≤ t) :
+    Measurable (X.stoch_integral t) :=
+  (X.stoch_integral_adapted t ht).mono (F.le_ambient t) le_rfl
 
 /-- The stochastic integral at time 0 is 0 a.s.
     Follows from L² convergence: simple process integrals at time 0 are all 0,
     so the L² limit is 0. Proved in Helpers/ from `stoch_integral_is_L2_limit`. -/
 theorem stoch_integral_initial (X : ItoProcess F μ) :
     ∀ᵐ ω ∂μ, X.stoch_integral 0 ω = 0 := by
-  obtain ⟨approx, _, _, hnn, hL2, _, _⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, _, _, hnn, _, _, _, hae⟩ := X.stoch_integral_is_L2_limit
   -- Step 1: Simple process integrals at t=0 are all 0.
   -- At t=0, no partition intervals are completed, and the partial interval (if any)
   -- contributes H_0 * (W(0) - W(0)) = 0.
@@ -1712,21 +1694,14 @@ theorem stoch_integral_initial (X : ItoProcess F μ) :
         rw [this, sub_self, mul_zero]
       · simp only [if_neg hi0]
     · simp only [dif_neg h]
-  -- Step 2: L² convergence at 0 with S_n(0) = 0 gives ∫ (stoch_integral 0)² = 0
-  have hconv := hL2 0 le_rfl
-  simp_rw [hSn_zero] at hconv
-  simp only [zero_sub, neg_sq] at hconv
-  -- hconv : constant sequence ∫ (stoch_integral 0)² → 0, so the integral = 0
-  have hint_eq_zero : ∫ ω, (X.stoch_integral 0 ω) ^ 2 ∂μ = 0 :=
-    tendsto_nhds_unique tendsto_const_nhds hconv
-  -- Step 3: ∫ f² = 0 with f² ≥ 0 and integrable implies f = 0 a.e.
-  have hsq_int := X.stoch_integral_sq_integrable 0 le_rfl
-  have h_nonneg : 0 ≤ᵐ[μ] fun ω => (X.stoch_integral 0 ω) ^ 2 :=
-    ae_of_all μ (fun ω => sq_nonneg _)
-  have h_sq_zero : (fun ω => (X.stoch_integral 0 ω) ^ 2) =ᵐ[μ] 0 :=
-    (integral_eq_zero_iff_of_nonneg_ae h_nonneg hsq_int).mp hint_eq_zero
-  filter_upwards [h_sq_zero] with ω hω
-  exact pow_eq_zero_iff two_ne_zero |>.mp hω
+  -- Step 2: SI_n(0) → SI(0) a.e. with SI_n(0) = 0, so SI(0) = 0 a.e.
+  filter_upwards [hae 0 le_rfl] with ω hω
+  have : Filter.Tendsto (fun _ : ℕ => (0 : ℝ)) Filter.atTop
+      (nhds (X.stoch_integral 0 ω)) := by
+    have h_eq : (fun n => SimpleProcess.stochasticIntegral_at (approx n) X.BM 0 ω) =
+        fun _ => 0 := funext (fun n => hSn_zero n ω)
+    rwa [h_eq] at hω
+  exact tendsto_nhds_unique this tendsto_const_nhds
 
 /-- The stochastic integral satisfies the martingale set-integral property:
     for 0 ≤ s ≤ t and A ∈ F_s, ∫_A M(t) dμ = ∫_A M(s) dμ.
@@ -1740,7 +1715,7 @@ theorem stoch_integral_martingale (X : ItoProcess F μ) [IsProbabilityMeasure μ
   -- Convert F-measurability to BM.F-measurability
   have hA' : MeasurableSet[X.BM.F.σ_algebra s] A := X.F_le_BM_F s A hA
   -- Extract approximating sequence
-  obtain ⟨approx, hadapted, hbdd, hnn, hL2, _, _⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted, hbdd, hnn, hL2, _, _, _⟩ := X.stoch_integral_is_L2_limit
   -- Apply ito_integral_martingale_setIntegral with T = t
   exact ito_integral_martingale_setIntegral (T := t) X.BM X.stoch_integral approx
     (fun n i => (hadapted n i).mono (X.F_le_BM_F _) le_rfl) hbdd hnn

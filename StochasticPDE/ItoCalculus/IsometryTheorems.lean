@@ -51,7 +51,7 @@ theorem ItoProcess.stoch_integral_isometry_base {F : Filtration Ω ℝ}
     (t : ℝ) (ht : 0 ≤ t) :
     ∫ ω, (X.stoch_integral t ω) ^ 2 ∂μ =
     ∫ ω, (∫ s in Icc 0 t, (X.diffusion s ω) ^ 2 ∂volume) ∂μ := by
-  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, hiso, _⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, hiso, _, _⟩ := X.stoch_integral_is_L2_limit
   -- Convert F-adapted to BM.F-adapted for SimpleProcess integration lemmas
   have hadapted : ∀ n, ∀ i : Fin (approx n).n,
       @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=
@@ -326,9 +326,8 @@ lemma si_increment_sq_integrable' {F : Filtration Ω ℝ}
   -- AEStronglyMeasurable via Measurable (adapted → measurable)
   have hasm : AEStronglyMeasurable
       (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ :=
-    ((X.stoch_integral_measurable t).sub
-      (X.stoch_integral_measurable s)).pow_const 2
-      |>.aestronglyMeasurable
+    ((X.stoch_integral_aestronglyMeasurable t ht).sub
+      (X.stoch_integral_aestronglyMeasurable s hs)).pow 2
   -- (a-b)² ≤ 2a² + 2b²
   exact ((ha.const_mul 2).add (hb.const_mul 2)).mono' hasm
     (ae_of_all _ fun ω => by

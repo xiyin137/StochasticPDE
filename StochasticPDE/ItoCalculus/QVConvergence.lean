@@ -755,9 +755,9 @@ theorem ito_qv_L2_bound {F : Filtration Ω ℝ}
         have hΔSI_sm : ∀ i : Fin (n+1), StronglyMeasurable (ΔSI i) := by
           intro i; simp only [ΔSI]
           exact (X.stoch_integral_measurable ((↑(i : ℕ) + 1) * t / ↑(n + 1))
-              ).stronglyMeasurable.sub
+              (by positivity)).stronglyMeasurable.sub
             (X.stoch_integral_measurable (↑(i : ℕ) * t / ↑(n + 1))
-              ).stronglyMeasurable
+              (partition_time_nonneg t ht.le n _)).stronglyMeasurable
         have hΔX_sm : ∀ i : Fin (n+1), StronglyMeasurable (fun ω =>
             X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
             X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
@@ -1205,8 +1205,8 @@ theorem capped_ito_qv_L2_bound {F : Filtration Ω ℝ}
   -- Strong measurability of ΔSI and ΔX
   have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
     intro i; simp only [ΔSI]
-    exact (X.stoch_integral_measurable _).stronglyMeasurable.sub
-      (X.stoch_integral_measurable _).stronglyMeasurable
+    exact (X.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable.sub
+      (X.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable
   have hΔX_sm : ∀ i : Fin (n + 1), StronglyMeasurable (fun ω =>
       X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω) := by
     intro i

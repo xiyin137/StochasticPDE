@@ -1356,7 +1356,7 @@ theorem ItoProcess.compensated_sq_setIntegral_zero {F : Filtration Ω ℝ}
       hQ_s₂t₂_int.integrableOn, h_sq_diff]
     linarith
   -- Step 2: Get approximation sequence
-  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int⟩ := X.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int, _⟩ := X.stoch_integral_is_L2_limit
   -- Convert F-adapted to BM.F-adapted for SimpleProcess integration lemmas
   have hadapted : ∀ n, ∀ i : Fin (approx n).n,
       @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=

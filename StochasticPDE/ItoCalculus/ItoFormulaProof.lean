@@ -960,8 +960,8 @@ theorem process_L2_increment_bound {F : Filtration Ω ℝ}
     have h2 := X.stoch_integral_sq_integrable s hs
     -- Dominate by 2(SI_t² + SI_s²) via (a-b)² ≤ 2(a²+b²)
     apply Integrable.mono' ((h1.const_mul 2).add (h2.const_mul 2))
-    · exact ((X.stoch_integral_measurable t).sub
-        (X.stoch_integral_measurable s)).pow_const 2
+    · exact ((X.stoch_integral_measurable t ht).sub
+        (X.stoch_integral_measurable s hs)).pow_const 2
         |>.aestronglyMeasurable
     · filter_upwards with ω
       simp only [Real.norm_eq_abs, Pi.add_apply]
@@ -977,11 +977,11 @@ theorem process_L2_increment_bound {F : Filtration Ω ℝ}
       -- ∫_0^r drift(u, ω) du =ᵐ X_r - X_0 - SI_r, all three measurable from adaptedness
       have h_proc_meas : ∀ r, AEStronglyMeasurable (X.process r) μ :=
         fun r => ((X.process_adapted r).mono (F.le_ambient r) le_rfl).aestronglyMeasurable
-      have h_SI_meas : ∀ r, AEStronglyMeasurable (X.stoch_integral r) μ :=
-        fun r => (X.stoch_integral_measurable r).aestronglyMeasurable
+      have h_SI_meas : ∀ r, 0 ≤ r → AEStronglyMeasurable (X.stoch_integral r) μ :=
+        fun r hr => X.stoch_integral_aestronglyMeasurable r hr
       have h_drift_int_meas : ∀ r, 0 ≤ r →
           AEStronglyMeasurable (fun ω => ∫ u in Set.Icc 0 r, X.drift u ω ∂volume) μ :=
-        fun r hr => (((h_proc_meas r).sub (h_proc_meas 0)).sub (h_SI_meas r)).congr
+        fun r hr => (((h_proc_meas r).sub (h_proc_meas 0)).sub (h_SI_meas r hr)).congr
           (by filter_upwards [X.integral_form r hr] with ω h_form
               show X.process r ω - X.process 0 ω - X.stoch_integral r ω =
                 ∫ u in Set.Icc 0 r, X.drift u ω ∂volume

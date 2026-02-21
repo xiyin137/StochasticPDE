@@ -414,8 +414,8 @@ theorem weighted_capped_qv_L2_bound {F : Filtration Ω ℝ}
     fun i => (hw_meas i).mono (F.le_ambient _) le_rfl
   have hΔSI_m : ∀ i : Fin (n + 1), Measurable (ΔSI i) := by
     intro i; simp only [ΔSI]
-    exact (X.stoch_integral_measurable _).sub
-      (X.stoch_integral_measurable _)
+    exact (X.stoch_integral_measurable _ (hsc_nn _)).sub
+      (X.stoch_integral_measurable _ (hsc_nn _))
   have hZ_m : ∀ i : Fin (n + 1), AEStronglyMeasurable (Z i) μ :=
     fun i => (hZ_int i).aestronglyMeasurable
   -- === INTEGRABILITY: wᵢZᵢ products (for orthogonality) ===

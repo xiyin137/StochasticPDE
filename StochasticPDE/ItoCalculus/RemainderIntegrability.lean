@@ -94,16 +94,16 @@ private lemma process_aesm {F : Filtration Ω ℝ}
   ((X.process_adapted t).mono (F.le_ambient t) le_rfl).aestronglyMeasurable
 
 private lemma si_aesm {F : Filtration Ω ℝ}
-    (X : ItoProcess F μ) (t : ℝ) :
+    (X : ItoProcess F μ) (t : ℝ) (ht : 0 ≤ t) :
     AEStronglyMeasurable (X.stoch_integral t) μ :=
-  (X.stoch_integral_measurable t).aestronglyMeasurable
+  X.stoch_integral_aestronglyMeasurable t ht
 
 /-- SI_t ∈ L¹ from SI_t ∈ L². -/
 theorem stoch_integral_integrable {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcess F μ) (t : ℝ) (ht : 0 ≤ t) :
     Integrable (X.stoch_integral t) μ :=
-  integrable_of_sq_integrable (si_aesm X t) (X.stoch_integral_sq_integrable t ht)
+  integrable_of_sq_integrable (si_aesm X t ht) (X.stoch_integral_sq_integrable t ht)
 
 /-- Drift integral bound: |∫₀ᵗ μ ds| ≤ Md * t. -/
 theorem drift_integral_abs_bound {F : Filtration Ω ℝ}
