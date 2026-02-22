@@ -12,7 +12,7 @@ This provides a rigorous foundation where pathwise stochastic calculus is meanin
 
 ## Current State
 
-**Total: 10 sorrys across 5 files** (3 on Anderson critical path, 1 standalone, 6 for Itô chain)
+**Total: 9 sorrys across 5 files** (2 on Anderson critical path, 1 standalone, 6 for Itô chain)
 
 Mathlib provides minimal hyperreal infrastructure:
 - `Hyperreal := Germ (hyperfilter ℕ) ℝ` - ultraproduct construction
@@ -145,7 +145,7 @@ Key results:
   - Lower bound uses `pinsker_excess_crude` from LocalCLTHelpers.lean
 - `cylinder_prob_convergence`: sorry (main bridge theorem, needs CylinderConvergenceHelpers)
 
-#### CylinderConvergenceHelpers.lean - **WIP (20+ proven, 1 sorry)**
+#### CylinderConvergenceHelpers.lean - **COMPLETE (all proven, 0 sorrys)**
 Infrastructure for `cylinder_prob_convergence`:
 - `gaussianDensitySigma_continuous`: **PROVEN**
 - `gaussianDensitySigma_nonneg`: **PROVEN**
@@ -163,7 +163,9 @@ Infrastructure for `cylinder_prob_convergence`:
   - Decomposition: binomP/gaussP = θ × P × Q where θ = Stirling ratio, P = sqrt prefactor, Q = exp factor
   - Each factor shown to be within ε of 1 for large N, using Stirling bounds + entropy excess
   - Helper files: BinomGaussRatioHelpers.lean, RatioConvergenceHelpers.lean (both fully proven)
-- `gaussDensity_Riemann_sum_converges`: sorry (Riemann sum → integral, uses continuity of Gaussian density)
+- `gaussDensity_Riemann_sum_converges`: **PROVEN** (Riemann sum → integral via uniform continuity + crossing zone argument)
+  - a=b degenerate case: integral = 0, sum ≤ M·Δ (at most 1 nonzero term)
+  - a<b main case: partition [a,b] into lattice bins, UC bound per bin + crossing zone bound for gap bins
 - **Chernoff bound chain - ALL PROVEN:**
   - `weighted_exp_markov`: exponential Markov inequality
   - `binomial_mgf`: Σ C(k,j)/2^k exp(λ(2j-k)) = cosh(λ)^k
@@ -341,17 +343,18 @@ What's proven:
    - ✅ `stirlingSeq_triple_ratio_near_one` in Arithmetic.lean - **PROVEN**
    - ✅ Chernoff bound chain in CylinderConvergenceHelpers.lean - **ALL PROVEN**
      - `weighted_exp_markov`, `binomial_mgf`, `binomial_chernoff_upper/lower`, `binomial_tail_small`
-   - Remaining sorrys on critical path to `anderson_theorem_cylinder` (3 total):
-     - `gaussDensity_Riemann_sum_converges` (CylinderConvergenceHelpers.lean:1034) - Riemann sum
-     - `cylinder_prob_convergence` (LocalCLT.lean:1144) - main bridge (uses above)
+   - Remaining sorrys on critical path to `anderson_theorem_cylinder` (2 total):
+     - `cylinder_prob_convergence` (LocalCLT.lean:1144) - main bridge (uses gaussDensity_Riemann_sum_converges)
      - `anderson_theorem_cylinder` (AndersonTheorem.lean:516) - uses cylinder_prob_convergence
    - Standalone sorry (not on critical path):
      - `local_clt_error_bound` (LocalCLT.lean:185) - absolute error bound, superseded by ratio approach
-   - Recently proven (eliminated 3 sorrys):
+   - Recently proven (eliminated 4 sorrys):
      - `pinsker_excess_crude` (LocalCLTHelpers.lean) - **NOW PROVEN**
      - `scaledProb_eq_walkIntervalProb` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
      - `binomProb_ratio_near_one` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
        (Stirling decomposition + entropy excess + sqrt prefactor bounds)
+     - `gaussDensity_Riemann_sum_converges` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
+       (Uniform continuity on compact [a,b] + lattice partition + crossing zone argument)
    - Non-critical sorrys (6 total, for Itô chain):
      - `ito_correspondence` (ItoCorrespondence.lean:202)
      - `ito_isometry_standard` (ItoCorrespondence.lean:229)
@@ -362,14 +365,14 @@ What's proven:
    - **Critical path dependency chain:**
      ```
      anderson_theorem (PROVEN, calls anderson_theorem_cylinder)
-       └── anderson_theorem_cylinder (SORRY)
-             └── cylinder_prob_convergence (SORRY)
+       └── anderson_theorem_cylinder (SORRY) ◄── NEXT TARGET
+             └── cylinder_prob_convergence (SORRY) ◄── NEXT TARGET
                    ├── scaledProb_eq_walkIntervalProb (PROVEN)
                    ├── binomProb_ratio_near_one (PROVEN)
                    │     └── local_clt_central_region (PROVEN)
                    │           ├── pinsker_excess_crude (PROVEN)
                    │           └── exp_factor_le_one (PROVEN)
-                   ├── gaussDensity_Riemann_sum_converges (SORRY) ◄── NEXT TARGET
+                   ├── gaussDensity_Riemann_sum_converges (PROVEN) ✓
                    │     └── gaussianDensitySigma_continuous (PROVEN)
                    └── binomial_tail_small (PROVEN, Chernoff bounds)
      local_clt_error_bound (SORRY, standalone - not on critical path)
@@ -440,7 +443,7 @@ Nonstandard/
 │   ├── LocalCLTHelpers.lean     [COMPLETE] Factor-2 bound helpers (0 sorrys)
 │   ├── BinomGaussRatioHelpers.lean [COMPLETE] Stirling decomposition helpers (0 sorrys)
 │   ├── RatioConvergenceHelpers.lean [COMPLETE] Product-near-one helpers (0 sorrys)
-│   ├── CylinderConvergenceHelpers.lean [WIP] Combinatorial/analytical helpers (1 sorry: Riemann sum)
+│   ├── CylinderConvergenceHelpers.lean [COMPLETE] Combinatorial/analytical helpers (0 sorrys)
 │   ├── AndersonTheorem.lean     [WIP] st_* μ_L = μ_W (1 sorry: anderson_theorem_cylinder)
 │   ├── ItoCorrespondence.lean   [WIP] st(Σ H·dW) = ∫ H dW (4 sorries)
 │   ├── HyperfiniteSDE.lean      [COMPLETE] dX = a·dt + b·dW (0 sorries)

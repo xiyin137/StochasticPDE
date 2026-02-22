@@ -124,7 +124,7 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~114 total sorrys** across all files
+- **~107 total sorrys** across all files
 - **0 sorrys** on the Ito formula critical path — **fully proven**
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)

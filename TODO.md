@@ -128,10 +128,10 @@ condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
 | **ItoCalculus/Probability/Pythagoras.lean** | **0** | Fully proven |
 | **EKMS/** | **16** | Hyperbolicity, InvariantMeasure, TwoSidedMinimizers, OneSidedMinimizers, Basic |
 | **Examples/** | **15** | YangMills2D, Phi4, KPZ |
-| **Nonstandard/Anderson/** | **10** | ItoCorrespondence, ExplicitSolutions, LocalCLT, AndersonTheorem, CylinderConvergenceHelpers |
+| **Nonstandard/Anderson/** | **9** | ItoCorrespondence, ExplicitSolutions, LocalCLT, AndersonTheorem |
 | **RegularityStructures/** | **41** | See RegularityStructures/TODO.md |
 
-**Total: ~108 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
+**Total: ~107 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 9 Nonstandard)
 **Critical path: 0 sorrys — Itô formula FULLY PROVEN** ✓
 
 ---

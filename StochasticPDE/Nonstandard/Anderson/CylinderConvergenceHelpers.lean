@@ -228,11 +228,10 @@ theorem card_bool_trues_eq_choose (k j : ℕ) (_hj : j ≤ k) :
       simp only [Finset.mem_filter, Finset.mem_univ, true_and]
       rw [Finset.mem_powersetCard] at hS
       have : Finset.univ.filter (fun i => decide (i ∈ S) = true) = S := by
-        ext i; simp [Finset.mem_filter, decide_eq_true_eq]
+        ext i; simp [decide_eq_true_eq]
       rw [show (Finset.univ.filter (fun i => (fun i => decide (i ∈ S)) i = true)).card =
           S.card from by rw [this]]; exact hS.2)
-    (fun g _ => by ext i; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
-                    decide_eq_true_eq]; cases g i <;> simp)
+    (fun g _ => by ext i; simp only [Finset.mem_filter, Finset.mem_univ, true_and]; cases g i <;> simp)
     (fun S _ => by ext i; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
                     decide_eq_true_eq])
 
@@ -281,15 +280,13 @@ theorem card_prefix_suffix_product (N k j : ℕ) (hk : k ≤ N) (hj : j ≤ k) :
   · -- hi: forward maps source into target
     intro f hf
     simp only [source, Finset.mem_filter, Finset.mem_univ, true_and] at hf
-    simp only [target, Finset.mem_product, Finset.mem_filter, Finset.mem_univ, true_and,
-               suffixSet]
+    simp only [target, Finset.mem_product, Finset.mem_univ, suffixSet]
     refine ⟨?_, trivial⟩
     simp only [prefixSet, Finset.mem_filter, Finset.mem_univ, true_and]
     rw [← countTruesBelow_eq_filter_prefix f hk]; exact hf
   · -- hj_mem: backward maps target into source
     intro p hp
-    simp only [target, Finset.mem_product, Finset.mem_filter, Finset.mem_univ, true_and,
-               suffixSet] at hp
+    simp only [target, Finset.mem_product, Finset.mem_univ, suffixSet] at hp
     simp only [source, Finset.mem_filter, Finset.mem_univ, true_and]
     rw [countTruesBelow_eq_filter_prefix (bwd p) hk]
     simp only [prefixSet, Finset.mem_filter, Finset.mem_univ, true_and] at hp
@@ -1019,8 +1016,7 @@ theorem binomProb_ratio_near_one (a b : ℝ) (t : ℝ) (ha : a < b) (ht : 0 < t)
 The sum of Gaussian density values × mesh converges to the integral.
 -/
 
-/-- A Riemann sum with lattice spacing 2/√N over [a, b] converges to the integral.
-    This uses the continuity of gaussianDensitySigma and standard Riemann sum theory. -/
+set_option maxHeartbeats 800000 in
 theorem gaussDensity_Riemann_sum_converges (a b : ℝ) (t : ℝ) (ha : a ≤ b) (ht : 0 < t) :
     ∀ δ > 0, ∃ N₀ : ℕ, ∀ N ≥ N₀,
       let k := Nat.floor (t * N)
@@ -1029,9 +1025,696 @@ theorem gaussDensity_Riemann_sum_converges (a b : ℝ) (t : ℝ) (ha : a ≤ b) 
          then gaussianDensitySigma (Real.sqrt t) ((2 * (j : ℝ) - k) / Real.sqrt N) * (2 / Real.sqrt N)
          else 0) -
        ∫ x in Set.Icc a b, gaussianDensitySigma (Real.sqrt t) x| < δ := by
-  -- The sum is a Riemann sum of a continuous function with mesh 2/√N → 0.
-  -- By the standard Riemann sum convergence theorem, it converges to the integral.
-  sorry
+  /-
+  Proof outline (uniform continuity argument):
+  Let g = gaussianDensitySigma(√t, ·), M = peak bound, Δ = 2/√N.
+  1. g is continuous, hence UC on [a,b] (compact). Get modulus η for oscillation ε.
+  2. Choose N₀ so that Δ < η and 3MΔ < δ/2.
+  3. For N ≥ N₀: decompose |S - I| via triangle inequality.
+     Each lattice bin contributes O(ε*Δ) to the Riemann error.
+     Boundary terms contribute O(MΔ).
+     Total: |S - I| ≤ ε(b-a+1) + 3MΔ < δ.
+  -/
+  intro δ hδ
+  -- Setup: properties of the Gaussian density g
+  set g := gaussianDensitySigma (Real.sqrt t) with hg_def
+  have hσ : (0 : ℝ) < Real.sqrt t := Real.sqrt_pos.mpr ht
+  have hg_cont : Continuous g := gaussianDensitySigma_continuous hσ
+  have hg_nn : ∀ x, 0 ≤ g x := fun x => gaussianDensitySigma_nonneg hσ x
+  set M := 1 / (Real.sqrt t * Real.sqrt (2 * Real.pi)) with hM_def
+  have hM_pos : 0 < M := by positivity
+  have hg_le : ∀ x, g x ≤ M := fun x => gaussianDensitySigma_le_peak hσ x
+  -- Integral properties
+  have hI_nn : 0 ≤ ∫ x in Set.Icc a b, g x :=
+    MeasureTheory.setIntegral_nonneg measurableSet_Icc (fun x _ => hg_nn x)
+  -- Case a = b: trivial (integral = 0 on point, sum has ≤ 1 nonzero term)
+  rcases eq_or_lt_of_le ha with rfl | hab
+  · -- The integral over Icc a a has measure 0
+    -- The sum has at most 1 nonzero term of size ≤ M * (2/√N) → 0
+    refine ⟨⌈(2 * M / δ) ^ 2⌉₊ + 1, fun N hN => ?_⟩
+    simp only
+    -- Setup
+    have hN_pos : (0 : ℝ) < ↑N := Nat.cast_pos.mpr (by omega)
+    have hsqN_pos : 0 < √(↑N : ℝ) := Real.sqrt_pos_of_pos hN_pos
+    set k := ⌊t * ↑N⌋₊ with hk_def
+    -- Integral over [a,a] is 0
+    have hI_zero : ∫ x in Set.Icc a a, g x = 0 :=
+      MeasureTheory.setIntegral_measure_zero g
+        (by rw [Real.volume_Icc, sub_self, ENNReal.ofReal_zero])
+    rw [hI_zero, sub_zero]
+    -- The sum is nonneg and ≤ M * (2/√N)
+    set S := ∑ j ∈ Finset.range (k + 1),
+      if a ≤ (2 * ↑j - ↑k) / √↑N ∧ (2 * ↑j - ↑k) / √↑N ≤ a then
+        g ((2 * ↑j - ↑k) / √↑N) * (2 / √↑N) else 0
+    have hΔ_nn : (0 : ℝ) ≤ 2 / √↑N := div_nonneg two_pos.le (Real.sqrt_nonneg _)
+    have hS_nn : 0 ≤ S := Finset.sum_nonneg fun j _ => by
+      split_ifs with h
+      · exact mul_nonneg (hg_nn _) hΔ_nn
+      · exact le_refl 0
+    -- x is injective: if x_i = x_j then i = j
+    have hx_inj : ∀ i j : ℕ, (2 * (i : ℝ) - ↑k) / √↑N =
+        (2 * (j : ℝ) - ↑k) / √↑N → i = j := by
+      intro i j h
+      have h1 : (2 * (i : ℝ) - ↑k) = (2 * ↑j - ↑k) := by
+        field_simp at h; linarith
+      exact Nat.cast_injective (by linarith : (i : ℝ) = j)
+    -- S ≤ M * (2/√N) via at-most-one-nonzero-term argument
+    have hS_le : S ≤ M * (2 / √↑N) := by
+      -- Bound: every term ≤ M * (2/√N), and the sum of indicator terms ≤ 1 * (M * (2/√N))
+      -- because the condition x_j = a selects at most 1 index
+      by_cases hany : ∃ j ∈ Finset.range (k + 1),
+          a ≤ (2 * (j : ℝ) - ↑k) / √↑N ∧ (2 * (j : ℝ) - ↑k) / √↑N ≤ a
+      · obtain ⟨j₀, hj₀_mem, hj₀_cond⟩ := hany
+        -- All other terms are 0 (x is injective, so j₀ is unique)
+        have huniq : ∀ j ∈ Finset.range (k + 1),
+            a ≤ (2 * (j : ℝ) - ↑k) / √↑N ∧ (2 * (j : ℝ) - ↑k) / √↑N ≤ a → j = j₀ := by
+          intro j _ hj
+          exact hx_inj j j₀ (by rw [le_antisymm hj.2 hj.1, le_antisymm hj₀_cond.2 hj₀_cond.1])
+        have hS_eq : S = g ((2 * (j₀ : ℝ) - ↑k) / √↑N) * (2 / √↑N) := by
+          have hS_rw : S = ∑ j ∈ Finset.range (k + 1),
+              if j = j₀ then g ((2 * (j₀ : ℝ) - ↑k) / √↑N) * (2 / √↑N) else 0 := by
+            apply Finset.sum_congr rfl; intro j hj_mem
+            split_ifs with h1 h2 h2
+            · -- h1 : original condition, h2 : j = j₀
+              subst h2; rfl
+            · -- h1 : original condition, ¬(j = j₀)
+              exact absurd (huniq j hj_mem h1) h2
+            · -- ¬original condition, j = j₀
+              subst h2; exact absurd hj₀_cond h1
+            · rfl
+          rw [hS_rw, Finset.sum_ite_eq']; simp [hj₀_mem]
+        rw [hS_eq]
+        exact mul_le_mul_of_nonneg_right (hg_le _) hΔ_nn
+      · -- No active terms → S = 0
+        push_neg at hany
+        have : S = 0 := Finset.sum_eq_zero fun j hj => by
+          simp only [ite_eq_right_iff]; intro ⟨h1, h2⟩; linarith [hany j hj h1]
+        rw [this]; exact mul_nonneg hM_pos.le hΔ_nn
+    -- M * (2/√N) < δ
+    have hMΔ : M * (2 / √↑N) < δ := by
+      rw [show M * (2 / √↑N) = 2 * M / √↑N from by ring]
+      have hN_lt : (⌈(2 * M / δ) ^ 2⌉₊ : ℝ) < ↑N := by
+        exact_mod_cast (show ⌈(2 * M / δ) ^ 2⌉₊ < N from by omega)
+      have h1 : (2 * M / δ) ^ 2 < ↑N :=
+        lt_of_le_of_lt (Nat.le_ceil _) hN_lt
+      have h2 : 2 * M / δ < √↑N := by
+        rw [← Real.sqrt_sq (by positivity : 0 ≤ 2 * M / δ)]
+        exact Real.sqrt_lt_sqrt (sq_nonneg _) h1
+      calc 2 * M / √↑N < 2 * M / (2 * M / δ) :=
+            div_lt_div_of_pos_left (by positivity) (by positivity) h2
+        _ = δ := by field_simp
+    -- Conclude
+    rw [abs_of_nonneg hS_nn]; linarith
+  · -- Case a < b: main argument
+    -- Uniform continuity of g on [a, b]
+    have hUC : UniformContinuousOn g (Set.Icc a b) :=
+      isCompact_Icc.uniformContinuousOn_of_continuous hg_cont.continuousOn
+    rw [Metric.uniformContinuousOn_iff] at hUC
+    -- Choose ε-oscillation for UC
+    set ε := δ / (2 * (b - a + 1)) with hε_def
+    have hba1_pos : 0 < b - a + 1 := by linarith
+    have hε_pos : 0 < ε := div_pos hδ (mul_pos two_pos hba1_pos)
+    obtain ⟨η, hη_pos, hη⟩ := hUC ε hε_pos
+    -- Choose N₀ so that Δ = 2/√N < min(η, δ/(6M)) and lattice covers [a,b]
+    obtain ⟨N₃, hN₃_spec⟩ := floor_eventually_large t ht (Nat.ceil (|a| + |b| + 2) + 1)
+    refine ⟨max (max (max (max (⌈4 / η ^ 2⌉₊ + 1) (⌈144 * M ^ 2 / δ ^ 2⌉₊ + 1)) 4) N₃)
+             (⌈((|a| + |b| + 3) / t) ^ 2⌉₊ + 1),
+           fun N hN => ?_⟩
+    simp only
+    -- Extract bounds on N
+    have hN_large₁ : ⌈4 / η ^ 2⌉₊ + 1 ≤ N := le_trans (le_max_left _ _)
+      (le_trans (le_max_left _ _) (le_trans (le_max_left _ _)
+        (le_trans (le_max_left _ _) hN)))
+    have hN_large₂ : ⌈144 * M ^ 2 / δ ^ 2⌉₊ + 1 ≤ N := le_trans (le_max_right _ _)
+      (le_trans (le_max_left _ _) (le_trans (le_max_left _ _)
+        (le_trans (le_max_left _ _) hN)))
+    have hN_ge4 : 4 ≤ N :=
+      le_trans (le_max_right _ _) (le_trans (le_max_left _ _)
+        (le_trans (le_max_left _ _) hN))
+    have hN₃ : N₃ ≤ N := le_trans (le_max_right _ _) (le_trans (le_max_left _ _) hN)
+    have hN₅ : ⌈((|a| + |b| + 3) / t) ^ 2⌉₊ + 1 ≤ N := le_trans (le_max_right _ _) hN
+    have hN_pos : (0 : ℝ) < (N : ℝ) := by
+      have : (1 : ℝ) ≤ N := by exact_mod_cast le_trans (Nat.le_add_left 1 _) hN_large₁
+      linarith
+    have hsqN_pos : 0 < Real.sqrt (N : ℝ) := Real.sqrt_pos.mpr hN_pos
+    set Δ := 2 / Real.sqrt (N : ℝ) with hΔ_def
+    have hΔ_pos : 0 < Δ := div_pos two_pos hsqN_pos
+    -- Key bound (0): Δ ≤ 1 (from N ≥ 4)
+    have hΔ_le_one : Δ ≤ 1 := by
+      rw [hΔ_def, div_le_one hsqN_pos]
+      calc (2 : ℝ) = Real.sqrt 4 := by
+            rw [show (4 : ℝ) = (2 : ℝ) ^ 2 from by norm_num,
+                Real.sqrt_sq (by norm_num : (0 : ℝ) ≤ 2)]
+        _ ≤ Real.sqrt ↑N := Real.sqrt_le_sqrt (by exact_mod_cast hN_ge4)
+    -- Key bound (1): Δ < η (from N > 4/η²)
+    have hΔ_lt_η : Δ < η := by
+      rw [hΔ_def, div_lt_iff₀ hsqN_pos]
+      -- goal: 2 < η * √↑N. From N > 4/η², √N > 2/η, so η√N > 2.
+      have hN_gt : (4 : ℝ) / η ^ 2 < ↑N := by
+        have : (⌈4 / η ^ 2⌉₊ : ℝ) < ↑N := by
+          exact_mod_cast (show ⌈4 / η ^ 2⌉₊ < N by omega)
+        linarith [Nat.le_ceil (4 / η ^ 2)]
+      have hsqN_gt : 2 / η < Real.sqrt ↑N := by
+        calc 2 / η = Real.sqrt ((2 / η) ^ 2) := by
+              rw [Real.sqrt_sq (div_nonneg two_pos.le hη_pos.le)]
+          _ < Real.sqrt ↑N := Real.sqrt_lt_sqrt (sq_nonneg _)
+              (by calc (2 / η) ^ 2 = 4 / η ^ 2 := by ring
+                  _ < ↑N := hN_gt)
+      have h2eq : (2 : ℝ) = η * (2 / η) := by field_simp
+      linarith [mul_lt_mul_of_pos_left hsqN_gt hη_pos]
+    -- Key bound (2): 3 * M * Δ < δ / 2 (from N > 144M²/δ²)
+    have h3MΔ : 3 * M * Δ < δ / 2 := by
+      rw [hΔ_def, show (3 : ℝ) * M * (2 / Real.sqrt ↑N) = 6 * M / Real.sqrt ↑N from by ring]
+      rw [div_lt_iff₀ hsqN_pos]
+      -- goal: 6 * M < δ / 2 * √↑N. From N > 144M²/δ², √N > 12M/δ.
+      have hN_gt : (144 : ℝ) * M ^ 2 / δ ^ 2 < ↑N := by
+        have : (⌈144 * M ^ 2 / δ ^ 2⌉₊ : ℝ) < ↑N := by
+          exact_mod_cast (show ⌈144 * M ^ 2 / δ ^ 2⌉₊ < N by omega)
+        linarith [Nat.le_ceil (144 * M ^ 2 / δ ^ 2)]
+      have hsqN_gt : 12 * M / δ < Real.sqrt ↑N := by
+        calc 12 * M / δ = Real.sqrt ((12 * M / δ) ^ 2) := by
+              rw [Real.sqrt_sq (div_nonneg (by positivity) hδ.le)]
+          _ < Real.sqrt ↑N := Real.sqrt_lt_sqrt (sq_nonneg _)
+              (by calc (12 * M / δ) ^ 2 = 144 * M ^ 2 / δ ^ 2 := by ring
+                  _ < ↑N := hN_gt)
+      -- 6M < (δ/2) * √N follows from 12M/δ < √N, i.e., 12M < δ√N, i.e., 6M < δ√N/2
+      have hkey : 12 * M < δ * Real.sqrt ↑N := by
+        calc (12 : ℝ) * M = δ * (12 * M / δ) := by field_simp
+          _ < δ * Real.sqrt ↑N := mul_lt_mul_of_pos_left hsqN_gt hδ
+      have : δ / 2 * Real.sqrt ↑N = δ * Real.sqrt ↑N / 2 := by ring
+      linarith
+    -- Key bound (3): Lattice extends past [a,b] — k/√N > |a|+|b|+2
+    have hlattice : (|a| + |b| + 2 : ℝ) < (Nat.floor (t * ↑N) : ℝ) / Real.sqrt ↑N := by
+      have hN_gt : ((|a| + |b| + 3) / t) ^ 2 < (N : ℝ) := by
+        have : (⌈((|a| + |b| + 3) / t) ^ 2⌉₊ : ℝ) < ↑N := by
+          exact_mod_cast (show ⌈((|a| + |b| + 3) / t) ^ 2⌉₊ < N by omega)
+        linarith [Nat.le_ceil (((|a| + |b| + 3) / t) ^ 2)]
+      have hsqN_gt : (|a| + |b| + 3) / t < Real.sqrt ↑N := by
+        calc (|a| + |b| + 3) / t = Real.sqrt (((|a| + |b| + 3) / t) ^ 2) := by
+              rw [Real.sqrt_sq (div_nonneg (by positivity) ht.le)]
+          _ < Real.sqrt ↑N := Real.sqrt_lt_sqrt (sq_nonneg _) hN_gt
+      have htsqN : t * Real.sqrt ↑N > |a| + |b| + 3 := by
+        calc |a| + |b| + 3 = t * ((|a| + |b| + 3) / t) := by field_simp
+          _ < t * Real.sqrt ↑N := mul_lt_mul_of_pos_left hsqN_gt ht
+      have hsqN_sq : Real.sqrt ↑N * Real.sqrt ↑N = ↑N :=
+        Real.mul_self_sqrt (by exact_mod_cast hN_pos.le)
+      have hk_ge : t * ↑N - 1 ≤ (Nat.floor (t * ↑N) : ℝ) := by
+        have := Nat.lt_floor_add_one (t * (↑N : ℝ)); linarith
+      have hinv_le : 1 / Real.sqrt ↑N ≤ 1 := by
+        rw [div_le_one hsqN_pos]
+        calc (1:ℝ) ≤ 2 := by norm_num
+          _ = Real.sqrt 4 := by
+              rw [show (4:ℝ) = 2^2 from by norm_num,
+                  Real.sqrt_sq (by norm_num : (0:ℝ) ≤ 2)]
+          _ ≤ Real.sqrt ↑N := Real.sqrt_le_sqrt (by exact_mod_cast hN_ge4)
+      -- Chain: |a|+|b|+2 < t√N - 1/√N = (tN-1)/√N ≤ ⌊tN⌋/√N
+      calc (|a| + |b| + 2 : ℝ)
+          < t * Real.sqrt ↑N - 1 / Real.sqrt ↑N := by linarith
+        _ = (t * ↑N - 1) / Real.sqrt ↑N := by
+            field_simp; nlinarith [hsqN_sq]
+        _ ≤ (Nat.floor (t * ↑N) : ℝ) / Real.sqrt ↑N :=
+            div_le_div_of_nonneg_right hk_ge hsqN_pos.le
+    -- Main bound: |S - I| ≤ ε * (b - a + 1) + 3 * M * Δ < δ
+    suffices h : |∑ j ∈ Finset.range (Nat.floor (t * ↑N) + 1),
+        (if a ≤ (2 * (j : ℝ) - ↑(Nat.floor (t * ↑N))) / Real.sqrt ↑N ∧
+            (2 * (j : ℝ) - ↑(Nat.floor (t * ↑N))) / Real.sqrt ↑N ≤ b
+         then gaussianDensitySigma (Real.sqrt t) ((2 * (j : ℝ) - ↑(Nat.floor (t * ↑N))) / Real.sqrt ↑N) * (2 / Real.sqrt ↑N)
+         else 0) -
+        ∫ x in Set.Icc a b, gaussianDensitySigma (Real.sqrt t) x| ≤
+        ε * (b - a + 1) + 3 * M * Δ by
+      have hε_eq : ε * (b - a + 1) = δ / 2 := by rw [hε_def]; field_simp
+      linarith
+    -- Core bound: |S - I| ≤ ε * (b - a + 1) + 3 * M * Δ
+    -- Proof sketch (uniform continuity argument):
+    -- For each lattice point x_j ∈ [a,b], its bin B_j = [x_j-Δ/2, x_j+Δ/2].
+    -- Per-bin: g(x_j)*Δ ≤ ∫_{B_j∩[a,b]} g + ε*|B_j∩[a,b]| + M*(Δ-|B_j∩[a,b]|)
+    --   (UC gives g(x_j) ≤ g(x)+ε for x ∈ [a,b]∩B_j; g ≤ M for overflow)
+    -- Sum: S ≤ Σ∫_{B_j∩[a,b]} g + ε*(b-a) + MΔ
+    --   (disjoint Σ|B_j∩[a,b]| ≤ b-a; overflow Σ(Δ-|B_j∩[a,b]|) ≤ Δ)
+    -- Since Σ∫_{B_j∩[a,b]} g ≤ I (integral_finset_biUnion + monotonicity):
+    --   S ≤ I + ε*(b-a) + MΔ, hence S - I ≤ ε*(b-a) + MΔ
+    -- Symmetrically: I ≤ S + ε*(b-a) + MΔ (lower Riemann bound + gap ≤ MΔ)
+    -- Combined: |S-I| ≤ ε*(b-a) + MΔ ≤ ε*(b-a+1) + 3MΔ
+    -- Fold abbreviations back
+    simp only [← hg_def] at *
+    set k := Nat.floor (t * ↑N) with hk_def
+    -- Abbreviate sum and integral
+    set S_val := ∑ j ∈ Finset.range (k + 1),
+      (if a ≤ (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ∧
+          (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ≤ b
+       then g ((2 * (j : ℝ) - ↑k) / Real.sqrt ↑N) * (2 / Real.sqrt ↑N)
+       else 0) with hS_def
+    set I_val := ∫ x in Set.Icc a b, g x with hI_def
+    -- Key: reduce |S - I| ≤ target to two directional bounds
+    -- Upper: S ≤ I + ε*(b-a) + MΔ (right-bin UC comparison + 1 boundary term)
+    have h_upper : S_val ≤ I_val + ε * (b - a) + M * Δ := by
+      -- Lattice function and right bins
+      let x : ℕ → ℝ := fun j => (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N
+      let R : ℕ → Set ℝ := fun j => Set.Ico (x j) (x j + Δ)
+      -- Filtered sets
+      set J := (Finset.range (k + 1)).filter
+        (fun j => a ≤ x j ∧ x j ≤ b) with hJ_def
+      set J_int := J.filter (fun j => x j + Δ ≤ b) with hJ_int_def
+      set J_bdy := J.filter (fun j => ¬(x j + Δ ≤ b)) with hJ_bdy_def
+      -- Rewrite S_val as filtered sum
+      have hS_eq : S_val = ∑ j ∈ J, g (x j) * Δ := by
+        simp only [hS_def, hJ_def, x, hΔ_def, Finset.sum_filter]
+      -- Split J = J_int ∪ J_bdy
+      have hS_split : ∑ j ∈ J, g (x j) * Δ =
+          (∑ j ∈ J_int, g (x j) * Δ) + (∑ j ∈ J_bdy, g (x j) * Δ) := by
+        rw [hJ_int_def, hJ_bdy_def]
+        exact (Finset.sum_filter_add_sum_filter_not J _ _).symm
+      -- === Boundary bound: ≤ MΔ ===
+      have h_bdy : ∑ j ∈ J_bdy, g (x j) * Δ ≤ M * Δ := by
+        -- |J_bdy| ≤ 1: lattice spacing Δ, all x_j in (b-Δ, b]
+        have hcard : J_bdy.card ≤ 1 := by
+          rw [Finset.card_le_one]
+          intro i hi j hj
+          by_contra hij
+          simp only [hJ_bdy_def, hJ_def, Finset.mem_filter,
+            Finset.mem_range, not_le, x] at hi hj
+          -- Lattice spacing: |x_i - x_j| ≥ Δ since i ≠ j
+          -- Both in (b-Δ, b]: |x_i - x_j| < Δ. Contradiction.
+          rcases Nat.lt_or_gt_of_ne hij with hlt | hlt
+          · have hge : (↑i + 1 : ℝ) ≤ ↑j := by exact_mod_cast hlt
+            have h1 : Δ ≤ (2 * (↑j : ℝ) - ↑k) / Real.sqrt ↑N -
+                (2 * (↑i : ℝ) - ↑k) / Real.sqrt ↑N := by
+              rw [show (2 * (↑j : ℝ) - ↑k) / √↑N - (2 * ↑i - ↑k) / √↑N =
+                2 * (↑j - ↑i) / √↑N from by ring, hΔ_def]
+              exact div_le_div_of_nonneg_right (by linarith) hsqN_pos.le
+            linarith [hi.2, hj.1.2.2]
+          · have hge : (↑j + 1 : ℝ) ≤ ↑i := by exact_mod_cast hlt
+            have h1 : Δ ≤ (2 * (↑i : ℝ) - ↑k) / Real.sqrt ↑N -
+                (2 * (↑j : ℝ) - ↑k) / Real.sqrt ↑N := by
+              rw [show (2 * (↑i : ℝ) - ↑k) / √↑N - (2 * ↑j - ↑k) / √↑N =
+                2 * (↑i - ↑j) / √↑N from by ring, hΔ_def]
+              exact div_le_div_of_nonneg_right (by linarith) hsqN_pos.le
+            linarith [hj.2, hi.1.2.2]
+        -- Each term ≤ MΔ, and ≤ 1 term
+        calc ∑ j ∈ J_bdy, g (x j) * Δ
+            ≤ ∑ _ ∈ J_bdy, M * Δ := Finset.sum_le_sum fun j _ =>
+              mul_le_mul_of_nonneg_right (hg_le _) hΔ_pos.le
+          _ = J_bdy.card • (M * Δ) := Finset.sum_const _
+          _ ≤ 1 • (M * Δ) := nsmul_le_nsmul_left (mul_nonneg hM_pos.le hΔ_pos.le) hcard
+          _ = M * Δ := one_nsmul _
+      -- === Interior bound: ≤ I + ε*(b-a) ===
+      have h_int : ∑ j ∈ J_int, g (x j) * Δ ≤ I_val + ε * (b - a) := by
+        -- Membership extraction
+        have hj_mem : ∀ j ∈ J_int, a ≤ x j ∧ x j ≤ b ∧ x j + Δ ≤ b := by
+          intro j hj
+          have hj_J := Finset.mem_of_mem_filter j hj
+          simp only [hJ_def, Finset.mem_filter] at hj_J
+          exact ⟨hj_J.2.1, hj_J.2.2, (Finset.mem_filter.mp hj).2⟩
+        -- Right bins R j ⊂ [a,b] for j ∈ J_int
+        have hR_sub : ∀ j ∈ J_int, R j ⊆ Set.Icc a b := fun j hj y hy =>
+          ⟨le_trans (hj_mem j hj).1 hy.1, le_trans (le_of_lt hy.2) (hj_mem j hj).2.2⟩
+        -- Lattice spacing: for j₁ < j₂, x j₂ ≥ x j₁ + Δ
+        have hspacing : ∀ j₁ ∈ J_int, ∀ j₂ ∈ J_int, j₁ < j₂ →
+            x j₁ + Δ ≤ x j₂ := by
+          intro j₁ _ j₂ _ hlt
+          show (2 * ↑j₁ - ↑k) / √↑N + 2 / √↑N ≤ (2 * ↑j₂ - ↑k) / √↑N
+          rw [← add_div, div_le_div_iff_of_pos_right hsqN_pos]
+          have : (↑j₁ + 1 : ℝ) ≤ ↑j₂ := by exact_mod_cast hlt
+          linarith
+        -- Disjointness of right bins
+        have hdisjoint : Set.PairwiseDisjoint (J_int : Set ℕ) R := by
+          intro i hi j hj hij
+          rw [Function.onFun, Set.disjoint_iff]
+          intro y ⟨hyi, hyj⟩
+          rcases lt_or_gt_of_ne hij with h | h
+          · exact absurd (lt_of_lt_of_le hyi.2 (le_trans (hspacing i hi j hj h) hyj.1)) (lt_irrefl _)
+          · exact absurd (lt_of_lt_of_le hyj.2 (le_trans (hspacing j hj i hi h) hyi.1)) (lt_irrefl _)
+        -- Integrability
+        have hg_intOn : MeasureTheory.IntegrableOn g (Set.Icc a b) :=
+          hg_cont.continuousOn.integrableOn_Icc
+        have hg_intBin : ∀ j ∈ J_int, MeasureTheory.IntegrableOn g (R j) :=
+          fun j hj => hg_intOn.mono_set (hR_sub j hj)
+        -- Per-bin UC bound: g(x_j) - ε ≤ g(y) for y ∈ R j
+        have hUC_bin : ∀ j ∈ J_int, ∀ y ∈ R j, g (x j) - ε ≤ g y := by
+          intro j hj y hy
+          obtain ⟨hja, hjb, _⟩ := hj_mem j hj
+          have hdist : dist (x j) y < η := by
+            rw [Real.dist_eq, show x j - y = -(y - x j) from by ring,
+              abs_neg, abs_of_nonneg (by linarith [hy.1] : 0 ≤ y - x j)]
+            linarith [hy.2, hΔ_lt_η]
+          have hgd := hη (x j) ⟨hja, hjb⟩ y (hR_sub j hj hy) hdist
+          rw [Real.dist_eq] at hgd; linarith [le_abs_self (g (x j) - g y)]
+        -- Per-bin integral bound: g(x_j) * Δ ≤ ∫_{R_j} g + ε * Δ
+        have hbin_bound : ∀ j ∈ J_int, g (x j) * Δ ≤
+            (∫ y in R j, g y) + ε * Δ := by
+          intro j hj
+          suffices h : (g (x j) - ε) * Δ ≤ ∫ y in R j, g y by nlinarith
+          have hvol : MeasureTheory.volume.real (R j) = Δ := by
+            show MeasureTheory.volume.real (Set.Ico (x j) (x j + Δ)) = Δ
+            rw [Measure.real, Real.volume_Ico, ENNReal.toReal_ofReal (by linarith)]
+            ring
+          rw [show (g (x j) - ε) * Δ = ∫ _ in R j, (g (x j) - ε) from by
+            rw [MeasureTheory.setIntegral_const, hvol, smul_eq_mul, mul_comm]]
+          apply MeasureTheory.setIntegral_mono_on
+          · exact MeasureTheory.integrableOn_const
+              (hs := by exact measure_Ico_lt_top.ne)
+          · exact hg_intBin j hj
+          · exact measurableSet_Ico
+          · exact hUC_bin j hj
+        -- Sum of per-bin integrals ≤ I_val
+        have hsum_le_I : ∑ j ∈ J_int, ∫ y in R j, g y ≤ I_val := by
+          rw [← MeasureTheory.integral_biUnion_finset J_int
+            (fun j _ => measurableSet_Ico) hdisjoint hg_intBin]
+          exact MeasureTheory.setIntegral_mono_set hg_intOn
+            (MeasureTheory.ae_of_all _ hg_nn)
+            (MeasureTheory.ae_of_all _ (Set.iUnion₂_subset fun j hj => hR_sub j hj))
+        -- Count bound: |J_int| * Δ ≤ b - a
+        have hcount : ↑J_int.card * Δ ≤ b - a := by
+          have h1 : J_int.card • ENNReal.ofReal Δ ≤ ENNReal.ofReal (b - a) :=
+            calc J_int.card • ENNReal.ofReal Δ
+                = ∑ _ ∈ J_int, ENNReal.ofReal Δ := (Finset.sum_const _).symm
+              _ = ∑ j ∈ J_int, MeasureTheory.volume (R j) :=
+                  Finset.sum_congr rfl fun j _ => by
+                    show ENNReal.ofReal Δ = MeasureTheory.volume (Set.Ico (x j) (x j + Δ))
+                    rw [Real.volume_Ico]; congr 1; ring
+              _ = MeasureTheory.volume (⋃ j ∈ J_int, R j) :=
+                  (MeasureTheory.measure_biUnion_finset
+                    hdisjoint (fun j _ => measurableSet_Ico)).symm
+              _ ≤ MeasureTheory.volume (Set.Icc a b) :=
+                  MeasureTheory.measure_mono (Set.iUnion₂_subset fun j hj => hR_sub j hj)
+              _ = ENNReal.ofReal (b - a) := Real.volume_Icc
+          rw [nsmul_eq_mul] at h1
+          have hba_nn : 0 ≤ b - a := by linarith
+          rw [show (↑J_int.card : ENNReal) * ENNReal.ofReal Δ =
+            ENNReal.ofReal (↑J_int.card * Δ) from by
+              rw [ENNReal.ofReal_mul (Nat.cast_nonneg _), ENNReal.ofReal_natCast]] at h1
+          exact (ENNReal.ofReal_le_ofReal_iff hba_nn).mp h1
+        -- Combine
+        calc ∑ j ∈ J_int, g (x j) * Δ
+            ≤ ∑ j ∈ J_int, ((∫ y in R j, g y) + ε * Δ) :=
+              Finset.sum_le_sum hbin_bound
+          _ = (∑ j ∈ J_int, ∫ y in R j, g y) + ∑ _ ∈ J_int, ε * Δ :=
+              Finset.sum_add_distrib
+          _ = (∑ j ∈ J_int, ∫ y in R j, g y) + ↑J_int.card * (ε * Δ) := by
+              rw [Finset.sum_const, nsmul_eq_mul]
+          _ ≤ I_val + ↑J_int.card * (ε * Δ) := by linarith [hsum_le_I]
+          _ = I_val + (↑J_int.card * Δ) * ε := by ring
+          _ ≤ I_val + (b - a) * ε := by nlinarith [hcount]
+          _ = I_val + ε * (b - a) := by ring
+      -- Combine
+      rw [hS_eq, hS_split]; linarith
+    -- Lower: I ≤ S + ε*(b-a+1) + MΔ (partition + UC upper bound + gap ≤ MΔ)
+    have h_lower : I_val ≤ S_val + ε * (b - a + 1) + M * Δ := by
+      -- Same lattice setup as h_upper
+      let x : ℕ → ℝ := fun j => (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N
+      let R : ℕ → Set ℝ := fun j => Set.Ico (x j) (x j + Δ)
+      set J := (Finset.range (k + 1)).filter
+        (fun j => a ≤ x j ∧ x j ≤ b) with hJ_def
+      have hS_eq : S_val = ∑ j ∈ J, g (x j) * Δ := by
+        simp only [hS_def, hJ_def, x, hΔ_def, Finset.sum_filter]
+      -- Lattice spacing: x(j+1) = x j + Δ
+      have hx_succ : ∀ j, x (j + 1) = x j + Δ := by
+        intro j; show (2 * ↑(j+1) - ↑k)/√↑N = (2*↑j-↑k)/√↑N + 2/√↑N
+        rw [← add_div]; congr 1; push_cast; ring
+      -- Boundary facts from hlattice
+      have hk_pos : 0 < k := by
+        by_contra h; push_neg at h; interval_cases k
+        simp at hlattice; linarith [abs_nonneg a, abs_nonneg b]
+      have hx0_lt : x 0 < a := by
+        show (2 * ((0:ℕ):ℝ) - ↑k) / √↑N < a
+        simp only [Nat.cast_zero, mul_zero, zero_sub, neg_div]
+        linarith [hlattice, neg_abs_le a, abs_nonneg b]
+      have hxk_gt : b < x k := by
+        show b < (2 * ↑k - ↑k) / √↑N
+        rw [show (2:ℝ)*↑k-↑k = ↑k from by ring]
+        linarith [hlattice, le_abs_self b, abs_nonneg a]
+      -- J ⊆ range k (since x k > b, no j = k in J)
+      have hJ_sub_rk : J ⊆ Finset.range k := by
+        intro j hj; rw [Finset.mem_range]
+        have hjk1 := (Finset.mem_filter.mp hj).1
+        have hjb := (Finset.mem_filter.mp hj).2.2
+        by_contra hge; push_neg at hge
+        have : j = k := by have := Finset.mem_range.mp hjk1; omega
+        linarith [this ▸ hxk_gt]
+      -- Coverage: ∀ y ∈ [a,b], ∃ j ∈ range k, y ∈ R j
+      have hcov : ∀ y ∈ Set.Icc a b, ∃ j ∈ Finset.range k, y ∈ R j := by
+        intro y ⟨hay, hyb⟩
+        set S_idx := (Finset.range k).filter (fun j => (x j : ℝ) ≤ y)
+        have hS_ne : S_idx.Nonempty :=
+          ⟨0, Finset.mem_filter.mpr ⟨Finset.mem_range.mpr hk_pos,
+            le_of_lt (lt_of_lt_of_le hx0_lt hay)⟩⟩
+        set j₀ := S_idx.max' hS_ne
+        have hj₀_mem := S_idx.max'_mem hS_ne
+        have hj₀_le : x j₀ ≤ y := (Finset.mem_filter.mp hj₀_mem).2
+        have hj₀_lt_k : j₀ < k := Finset.mem_range.mp (Finset.mem_filter.mp hj₀_mem).1
+        have hsucc_gt : y < x (j₀ + 1) := by
+          by_contra hle; push_neg at hle
+          rcases Nat.lt_or_ge (j₀ + 1) k with h | h
+          · exact absurd (S_idx.le_max' _ (Finset.mem_filter.mpr
+              ⟨Finset.mem_range.mpr h, hle⟩)) (by omega)
+          · have : j₀ + 1 = k := by omega
+            linarith [this ▸ hxk_gt]
+        exact ⟨j₀, Finset.mem_range.mpr hj₀_lt_k, hj₀_le,
+          by rw [hx_succ] at hsucc_gt; exact hsucc_gt⟩
+      -- Set identity: [a,b] = ⋃_{range k} (R j ∩ [a,b])
+      have hset_eq : Set.Icc a b = ⋃ j ∈ Finset.range k, (R j ∩ Set.Icc a b) := by
+        apply Set.Subset.antisymm
+        · intro y hy
+          obtain ⟨j, hj, hjR⟩ := hcov y hy
+          exact Set.mem_biUnion hj ⟨hjR, hy⟩
+        · exact Set.iUnion₂_subset fun j _ => Set.inter_subset_right
+      -- Disjointness of intersected bins
+      have hpd : Set.PairwiseDisjoint (Finset.range k : Set ℕ)
+          (fun j => R j ∩ Set.Icc a b) := by
+        intro i _ j _ hij
+        rw [Function.onFun, Set.disjoint_iff]
+        intro z ⟨⟨hzi, _⟩, hzj, _⟩
+        rcases lt_or_gt_of_ne hij with h | h
+        · have hge : (↑i + 1 : ℝ) ≤ ↑j := by exact_mod_cast h
+          have : x i + Δ ≤ x j := by
+            rw [show x i + Δ = x (i + 1) from (hx_succ i).symm]
+            show (2 * ↑(i+1) - ↑k)/√↑N ≤ (2 * ↑j - ↑k)/√↑N
+            exact div_le_div_of_nonneg_right (by push_cast; linarith) hsqN_pos.le
+          linarith [hzi.2, hzj.1]
+        · have hge : (↑j + 1 : ℝ) ≤ ↑i := by exact_mod_cast h
+          have : x j + Δ ≤ x i := by
+            rw [show x j + Δ = x (j + 1) from (hx_succ j).symm]
+            show (2 * ↑(j+1) - ↑k)/√↑N ≤ (2 * ↑i - ↑k)/√↑N
+            exact div_le_div_of_nonneg_right (by push_cast; linarith) hsqN_pos.le
+          linarith [hzj.2, hzi.1]
+      -- Measurability and integrability
+      have hg_intOn : MeasureTheory.IntegrableOn g (Set.Icc a b) :=
+        hg_cont.continuousOn.integrableOn_Icc
+      have hg_intBin : ∀ j ∈ Finset.range k,
+          MeasureTheory.IntegrableOn g (R j ∩ Set.Icc a b) :=
+        fun _ _ => hg_intOn.mono_set Set.inter_subset_right
+      -- Partition identity: I = Σ ∫_{R_j ∩ [a,b]} g
+      have hpartition : I_val = ∑ j ∈ Finset.range k,
+          ∫ y in (R j ∩ Set.Icc a b), g y := by
+        rw [hI_def]; conv_lhs => rw [hset_eq]
+        exact MeasureTheory.integral_biUnion_finset (Finset.range k)
+          (fun j _ => measurableSet_Ico.inter measurableSet_Icc) hpd hg_intBin
+      -- Split into J and non-J parts
+      have hJ_filter : (Finset.range k).filter (· ∈ J) = J := by
+        ext j; simp only [Finset.mem_filter, Finset.mem_range]
+        exact ⟨fun ⟨_, h⟩ => h, fun h => ⟨Finset.mem_range.mp (hJ_sub_rk h), h⟩⟩
+      have hsplit : ∑ j ∈ Finset.range k, ∫ y in (R j ∩ Set.Icc a b), g y =
+          (∑ j ∈ J, ∫ y in (R j ∩ Set.Icc a b), g y) +
+          (∑ j ∈ (Finset.range k).filter (fun j => j ∉ J),
+            ∫ y in (R j ∩ Set.Icc a b), g y) := by
+        have h := Finset.sum_filter_add_sum_filter_not (Finset.range k)
+          (fun j => j ∈ J) (fun j => ∫ y in (R j ∩ Set.Icc a b), g y)
+        rw [hJ_filter] at h; exact h.symm
+      -- === Per-bin UC bound for j ∈ J ===
+      have hbin_uc : ∀ j ∈ J, ∫ y in (R j ∩ Set.Icc a b), g y ≤
+          (g (x j) + ε) * Δ := by
+        intro j hj
+        have hja := (Finset.mem_filter.mp hj).2.1
+        have hjb := (Finset.mem_filter.mp hj).2.2
+        -- UC: for y ∈ R_j ∩ [a,b], g(y) ≤ g(x_j) + ε
+        have hUC_pt : ∀ y ∈ R j ∩ Set.Icc a b, g y ≤ g (x j) + ε := by
+          intro y ⟨⟨hyl, hyr⟩, hya, hyb⟩
+          have hdist : dist (x j) y < η := by
+            rw [Real.dist_eq, show x j - y = -(y - x j) from by ring,
+              abs_neg, abs_of_nonneg (by linarith)]
+            linarith [hΔ_lt_η]
+          have := hη (x j) ⟨hja, hjb⟩ y ⟨hya, hyb⟩ hdist
+          rw [Real.dist_eq] at this; linarith [neg_abs_le (g (x j) - g y)]
+        -- ∫ g ≤ (g(x_j)+ε) * μ(R_j ∩ [a,b]) ≤ (g(x_j)+ε) * Δ
+        have hvol_le : MeasureTheory.volume.real (R j ∩ Set.Icc a b) ≤ Δ :=
+          calc MeasureTheory.volume.real (R j ∩ Set.Icc a b)
+              ≤ MeasureTheory.volume.real (R j) := by
+                rw [Measure.real, Measure.real]
+                exact ENNReal.toReal_mono measure_Ico_lt_top.ne
+                  (measure_mono Set.inter_subset_left)
+            _ = Δ := by
+                show MeasureTheory.volume.real (Set.Ico (x j) (x j + Δ)) = Δ
+                rw [Measure.real, Real.volume_Ico, ENNReal.toReal_ofReal (by linarith)]
+                ring
+        calc ∫ y in (R j ∩ Set.Icc a b), g y
+            ≤ ∫ _ in (R j ∩ Set.Icc a b), (g (x j) + ε) :=
+              MeasureTheory.setIntegral_mono_on
+                (hg_intBin _ (hJ_sub_rk hj))
+                (MeasureTheory.integrableOn_const (hs := (measure_mono
+                  Set.inter_subset_left |>.trans_lt measure_Ico_lt_top).ne))
+                (measurableSet_Ico.inter measurableSet_Icc) hUC_pt
+          _ = (g (x j) + ε) * MeasureTheory.volume.real (R j ∩ Set.Icc a b) := by
+              rw [MeasureTheory.setIntegral_const, smul_eq_mul, mul_comm]
+          _ ≤ (g (x j) + ε) * Δ :=
+              mul_le_mul_of_nonneg_left hvol_le (add_nonneg (hg_nn _) hε_pos.le)
+      -- === Non-J bound: ≤ MΔ ===
+      -- Helper: volume.real of any bin-intersection ≤ Δ
+      have hvol_bin : ∀ j, MeasureTheory.volume.real (R j ∩ Set.Icc a b) ≤ Δ := by
+        intro j; rw [Measure.real]
+        calc (volume (R j ∩ Set.Icc a b)).toReal
+            ≤ (volume (R j)).toReal :=
+              ENNReal.toReal_mono measure_Ico_lt_top.ne
+                (measure_mono Set.inter_subset_left)
+          _ = Δ := by
+              show (volume (Set.Ico (x j) (x j + Δ))).toReal = Δ
+              rw [Real.volume_Ico, ENNReal.toReal_ofReal (by linarith)]; ring
+      have hnonJ : ∑ j ∈ (Finset.range k).filter (fun j => j ∉ J),
+          ∫ y in (R j ∩ Set.Icc a b), g y ≤ M * Δ := by
+        set J_gap := (Finset.range k).filter (fun j => j ∉ J) with hJ_gap_def
+        -- For j ∈ J_gap outside the "crossing zone" a-Δ < x j < a, integral = 0
+        -- Case 1: x j ≥ a → x j > b (since j ∉ J) → R j above [a,b]
+        -- Case 2: x j + Δ ≤ a → R j entirely below a
+        have hzero : ∀ j ∈ J_gap, ¬(x j < a ∧ a < x j + Δ) →
+            ∫ y in (R j ∩ Set.Icc a b), g y = 0 := by
+          intro j hj hcross
+          have hj_noJ := (Finset.mem_filter.mp hj).2
+          by_cases hja : a ≤ x j
+          · -- x j ≥ a and j ∉ J → x j > b
+            have hjb : b < x j := by
+              by_contra h; push_neg at h
+              exact hj_noJ (Finset.mem_filter.mpr
+                ⟨Finset.mem_range.mpr ((Finset.mem_range.mp
+                  (Finset.mem_filter.mp hj).1).trans (by omega)), hja, h⟩)
+            have : R j ∩ Set.Icc a b = ∅ := by
+              rw [Set.eq_empty_iff_forall_notMem]; intro y ⟨⟨hyl, _⟩, _, hyb⟩
+              linarith
+            rw [this, MeasureTheory.setIntegral_empty]
+          · -- x j < a and ¬(a < x j + Δ) → x j + Δ ≤ a → R j below a
+            push_neg at hja
+            have hΔa : x j + Δ ≤ a := not_lt.mp (fun h => hcross ⟨hja, h⟩)
+            have : R j ∩ Set.Icc a b = ∅ := by
+              rw [Set.eq_empty_iff_forall_notMem]; intro y ⟨⟨_, hyr⟩, hya, _⟩
+              linarith
+            rw [this, MeasureTheory.setIntegral_empty]
+        -- The "crossing" set: bins with a - Δ < x j < a
+        set J_cross := J_gap.filter (fun j => x j < a ∧ a < x j + Δ)
+        -- Sum over J_gap = Sum over J_cross (others contribute 0)
+        have h_sum_eq : ∑ j ∈ J_gap, ∫ y in (R j ∩ Set.Icc a b), g y =
+            ∑ j ∈ J_cross, ∫ y in (R j ∩ Set.Icc a b), g y := by
+          have h := Finset.sum_filter_add_sum_filter_not J_gap
+            (fun j => x j < a ∧ a < x j + Δ)
+            (fun j => ∫ y in (R j ∩ Set.Icc a b), g y)
+          suffices h0 : ∑ j ∈ J_gap.filter (fun j => ¬(x j < a ∧ a < x j + Δ)),
+              ∫ y in (R j ∩ Set.Icc a b), g y = 0 by linarith
+          apply Finset.sum_eq_zero; intro j hj
+          exact hzero j (Finset.mem_of_mem_filter j hj) (Finset.mem_filter.mp hj).2
+        -- J_cross has at most 1 element (spacing Δ in interval of width < Δ)
+        have hcross_card : J_cross.card ≤ 1 := by
+          rw [Finset.card_le_one]; intro i hi j hj; by_contra hij
+          have ⟨hi_lt, hi_Δ⟩ := (Finset.mem_filter.mp hi).2
+          have ⟨hj_lt, hj_Δ⟩ := (Finset.mem_filter.mp hj).2
+          rcases Nat.lt_or_gt_of_ne hij with hlt | hlt
+          · have : x i + Δ ≤ x j := by
+              rw [show x i + Δ = x (i + 1) from (hx_succ i).symm]
+              show (2 * ↑(i+1) - ↑k)/√↑N ≤ (2 * ↑j - ↑k)/√↑N
+              exact div_le_div_of_nonneg_right
+                (by have h := Nat.cast_le (α := ℝ).mpr (Nat.succ_le_of_lt hlt)
+                    push_cast at h ⊢; linarith)
+                hsqN_pos.le
+            linarith -- x j ≥ x i + Δ > a, contradicts hj_lt
+          · have : x j + Δ ≤ x i := by
+              rw [show x j + Δ = x (j + 1) from (hx_succ j).symm]
+              show (2 * ↑(j+1) - ↑k)/√↑N ≤ (2 * ↑i - ↑k)/√↑N
+              exact div_le_div_of_nonneg_right
+                (by have h := Nat.cast_le (α := ℝ).mpr (Nat.succ_le_of_lt hlt)
+                    push_cast at h ⊢; linarith)
+                hsqN_pos.le
+            linarith -- x i ≥ x j + Δ > a, contradicts hi_lt
+        -- Each crossing term ≤ MΔ
+        have hcross_le : ∀ j ∈ J_cross,
+            ∫ y in (R j ∩ Set.Icc a b), g y ≤ M * Δ := by
+          intro j hj
+          have hj_rk := Finset.mem_of_mem_filter j (Finset.mem_of_mem_filter j hj)
+          calc ∫ y in (R j ∩ Set.Icc a b), g y
+              ≤ ∫ _ in (R j ∩ Set.Icc a b), M :=
+                MeasureTheory.setIntegral_mono_on
+                  (hg_intBin _ hj_rk)
+                  (MeasureTheory.integrableOn_const (hs := (measure_mono
+                    Set.inter_subset_left |>.trans_lt measure_Ico_lt_top).ne))
+                  (measurableSet_Ico.inter measurableSet_Icc) (fun y _ => hg_le y)
+            _ = M * MeasureTheory.volume.real (R j ∩ Set.Icc a b) := by
+                rw [MeasureTheory.setIntegral_const, smul_eq_mul, mul_comm]
+            _ ≤ M * Δ := mul_le_mul_of_nonneg_left (hvol_bin j) hM_pos.le
+        -- Combine
+        rw [h_sum_eq]
+        calc ∑ j ∈ J_cross, ∫ y in (R j ∩ Set.Icc a b), g y
+            ≤ ∑ _ ∈ J_cross, M * Δ := Finset.sum_le_sum hcross_le
+          _ = J_cross.card • (M * Δ) := Finset.sum_const _
+          _ ≤ 1 • (M * Δ) := nsmul_le_nsmul_left (mul_nonneg hM_pos.le hΔ_pos.le)
+              hcross_card
+          _ = M * Δ := one_nsmul _
+      -- === |J| * Δ ≤ b - a + Δ ===
+      have hJ_count : (J.card : ℝ) * Δ ≤ b - a + Δ := by
+        have hR_sub : ∀ j ∈ J, R j ⊆ Set.Ico a (b + Δ) := by
+          intro j hj y hy
+          have hja := (Finset.mem_filter.mp hj).2.1
+          have hjb := (Finset.mem_filter.mp hj).2.2
+          exact ⟨le_trans hja hy.1, lt_of_lt_of_le hy.2 (by linarith)⟩
+        have hR_disj : Set.PairwiseDisjoint (J : Set ℕ) R := by
+          intro i hi j hj hij
+          rw [Function.onFun, Set.disjoint_iff]
+          intro z ⟨hzi, hzj⟩
+          rcases lt_or_gt_of_ne hij with h | h
+          · have hge : (↑i + 1 : ℝ) ≤ ↑j := by exact_mod_cast h
+            have := (hx_succ i).symm ▸ show x (i+1) ≤ x j from by
+              show (2*↑(i+1)-↑k)/√↑N ≤ (2*↑j-↑k)/√↑N
+              exact div_le_div_of_nonneg_right (by push_cast; linarith) hsqN_pos.le
+            linarith [hzi.2, hzj.1]
+          · have hge : (↑j + 1 : ℝ) ≤ ↑i := by exact_mod_cast h
+            have := (hx_succ j).symm ▸ show x (j+1) ≤ x i from by
+              show (2*↑(j+1)-↑k)/√↑N ≤ (2*↑i-↑k)/√↑N
+              exact div_le_div_of_nonneg_right (by push_cast; linarith) hsqN_pos.le
+            linarith [hzj.2, hzi.1]
+        have h1 : J.card • ENNReal.ofReal Δ ≤ ENNReal.ofReal (b - a + Δ) :=
+          calc J.card • ENNReal.ofReal Δ
+              = ∑ _ ∈ J, ENNReal.ofReal Δ := (Finset.sum_const _).symm
+            _ = ∑ j ∈ J, MeasureTheory.volume (R j) :=
+                Finset.sum_congr rfl fun j _ => by
+                  show ENNReal.ofReal Δ = MeasureTheory.volume (Set.Ico (x j) (x j + Δ))
+                  rw [Real.volume_Ico]; congr 1; ring
+            _ = MeasureTheory.volume (⋃ j ∈ J, R j) :=
+                (MeasureTheory.measure_biUnion_finset
+                  hR_disj (fun _ _ => measurableSet_Ico)).symm
+            _ ≤ MeasureTheory.volume (Set.Ico a (b + Δ)) :=
+                MeasureTheory.measure_mono (Set.iUnion₂_subset fun j hj => hR_sub j hj)
+            _ = ENNReal.ofReal (b - a + Δ) := by
+                rw [Real.volume_Ico]; congr 1; ring
+        rw [nsmul_eq_mul] at h1
+        rw [show (↑J.card : ENNReal) * ENNReal.ofReal Δ =
+          ENNReal.ofReal (↑J.card * Δ) from by
+            rw [ENNReal.ofReal_mul (Nat.cast_nonneg _), ENNReal.ofReal_natCast]] at h1
+        exact (ENNReal.ofReal_le_ofReal_iff (by linarith)).mp h1
+      -- === Combine ===
+      calc I_val
+          = ∑ j ∈ Finset.range k, ∫ y in (R j ∩ Set.Icc a b), g y := hpartition
+        _ = (∑ j ∈ J, ∫ y in (R j ∩ Set.Icc a b), g y) +
+            (∑ j ∈ (Finset.range k).filter (fun j => j ∉ J),
+              ∫ y in (R j ∩ Set.Icc a b), g y) := hsplit
+        _ ≤ (∑ j ∈ J, (g (x j) + ε) * Δ) + M * Δ :=
+            add_le_add (Finset.sum_le_sum hbin_uc) hnonJ
+        _ = (∑ j ∈ J, g (x j) * Δ) + ↑J.card * (ε * Δ) + M * Δ := by
+            congr 1; rw [show ∑ j ∈ J, (g (x j) + ε) * Δ =
+              (∑ j ∈ J, g (x j) * Δ) + ∑ _ ∈ J, ε * Δ from by
+                rw [← Finset.sum_add_distrib]; congr 1; ext; ring,
+              Finset.sum_const, nsmul_eq_mul]
+        _ = S_val + ε * (↑J.card * Δ) + M * Δ := by rw [hS_eq]; ring
+        _ ≤ S_val + ε * (b - a + Δ) + M * Δ := by nlinarith [hJ_count]
+        _ ≤ S_val + ε * (b - a + 1) + M * Δ := by nlinarith [hΔ_le_one]
+    -- Combine: |S-I| ≤ ε*(b-a+1) + MΔ ≤ ε*(b-a+1) + 3MΔ
+    rw [abs_le]
+    constructor
+    · nlinarith [mul_pos hM_pos hΔ_pos, hε_pos]
+    · nlinarith [mul_pos hM_pos hΔ_pos, hε_pos]
 
 /-! ## Tail Bounds for Binomial Sums
 
