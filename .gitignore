@@ -3,3 +3,5 @@ lake-packages/
 build/
 /.claude/
 CLAUDE.md
+references/
+.mcp.json

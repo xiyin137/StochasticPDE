@@ -1115,51 +1115,18 @@ theorem gaussian_tail_bound (t : ℝ) (ht : 0 < t) :
         exact hcalc
     _ = Real.exp (-t^2/2) / t := by ring
 
-/-! ## Convergence of Cylinder Set Probabilities
-
-For Anderson's theorem, we need the cylinder set probabilities to converge
-to the corresponding Wiener measure probabilities.
--/
-
-/-- For a single time constraint, the hyperfinite probability converges to Wiener measure.
-    This is the key bridge between the nonstandard and standard worlds.
-
-    If we have W_t ∈ [a, b] for Wiener measure, and the hyperfinite walk X_⌊tN⌋/√N at
-    step ⌊tN⌋, rescaled, then:
-    P_Loeb(X_⌊tN⌋/√N ∈ [a,b]) = Wiener(W_t ∈ [a,b]) + O(1/√N)
--/
-theorem cylinder_prob_convergence (a b : ℝ) (t : ℝ) (ha : a < b) (ht : 0 < t) :
-    ∀ ε > 0, ∃ N₀ : ℕ, ∀ N ≥ N₀,
-      let k := Nat.floor (t * N)
-      let scaledProb := ((Finset.univ : Finset (Fin N → Bool)).filter
-        (fun flips =>
-          let walk := (partialSumFin N flips k : ℝ) / Real.sqrt N
-          a ≤ walk ∧ walk ≤ b)).card / (2^N : ℝ)
-      let wienerProb := ∫ x in Set.Icc a b, gaussianDensitySigma (Real.sqrt t) x
-      |scaledProb - wienerProb| < ε := by
-  -- This follows from the local CLT applied to each term in the sum
-  -- scaledProb = Σ_{j : a√N ≤ 2j-k ≤ b√N} C(N, (k+j)/2) / 2^N
-  -- Each term ≈ gaussianDensitySigma evaluated at the corresponding point
-  -- The sum approximates the integral
-  sorry
-
 /-! ## Summary
 
-We have stated the main components needed for the local CLT:
+The main components for the local CLT:
 
 1. **Stirling bounds** - Lower and upper bounds on n! via Stirling's formula
 2. **Local CLT** - Pointwise convergence of binomial pmf to Gaussian density
 3. **Tail bounds** - Hoeffding inequality and Gaussian tail bounds
 4. **Cylinder convergence** - Hyperfinite probabilities converge to Wiener measure
+   (Proved in CylinderConvergenceHelpers.lean as `cylinder_prob_convergence`)
 
 These are the key ingredients for proving Anderson's theorem:
 - The pushforward of Loeb measure under the standard part map equals Wiener measure.
-
-The proofs are marked with `sorry` as they require substantial technical work:
-- Stirling: Integral comparisons or Wallis product
-- Local CLT: Careful application of Stirling to factorials
-- Hoeffding: Exponential moment bounds
-- Cylinder convergence: Riemann sum approximation of integrals
 
 -/
 

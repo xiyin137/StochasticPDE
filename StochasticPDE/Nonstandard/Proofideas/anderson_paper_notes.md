@@ -96,11 +96,11 @@ This difference is **immaterial** for the standard part — both give the same �
 ### What's NOT in the paper that we need
 
 The paper doesn't detail:
-- The local CLT proof (binomial → Gaussian convergence)
-- The cylinder set probability argument
-- The Riemann sum convergence step
+- The local CLT proof (binomial → Gaussian convergence) — **PROVEN** (`binomProb_ratio_near_one`)
+- The cylinder set probability argument — **SORRY** (`cylinder_prob_convergence`, next target)
+- The Riemann sum convergence step — **PROVEN** (`gaussDensity_Riemann_sum_converges`, 2026-02-22)
 
-These are the "standard" ingredients that Anderson considers routine but which require substantial formalization work. Our critical path sorrys #1-#3 are exactly this gap.
+These are the "standard" ingredients that Anderson considers routine but which require substantial formalization work. As of 2026-02-22, only the cylinder set convergence remains on the critical path — all the analytic/combinatorial infrastructure is in place.
 
 ### The (dχ)² = dt insight
 

@@ -6,7 +6,7 @@ A rigorous formalization of stochastic partial differential equations (SPDEs), s
 
 This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axioms, no placeholders, and proper definitions throughout.
 
-**~51,000 lines of Lean 4** across **99 files**.
+**~52,000 lines of Lean 4** across **99 files**.
 
 ## Main Components
 
@@ -74,11 +74,19 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 | `EKMS/InvariantMeasure.lean` | Unique invariant measure ("one force, one solution") |
 | `EKMS/Hyperbolicity.lean` | Hyperbolicity and Pesin theory |
 
-### Nonstandard Analysis Approach
+### Nonstandard Analysis Approach (`Nonstandard/`)
+
+Anderson's (1976) construction of Brownian motion via hyperfinite random walks, formalized in Lean 4. Brownian motion is literally the standard part of a hyperfinite random walk: B(t) = st(W_{⌊tN⌋}/√N).
 
 | Module | Description |
 |--------|-------------|
-| `Nonstandard/` | Hyperfinite random walks, Loeb measure, Anderson's theorem, nonstandard Ito formula |
+| `Foundation/` | Hypernatural numbers, hyperfinite sums, internal sets, ℵ₁-saturation, arithmetic helpers (0 sorrys) |
+| `Anderson/` | Local CLT, S-continuity a.s., maximal inequality, Anderson's theorem, Ito correspondence |
+| `LoebMeasure/` | Loeb measure construction, σ-additivity via saturation, Wiener measure, path continuity (0 sorrys) |
+| `HyperfiniteRandomWalk.lean` | Hyperfinite walk, quadratic variation = time exactly (0 sorrys) |
+| `HyperfiniteStochasticIntegral.lean` | Hyperfinite Ito integral, Ito isometry exactly (0 sorrys) |
+
+**Key proven results**: S-continuity a.s. (Loeb-almost-all paths continuous), local CLT (binomial → Gaussian), cylinder set probability convergence, quadratic variation identity, SDE existence/uniqueness via Euler-Maruyama. **8 sorrys** remain (1 on Anderson critical path, 1 standalone, 6 for Ito chain).
 
 ### Proof Infrastructure
 

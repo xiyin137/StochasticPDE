@@ -309,11 +309,27 @@ If `integral_finset_biUnion` proves too complex to apply, an alternative for
 
 But defining and integrating the step function `h` may be equally complex in Lean.
 
-## Status
+## Status — COMPLETE (2026-02-22)
+
 - [x] Analysis complete, bounds verified
 - [x] Mathlib lemma signatures checked
 - [x] Code change plan written
-- [ ] N₀ modification implemented
-- [ ] h_upper proof written
-- [ ] h_lower proof written
-- [ ] File compiles with 0 sorrys in this theorem
+- [x] N₀ modification implemented
+- [x] h_upper proof written (right-bin decomposition approach)
+- [x] h_lower proof written (lattice partition + UC per-bin + crossing zone for gap bins)
+- [x] a = b degenerate case proved (measure-zero integral + at-most-1-term argument)
+- [x] Unused `lattice_sum_le_bound` private lemma removed
+- [x] File compiles with 0 sorrys in this theorem
+- [x] `CylinderConvergenceHelpers.lean` is fully sorry-free
+
+### Implementation Notes
+
+The actual proof followed Option 1 (direct UC argument) as recommended. Key details:
+
+**h_upper** (~180 lines): Right-bin decomposition. Split lattice points J into J₁ (interior, x_j + Δ ≤ b) and J₂ (boundary). Interior bins: each g(x_j)*Δ ≤ ∫_{right bin} g + ε*Δ via UC, sum of integrals ≤ I via disjointness + monotonicity. Boundary: |J₂| ≤ 1 (lattice spacing argument), each ≤ M*Δ.
+
+**h_lower** (~290 lines, more involved than estimated): Lattice partition + UC per-bin bound for covered bins. The gap bound used a "crossing zone" argument: bins that straddle the boundary of ∪C_j contribute at most 1 crossing bin (proved via lattice spacing), bounded by M*Δ. Key technical fix: `Nat.cast_le.mpr (Nat.succ_le_of_lt hlt)` instead of `Nat.cast_lt.mpr hlt` (in ℝ, `i < j` does NOT imply `i + 1 ≤ j`).
+
+**a = b case** (~60 lines): Integral = 0 via `setIntegral_measure_zero`. Sum has at most 1 nonzero term (injectivity via `Nat.cast_injective`), bounded by M*(2/√N) < δ for large N.
+
+**Bug confirmed**: The original `2*M*Δ` bound for h_lower was indeed too tight (as noted in the analysis). Changed to `ε*(b-a+1) + M*Δ` with `Δ ≤ 1` (N ≥ 4).

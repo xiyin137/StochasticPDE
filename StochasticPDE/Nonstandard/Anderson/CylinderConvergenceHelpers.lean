@@ -1929,4 +1929,230 @@ theorem binomial_tail_small (k : ℕ) (C : ℝ) (hk : 0 < k) (hC : 0 < C) :
         rw [ht_def, mul_pow, Real.sq_sqrt (le_of_lt hk_pos)]
         field_simp
 
+/-! ## Cylinder Probability Convergence
+
+The main bridge theorem: the hyperfinite probability converges to Wiener measure.
+Combines `scaledProb_eq_walkIntervalProb`, `binomProb_ratio_near_one`, and
+`gaussDensity_Riemann_sum_converges` via triangle inequality.
+-/
+
+set_option maxHeartbeats 400000 in
+/-- For a single time constraint, the hyperfinite probability converges to Wiener measure.
+    This is the key bridge between the nonstandard and standard worlds. -/
+theorem cylinder_prob_convergence (a b : ℝ) (t : ℝ) (ha : a < b) (ht : 0 < t) (ht1 : t ≤ 1) :
+    ∀ ε > 0, ∃ N₀ : ℕ, ∀ N ≥ N₀,
+      let k := Nat.floor (t * N)
+      let scaledProb := ((Finset.univ : Finset (Fin N → Bool)).filter
+        (fun flips =>
+          let walk := (partialSumFin N flips k : ℝ) / Real.sqrt N
+          a ≤ walk ∧ walk ≤ b)).card / (2^N : ℝ)
+      let wienerProb := ∫ x in Set.Icc a b, gaussianDensitySigma (Real.sqrt t) x
+      |scaledProb - wienerProb| < ε := by
+  intro ε hε
+  -- Setup: Gaussian density properties
+  set g := gaussianDensitySigma (Real.sqrt t) with hg_def
+  have hσ : (0 : ℝ) < Real.sqrt t := Real.sqrt_pos.mpr ht
+  set M := 1 / (Real.sqrt t * Real.sqrt (2 * Real.pi)) with hM_def
+  have hM_pos : 0 < M := by positivity
+  have hg_le : ∀ x, g x ≤ M := fun x => gaussianDensitySigma_le_peak hσ x
+  have hg_nn : ∀ x, 0 ≤ g x := fun x => gaussianDensitySigma_nonneg hσ x
+  have hg_pos : ∀ x, 0 < g x := by
+    intro x; simp only [hg_def, gaussianDensitySigma, hσ, ↓reduceIte]
+    exact mul_pos (div_pos one_pos (by positivity)) (Real.exp_pos _)
+  -- Bound on Riemann sum: at most M*(b-a+2)
+  set B := M * (b - a + 2) with hB_def
+  have hba : 0 < b - a := by linarith
+  have hB_pos : 0 < B := by positivity
+  -- Step 1: Get N₁ from binomProb_ratio_near_one with δ' = ε/(3B)
+  set δ' := ε / (3 * B) with hδ'_def
+  have hδ'_pos : 0 < δ' := by positivity
+  obtain ⟨N₁, hN₁⟩ := binomProb_ratio_near_one a b t ha ht δ' hδ'_pos
+  -- Step 2: Get N₂ from gaussDensity_Riemann_sum_converges with ε/3
+  obtain ⟨N₂, hN₂⟩ := gaussDensity_Riemann_sum_converges a b t (le_of_lt ha) ht (ε / 3)
+    (by linarith)
+  -- N₀ = max(N₁, N₂, 1)
+  refine ⟨max (max N₁ N₂) 1, fun N hN => ?_⟩
+  have hN_ge_N₁ : N₁ ≤ N :=
+    le_trans (le_max_left _ _) (le_trans (le_max_left _ _) hN)
+  have hN_ge_N₂ : N₂ ≤ N :=
+    le_trans (le_max_right _ _) (le_trans (le_max_left _ _) hN)
+  have hN_pos : 0 < N :=
+    Nat.lt_of_lt_of_le Nat.one_pos (le_trans (le_max_right _ _) hN)
+  -- Setup local definitions
+  set k := Nat.floor (t * ↑N) with hk_def
+  -- Prove k ≤ N (from t ≤ 1)
+  have hk_le : k ≤ N := by
+    have h1 : (↑k : ℝ) ≤ t * ↑N := Nat.floor_le (by positivity)
+    have h2 : t * (↑N : ℝ) ≤ ↑N := by nlinarith
+    exact_mod_cast le_trans h1 h2
+  -- Step 3: Rewrite scaledProb = walkIntervalProb k a b (1/√N)
+  simp only
+  have hsp := scaledProb_eq_walkIntervalProb N k hk_le a b hN_pos
+  rw [hsp]
+  -- Setup auxiliary values
+  have hsqN_pos : (0 : ℝ) < Real.sqrt ↑N := Real.sqrt_pos.mpr (Nat.cast_pos.mpr hN_pos)
+  set Δ := 2 / Real.sqrt ↑N with hΔ_def
+  have hΔ_pos : 0 < Δ := by positivity
+  set x_val := fun j : ℕ => (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N with hx_def
+  set cond := fun j : ℕ => a ≤ x_val j ∧ x_val j ≤ b with hcond_def
+  -- The Riemann sum
+  set RS := ∑ j ∈ Finset.range (k + 1),
+    (if cond j then g (x_val j) * Δ else 0) with hRS_def
+  -- Apply hN₂ and hN₁ to our N
+  have hRS_bound := hN₂ N hN_ge_N₂
+  have hRatio := hN₁ N hN_ge_N₁
+  -- Step 4: RS matches the Riemann sum in hRS_bound
+  have h_rs_eq : RS = ∑ j ∈ Finset.range (k + 1),
+      (if a ≤ (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ∧
+          (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ≤ b
+       then gaussianDensitySigma (Real.sqrt t) ((2 * (j : ℝ) - ↑k) / Real.sqrt ↑N) *
+            (2 / Real.sqrt ↑N)
+       else 0) := by
+    simp only [hRS_def, hx_def, hcond_def, hΔ_def, hg_def]
+  -- Step 5: |RS - ∫g| < ε/3
+  have h_term2 : |RS - ∫ x in Set.Icc a b, g x| < ε / 3 := by
+    rw [h_rs_eq]; exact hRS_bound
+  -- Step 6: Unfold WIP into sum with same condition
+  have hWIP_eq : walkIntervalProb k a b (1 / Real.sqrt ↑N) =
+      ∑ j ∈ Finset.range (k + 1),
+        (if cond j then (Nat.choose k j : ℝ) / 2^k else 0) := by
+    simp only [walkIntervalProb, walkValInInterval, binomialWalkProb]
+    apply Finset.sum_congr rfl
+    intro j hj
+    have hj_le : j ≤ k := Nat.lt_succ_iff.mp (Finset.mem_range.mp hj)
+    simp only [hj_le, ↓reduceIte]
+    -- Match the condition: 1/√N * (2j-k) ↔ (2j-k)/√N
+    have hcond_match : (a ≤ 1 / Real.sqrt ↑N * (2 * (j : ℝ) - ↑k) ∧
+        1 / Real.sqrt ↑N * (2 * (j : ℝ) - ↑k) ≤ b) ↔ cond j := by
+      simp only [hcond_def, hx_def, one_div, inv_mul_eq_div]
+    simp only [show (a ≤ 1 / Real.sqrt ↑N * (2 * (j : ℝ) - ↑k) ∧
+        1 / Real.sqrt ↑N * (2 * (j : ℝ) - ↑k) ≤ b) = cond j from propext hcond_match]
+  -- Step 7: Per-term difference bound
+  have h_diff_bound : |walkIntervalProb k a b (1 / Real.sqrt ↑N) - RS| ≤
+      ∑ j ∈ Finset.range (k + 1),
+        (if cond j then δ' * (g (x_val j) * Δ) else 0) := by
+    rw [hWIP_eq, hRS_def, ← Finset.sum_sub_distrib]
+    calc |∑ j ∈ Finset.range (k + 1),
+          ((if cond j then (Nat.choose k j : ℝ) / 2^k else 0) -
+           (if cond j then g (x_val j) * Δ else 0))|
+        ≤ ∑ j ∈ Finset.range (k + 1),
+          |(if cond j then (Nat.choose k j : ℝ) / 2^k else 0) -
+           (if cond j then g (x_val j) * Δ else 0)| :=
+        Finset.abs_sum_le_sum_abs _ _
+      _ ≤ ∑ j ∈ Finset.range (k + 1),
+          (if cond j then δ' * (g (x_val j) * Δ) else 0) := by
+        apply Finset.sum_le_sum
+        intro j hj
+        split_ifs with hc
+        · -- j satisfies condition: use ratio bound
+          have hj_le : j ≤ k := Nat.lt_succ_iff.mp (Finset.mem_range.mp hj)
+          have hgΔ_pos : 0 < g (x_val j) * Δ := mul_pos (hg_pos _) hΔ_pos
+          -- From ratio bound: |binom/(gauss*Δ) - 1| < δ'
+          have hratio := hRatio j hj_le hc.1 hc.2 hgΔ_pos
+          -- Convert to: |binom - gauss*Δ| ≤ δ' * (gauss*Δ)
+          have hne_gΔ : (g (x_val j) * Δ) ≠ 0 := ne_of_gt hgΔ_pos
+          rw [show (Nat.choose k j : ℝ) / 2^k - g (x_val j) * Δ =
+              (g (x_val j) * Δ) * ((Nat.choose k j : ℝ) / 2^k / (g (x_val j) * Δ) - 1)
+              from by rw [mul_sub, mul_one, mul_comm (g (x_val j) * Δ),
+                          div_mul_cancel₀ _ hne_gΔ]]
+          rw [abs_mul, abs_of_pos hgΔ_pos, mul_comm (g (x_val j) * Δ)]
+          exact le_of_lt (mul_lt_mul_of_pos_right hratio hgΔ_pos)
+        · -- j doesn't satisfy condition: both terms are 0
+          simp
+  -- Step 8: Bound Σ δ'*g(x_j)*Δ ≤ δ' * B
+  have h_sum_bound : ∑ j ∈ Finset.range (k + 1),
+      (if cond j then δ' * (g (x_val j) * Δ) else 0) ≤ δ' * B := by
+    -- Factor out δ'
+    have h_factor : ∑ j ∈ Finset.range (k + 1),
+        (if cond j then δ' * (g (x_val j) * Δ) else 0) =
+        δ' * RS := by
+      rw [hRS_def, Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro j _; split_ifs <;> ring
+    rw [h_factor]
+    apply mul_le_mul_of_nonneg_left _ (le_of_lt hδ'_pos)
+    -- Bound RS ≤ B = M*(b-a+2)
+    -- RS = Σ_{cond} g(x_j)*Δ ≤ Σ_{cond} M*Δ = card * M * Δ
+    -- card ≤ (b-a)/Δ + 1, so card * Δ ≤ b-a+Δ ≤ b-a+2
+    calc RS = ∑ j ∈ Finset.range (k + 1),
+          (if cond j then g (x_val j) * Δ else 0) := hRS_def
+      _ ≤ ∑ j ∈ Finset.range (k + 1),
+          (if cond j then M * Δ else 0) := by
+          apply Finset.sum_le_sum; intro j _
+          split_ifs <;> [exact mul_le_mul_of_nonneg_right (hg_le _) (le_of_lt hΔ_pos); rfl]
+      _ ≤ B := by
+          -- Lattice point counting: ∑(if cond then M*Δ else 0) = M*Δ*count ≤ M*(b-a+2) = B
+          -- Convert sum to M * Δ * card(S)
+          rw [← Finset.sum_filter (p := fun j => cond j)]
+          simp only [Finset.sum_const, nsmul_eq_mul]
+          set S := (Finset.range (k + 1)).filter (fun j => cond j) with hS_def
+          -- Need: ↑S.card * (M * Δ) ≤ B = M * (b - a + 2)
+          rw [hB_def]
+          by_cases hS_ne : S.Nonempty
+          · -- Nonempty case: use min/max to bound card * Δ ≤ b - a + 2
+            set j_min := S.min' hS_ne with hj_min_def
+            set j_max := S.max' hS_ne with hj_max_def
+            have hmin_mem : j_min ∈ S := Finset.min'_mem S hS_ne
+            have hmax_mem : j_max ∈ S := Finset.max'_mem S hS_ne
+            have hmin_cond : cond j_min := (Finset.mem_filter.mp hmin_mem).2
+            have hmax_cond : cond j_max := (Finset.mem_filter.mp hmax_mem).2
+            have hmin_le_max : j_min ≤ j_max := Finset.min'_le S j_max hmax_mem
+            -- S ⊆ Icc j_min j_max
+            have hS_sub : S ⊆ Finset.Icc j_min j_max := fun j hj =>
+              Finset.mem_Icc.mpr ⟨Finset.min'_le S j hj, Finset.le_max' S j hj⟩
+            -- card S ≤ j_max - j_min + 1
+            have hcard : S.card ≤ j_max - j_min + 1 := by
+              calc S.card ≤ (Finset.Icc j_min j_max).card := Finset.card_le_card hS_sub
+                _ = j_max + 1 - j_min := Nat.card_Icc j_min j_max
+                _ = j_max - j_min + 1 := by omega
+            -- x_val difference equals (j_max - j_min) * Δ
+            have hx_diff : x_val j_max - x_val j_min = (↑j_max - ↑j_min) * Δ := by
+              simp only [hx_def, hΔ_def]; field_simp; ring
+            -- x_val j_max - x_val j_min ≤ b - a
+            have hx_range : (↑j_max - ↑j_min : ℝ) * Δ ≤ b - a := by
+              rw [← hx_diff]; linarith [hmin_cond.1, hmax_cond.2]
+            -- Δ ≤ 2 (since √N ≥ 1 for N ≥ 1)
+            have hΔ_le : Δ ≤ 2 := by
+              have hsqN_ge1 : 1 ≤ Real.sqrt ↑N := by
+                rw [← Real.sqrt_one]
+                exact Real.sqrt_le_sqrt (Nat.one_le_cast.mpr (by omega : 1 ≤ N))
+              calc Δ = 2 / Real.sqrt ↑N := hΔ_def
+                _ ≤ 2 / 1 := div_le_div_of_nonneg_left (by norm_num) one_pos hsqN_ge1
+                _ = 2 := div_one 2
+            -- card * Δ ≤ b - a + 2
+            have hcount_bound : (S.card : ℝ) * Δ ≤ b - a + 2 := by
+              calc (S.card : ℝ) * Δ
+                  ≤ (↑(j_max - j_min + 1) : ℝ) * Δ :=
+                    mul_le_mul_of_nonneg_right (Nat.cast_le.mpr hcard) (le_of_lt hΔ_pos)
+                _ = (↑j_max - ↑j_min + 1) * Δ := by
+                    rw [Nat.cast_add, Nat.cast_one, Nat.cast_sub hmin_le_max]
+                _ = (↑j_max - ↑j_min) * Δ + Δ := by ring
+                _ ≤ (b - a) + Δ := by linarith [hx_range]
+                _ ≤ (b - a) + 2 := by linarith [hΔ_le]
+            -- Combine: S.card * (M * Δ) = M * (S.card * Δ) ≤ M * (b - a + 2)
+            calc (↑S.card) * (M * Δ) = M * ((↑S.card) * Δ) := by ring
+              _ ≤ M * (b - a + 2) :=
+                  mul_le_mul_of_nonneg_left hcount_bound (le_of_lt hM_pos)
+          · -- Empty case: sum is 0
+            have hS_eq : S = ∅ := by
+              by_contra h; exact hS_ne (Finset.nonempty_of_ne_empty h)
+            rw [hS_eq]; simp; positivity
+  -- Step 9: |WIP - RS| < ε/3
+  have h_term1 : |walkIntervalProb k a b (1 / Real.sqrt ↑N) - RS| ≤ ε / 3 := by
+    have h := le_trans h_diff_bound h_sum_bound
+    have hδB : δ' * B = ε / 3 := by
+      rw [hδ'_def]; field_simp
+    linarith
+  -- Step 10: Triangle inequality and combine
+  have h_split : walkIntervalProb k a b (1 / Real.sqrt ↑N) - ∫ x in Set.Icc a b, g x =
+      (walkIntervalProb k a b (1 / Real.sqrt ↑N) - RS) +
+      (RS - ∫ x in Set.Icc a b, g x) := by ring
+  calc |walkIntervalProb k a b (1 / Real.sqrt ↑N) - ∫ x in Set.Icc a b, g x|
+      = |(walkIntervalProb k a b (1 / Real.sqrt ↑N) - RS) +
+         (RS - ∫ x in Set.Icc a b, g x)| := by rw [h_split]
+    _ ≤ |walkIntervalProb k a b (1 / Real.sqrt ↑N) - RS| +
+        |RS - ∫ x in Set.Icc a b, g x| := abs_add_le _ _
+    _ < ε / 3 + ε / 3 := add_lt_add_of_le_of_lt h_term1 h_term2
+    _ < ε := by linarith
+
 end SPDE.Nonstandard

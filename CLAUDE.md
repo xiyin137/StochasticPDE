@@ -16,3 +16,8 @@ Instruction for Claude Code (IMPORTANT TO READ ALL OF THIS!):
 15. Proof difficulty could be either due to complexity (develop infrastructures now!) or due to wrong definitions (double check definitions, structures, and theorem statements!)
 16. Axiom smuggling is absolutely not allowed! Do not ever smuggle assumptions in bundled structures. Computational result cannot be assumed in definition or structure.
 17. Do not "simplify" definitions. A "simplified" definition is a wrong definition!
+18. type level issues are important and should be fixed as soon as possible since they might be due to improper definitions or lack of bridge lemmas
+19. read and continue to update Proofideas/ files.
+20. Frequently document proof ideas to avoid losing track of thoughts when running out of context window.
+21. Use the Gemini MCP (`gemini_chat` / `gemini_deep_research`) to assist with proof strategy — e.g. ask about mathematical facts, standard proof techniques, whether a theorem holds, or get references. This is especially useful for complex mathematical arguments where domain knowledge from the physics/math literature is needed.
+22. It helps to write the proof attempt with a first draft, document what works and what needs adjustment, and iterate. Write the proof and compile to see what the goal state looks like.

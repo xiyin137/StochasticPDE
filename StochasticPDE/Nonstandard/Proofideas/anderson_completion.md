@@ -1,120 +1,118 @@
 # Plan: Completing Anderson's Theorem
 
 ## Goal
-Eliminate all 10 sorrys in the Nonstandard module. The primary target is **Anderson's theorem**: the pushforward of Loeb measure under the standard part map equals Wiener measure.
+Eliminate all 9 remaining sorrys in the Nonstandard module. The primary target is **Anderson's theorem**: the pushforward of Loeb measure under the standard part map equals Wiener measure.
 
-## Dependency Graph
+## Dependency Graph (updated 2026-02-22)
 
 ```
 anderson_theorem (PROVEN, delegates to anderson_theorem_cylinder)
   └── anderson_theorem_cylinder (SORRY #1 — AndersonTheorem.lean:516)
-        └── cylinder_prob_convergence (SORRY #2 — LocalCLT.lean:1144)
-              ├── scaledProb_eq_walkIntervalProb (PROVEN)
-              ├── binomProb_ratio_near_one (PROVEN)
-              ├── gaussDensity_Riemann_sum_converges (SORRY #3 — CylinderConvergenceHelpers.lean:1034)
-              │     └── gaussianDensitySigma_continuous (PROVEN)
-              └── binomial_tail_small (PROVEN, Chernoff bounds)
+        └── cylinder_prob_convergence (SORRY #2 — LocalCLT.lean:1144) ← NEXT TARGET
+              ├── scaledProb_eq_walkIntervalProb (PROVEN ✓)
+              ├── binomProb_ratio_near_one (PROVEN ✓)
+              ├── gaussDensity_Riemann_sum_converges (PROVEN ✓ — 2026-02-22)
+              │     └── gaussianDensitySigma_continuous (PROVEN ✓)
+              └── binomial_tail_small (PROVEN ✓, Chernoff bounds)
 
-local_clt_error_bound (SORRY #4 — LocalCLT.lean:185, standalone, NOT on critical path)
+local_clt_error_bound (SORRY #3 — LocalCLT.lean:185, standalone, NOT on critical path)
 
-ito_correspondence       (SORRY #5  — ItoCorrespondence.lean:202)
-ito_isometry_standard    (SORRY #6  — ItoCorrespondence.lean:229)
-ito_lemma_hyperfinite    (SORRY #7  — ItoCorrespondence.lean:373)
-ito_formula              (SORRY #8  — ItoCorrespondence.lean:406)
-gbm_explicit_solution    (SORRY #9  — ExplicitSolutions.lean:81)
-ou_explicit_solution     (SORRY #10 — ExplicitSolutions.lean:112)
+ito_correspondence       (SORRY #4  — ItoCorrespondence.lean:202)
+ito_isometry_standard    (SORRY #5  — ItoCorrespondence.lean:229)
+ito_lemma_hyperfinite    (SORRY #6  — ItoCorrespondence.lean:373)
+ito_formula              (SORRY #7  — ItoCorrespondence.lean:406)
+gbm_explicit_solution    (SORRY #8  — ExplicitSolutions.lean:81)
+ou_explicit_solution     (SORRY #9  — ExplicitSolutions.lean:112)
 ```
 
-**Priority order**: #3 → #2 → #1 (critical path), then #5–#8 (Ito chain), then #9–#10 (explicit solutions). #4 can be skipped (superseded by ratio approach).
+**Priority order**: #2 → #1 (critical path), then #4–#7 (Ito chain), then #8–#9 (explicit solutions). #3 can be skipped (superseded by ratio approach).
 
 ---
 
-## Phase A: Critical Path (3 sorrys)
+## Phase A: Critical Path (2 remaining sorrys)
 
-### A1. `gaussDensity_Riemann_sum_converges` (SORRY #3)
+### A1. `gaussDensity_Riemann_sum_converges` — PROVEN ✓ (2026-02-22)
 
-**File**: `CylinderConvergenceHelpers.lean:1024-1034`
+**File**: `CylinderConvergenceHelpers.lean:1020-1670` (fully proven, 0 sorrys)
 
-**Statement**: For continuous Gaussian density g on [a,b], the Riemann sum
-```
-  Σ_{j : a ≤ x_j ≤ b} g(x_j) · Δx  →  ∫_{a}^{b} g(x) dx
-```
-where x_j = (2j - k)/√N and Δx = 2/√N, with k = ⌊tN⌋.
-
-**Why it's hard**: The sum is over a *lattice* that shifts as N grows; the number of terms grows like (b-a)√N/2. This isn't a standard textbook Riemann sum because the lattice points and the range of summation both depend on N.
-
-**Available infrastructure**:
-- `gaussianDensitySigma_continuous` (proven) — the integrand is continuous
-- Mathlib's `BoxIntegral` module has `HasIntegral`, `integrable_of_continuousOn`, and convergence of integral sums along tagged partitions
-- Mathlib's `MeasureTheory.integral` and `IntervalIntegral` for the target integral
-
-**Proof strategy (two options)**:
-
-*Option 1: Direct ε-δ from uniform continuity.*
-Since g = gaussianDensitySigma(√t, ·) is uniformly continuous on [a,b] (continuous on compact):
-1. For any ε > 0, pick δ > 0 from UC of g on [a,b]
-2. For N large enough, mesh = 2/√N < δ
-3. The Riemann sum differs from ∫g by at most ε·(b-a) + tail correction
-4. The "tail correction" is that the lattice {x_j} covers [a,b] up to ±Δx at boundaries — bounded by 2·‖g‖_∞·Δx → 0
-
-The main technical work:
-- Partition [a,b] into sub-intervals of width Δx = 2/√N
-- On each sub-interval, |g(x_j) - g(x)| < ε by UC
-- So |Σ g(x_j)Δx - ∫g| ≤ ε(b-a) + boundary terms
-- Boundary terms: at most 2 lattice points near a,b contribute O(Δx) error
-
-*Option 2: Via Mathlib's BoxIntegral.*
-Construct a tagged partition of [a,b] from the lattice points and appeal to `integrable_of_continuousOn` + `HasIntegral.tendsto`. This would be cleaner but requires navigating the BoxIntegral API (which uses multi-dimensional boxes even for 1D).
-
-**Recommendation**: Option 1 (direct UC argument) is more self-contained and avoids BoxIntegral API complexity. The proof is ~100 lines: UC setup, lattice-to-partition correspondence, summation error bound.
-
-**Key lemmas to develop**:
-- `uniform_continuous_on_of_continuous_compact`: g UC on [a,b] (may exist in Mathlib as `IsCompact.uniformContinuousOn_of_continuous`)
-- `lattice_covers_interval`: for large N, the lattice {(2j-k)/√N} covers [a,b] up to boundary terms
-- `riemann_sum_error_bound`: |Σ f(x_j)Δx - ∫f| ≤ ω(f,δ)·(b-a) + 2‖f‖_∞·Δx where ω is the modulus of continuity
+Used Option 1 (direct UC argument). See `riemann_sum_bound.md` for detailed implementation notes. The proof was ~650 lines total including helper infrastructure. Key insight: the h_lower bound required a "crossing zone" argument for gap bins, not just the centered-bin decomposition originally planned.
 
 ---
 
-### A2. `cylinder_prob_convergence` (SORRY #2)
+### A2. `cylinder_prob_convergence` (SORRY #2) — NEXT TARGET
 
 **File**: `LocalCLT.lean:1131-1144`
 
-**Statement**: For a single time t and interval [a,b]:
+**Statement**: For a single time t and interval [a,b] with a < b:
 ```
   |scaledProb_N - ∫_{a}^{b} gaussianDensitySigma(√t, x) dx| < ε
 ```
-where scaledProb_N = #{flips : S_{⌊tN⌋}/√N ∈ [a,b]} / 2^N.
+where scaledProb_N = #{flips : partialSumFin(N,flips,⌊tN⌋)/√N ∈ [a,b]} / 2^N.
 
-**Available infrastructure** (all proven):
-- `scaledProb_eq_walkIntervalProb`: scaledProb = Σ_{j in range} C(k,j)/2^k (fiber decomposition)
-- `binomProb_ratio_near_one`: C(k,j)/2^k ≈ gaussianDensitySigma(√t, x_j) · Δx (pointwise ratio → 1)
-- `binomial_tail_small`: tail probability outside [-C√k, C√k] is ≤ 2exp(-C²/2) (Chernoff)
-- `gaussDensity_Riemann_sum_converges` (SORRY #3, to be proved first)
+**All prerequisites are now PROVEN**:
+- `scaledProb_eq_walkIntervalProb` (CylinderConvergenceHelpers.lean:373): scaledProb = walkIntervalProb k a b (1/√N)
+  - walkIntervalProb = Σ_{j=0}^{k} walkValInInterval(k, j, a, b, 1/√N)
+  - walkValInInterval checks if (2j-k)/√N ∈ [a,b] and returns C(k,j)/2^k
+- `binomProb_ratio_near_one` (CylinderConvergenceHelpers.lean:996): for large N, |C(k,j)/2^k / (g(x_j)·Δ) - 1| < δ
+- `gaussDensity_Riemann_sum_converges` (CylinderConvergenceHelpers.lean:1020): Σ g(x_j)·Δ → ∫g
+- `binomial_tail_small` (CylinderConvergenceHelpers.lean:1884): Chernoff tail bound
 
-**Proof strategy**:
+**Proof strategy (triangle inequality)**:
 
-Split the sum into central + tail regions:
+The key idea: decompose |scaledProb - ∫g| into two pieces via triangle inequality.
+
 ```
-  scaledProb = Σ_{|x_j| ≤ C√k/√N} C(k,j)/2^k + Σ_{|x_j| > C√k/√N} C(k,j)/2^k
+scaledProb = walkIntervalProb k a b (1/√N)           [by scaledProb_eq_walkIntervalProb]
+           = Σ_{j: x_j ∈ [a,b]} C(k,j)/2^k          [expanding walkValInInterval/binomialWalkProb]
+
+RiemannSum = Σ_{j: x_j ∈ [a,b]} g(x_j) · Δ          [Δ = 2/√N]
+
+|scaledProb - ∫g| ≤ |Σ binom_j - Σ gauss_j·Δ| + |Σ gauss_j·Δ - ∫g|
+                    └────── term 1 ──────────┘   └──── term 2 ────┘
 ```
 
-1. **Tail is small** (both sides):
-   - Binomial tail: Σ_{tail} C(k,j)/2^k ≤ 2exp(-C²/2) < ε/4 for C large
-   - Gaussian tail: ∫_{|x|>C} g(x) dx < ε/4 for C large (from `gaussian_tail_bound`)
+**Term 2** (Riemann sum error): Directly from `gaussDensity_Riemann_sum_converges` with δ₁ = ε/3.
 
-2. **Central region: pointwise ratio → sum convergence**:
-   - By `binomProb_ratio_near_one`: for large N, each C(k,j)/2^k = g(x_j)·Δx·(1 ± δ)
-   - So Σ_{central} C(k,j)/2^k = (1 ± δ) · Σ_{central} g(x_j)·Δx
-   - By `gaussDensity_Riemann_sum_converges`: Σ_{central} g(x_j)·Δx → ∫_{central} g
+**Term 1** (pointwise ratio → sum error): By `binomProb_ratio_near_one` with δ' chosen below:
+- For each j with x_j ∈ [a,b]: |C(k,j)/2^k / (g(x_j)·Δ) - 1| < δ'
+- So |C(k,j)/2^k - g(x_j)·Δ| < δ' · g(x_j) · Δ
+- Summing: |Σ binom_j - Σ gauss_j·Δ| ≤ δ' · Σ g(x_j) · Δ
+- Bound: Σ g(x_j)·Δ ≤ M·(b-a+2) where M = 1/(√t·√(2π)) is the peak bound
+  (at most (b-a)/Δ + 2 terms, each ≤ M·Δ)
+- Choose δ' = ε / (3·M·(b-a+2)), then term 1 ≤ ε/3
 
-3. **Combine**: |scaledProb - ∫g| ≤ ε/4 + ε/4 + δ·∫g + Riemann error < ε
+**Combine**: |scaledProb - ∫g| ≤ ε/3 + ε/3 = 2ε/3 < ε. ✓
 
-**Key technical steps**:
-- Need to relate the `if` conditions in `gaussDensity_Riemann_sum_converges` to the actual binomial sum range
-- The central/tail cutoff C should be chosen as a function of ε (C = √(2·log(8/ε)) works)
-- The Riemann sum convergence gives the central region match
+**Note**: This does NOT need the tail splitting! The ratio bound + Riemann sum convergence together give everything directly, without needing to separate central/tail regions. This is much simpler than originally planned.
 
-**Estimated complexity**: ~150 lines. Most of the hard work (local CLT, Chernoff) is already done.
+**Required hypothesis**: k ≤ N for `scaledProb_eq_walkIntervalProb`. Since k = ⌊tN⌋, this holds when t ≤ 1. For t > 1, we'd need ⌊tN⌋ > N for large N, making the theorem problematic. **Potential fix**: add hypothesis `ht1 : t ≤ 1` or verify that `partialSumFin N flips k` handles k > N correctly.
+
+**Lean proof outline**:
+```lean
+intro ε hε
+-- Step 1: Get N₁ from binomProb_ratio_near_one with δ' = ε/(3*B) where B = M*(b-a+2)
+set B := M * (b - a + 2) with hB_def
+have hB_pos : 0 < B := ...
+set δ' := ε / (3 * B) with hδ'_def
+obtain ⟨N₁, hN₁⟩ := binomProb_ratio_near_one a b t ha ht δ' (by positivity)
+-- Step 2: Get N₂ from gaussDensity_Riemann_sum_converges with δ₁ = ε/3
+obtain ⟨N₂, hN₂⟩ := gaussDensity_Riemann_sum_converges a b t (le_of_lt ha) ht (ε/3) (by linarith)
+-- Step 3: N₀ = max(N₁, N₂, ...) with enough to ensure k ≤ N and 0 < N
+refine ⟨max (max N₁ N₂) ..., fun N hN => ?_⟩
+-- Step 4: Rewrite scaledProb = walkIntervalProb
+have h_sp := scaledProb_eq_walkIntervalProb N k hk a b hN_pos
+-- Step 5: Triangle inequality
+calc |scaledProb - wienerProb|
+    ≤ |walkIntervalProb - RiemannSum| + |RiemannSum - wienerProb| := abs_sub_abs_le_abs_sub ...
+    _ < ε/3 + ε/3 := add_lt_add h_term1 h_term2
+    _ < ε := ...
+```
+
+**Estimated complexity**: ~100-150 lines. The main work is:
+1. Unfolding walkIntervalProb and relating it term-by-term to the Riemann sum (~30 lines)
+2. Applying binomProb_ratio_near_one per-term and summing (~40 lines)
+3. Ensuring k ≤ N and N > 0 (~15 lines)
+4. Triangle inequality combining step (~15 lines)
 
 ---
 
@@ -252,12 +250,12 @@ This is superseded by the ratio approach in `binomProb_ratio_near_one`. Could ei
 
 ---
 
-## Execution Order
+## Execution Order (updated 2026-02-22)
 
 ```
 Phase A (critical path — sequential):
-  A1: gaussDensity_Riemann_sum_converges  (~100 lines)
-  A2: cylinder_prob_convergence           (~150 lines)
+  A1: gaussDensity_Riemann_sum_converges  — DONE ✓ (~650 lines)
+  A2: cylinder_prob_convergence           (~100-150 lines) ← NEXT
   A3: anderson_theorem_cylinder           (~50-150 lines depending on n=1 vs general)
 
 Phase B (Ito chain — can start in parallel with A):
@@ -271,17 +269,11 @@ Phase C (depends on B3):
   C2: ou_explicit_solution                 (~60 lines)
 ```
 
-**Total estimated**: ~700-900 lines of proof across 9 sorrys (skipping #4).
+**Total remaining**: ~600-750 lines of proof across 8 sorrys (skipping local_clt_error_bound).
 
-## Key Risk: Riemann Sum Convergence
+## Key Risk: Riemann Sum Convergence — RESOLVED ✓
 
-The `gaussDensity_Riemann_sum_converges` proof is the gate for the entire critical path. The main difficulty is that this is a *lattice Riemann sum* (not a standard partition-based sum), so standard Riemann sum theorems may not apply directly. The uniform continuity argument should work but requires careful bookkeeping of the lattice-to-interval correspondence.
-
-If this proves too difficult directly, an alternative is to:
-1. Prove a general "lattice Riemann sum converges for UC functions" lemma
-2. Apply it to the Gaussian density
-
-This general lemma would be reusable infrastructure.
+This was completed on 2026-02-22. The proof used a direct UC argument (Option 1) and was ~650 lines rather than the estimated ~100. The main difficulty was the h_lower bound which required a novel "crossing zone" argument for gap bins.
 
 ## Key Risk: Anderson n ≥ 2
 
@@ -291,3 +283,12 @@ The multi-time case requires factoring the joint distribution into independent i
 - Product of marginal probabilities = joint probability
 
 This could add significant infrastructure. **Mitigation**: Prove n=1 first (sufficient for single-time Brownian motion properties), defer n≥2.
+
+## Key Risk: t > 1 in cylinder_prob_convergence
+
+The `scaledProb_eq_walkIntervalProb` theorem requires `k ≤ N`. Since k = ⌊tN⌋, this holds for t ≤ 1 but fails for t > 1 (where ⌊tN⌋ > N for large N). Options:
+1. Add hypothesis `t ≤ 1` to `cylinder_prob_convergence`
+2. Extend `scaledProb_eq_walkIntervalProb` to handle k > N (where partialSumFin truncates)
+3. In `anderson_theorem_cylinder`, ensure all times are in (0,1]
+
+For Anderson's theorem on [0,1], option 1 is sufficient.

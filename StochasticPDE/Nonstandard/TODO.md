@@ -12,7 +12,7 @@ This provides a rigorous foundation where pathwise stochastic calculus is meanin
 
 ## Current State
 
-**Total: 9 sorrys across 5 files** (2 on Anderson critical path, 1 standalone, 6 for Itô chain)
+**Total: 8 sorrys across 5 files** (1 on Anderson critical path, 1 standalone, 6 for Itô chain)
 
 Mathlib provides minimal hyperreal infrastructure:
 - `Hyperreal := Germ (hyperfilter ℕ) ℝ` - ultraproduct construction
@@ -118,7 +118,7 @@ Key results:
 - `levyModulus_implies_S_continuous`: Paths with Lévy modulus are S-continuous
 - `levyModulus_violation_sum_bound`: Sum of violation probs ≤ 2
 
-#### LocalCLT.lean - **2 sorries remaining (substantial infrastructure proven)**
+#### LocalCLT.lean - **1 sorry remaining (substantial infrastructure proven)**
 - `stirling_lower_bound`: **PROVEN** via Mathlib's `Stirling.le_factorial_stirling`
 - `stirling_ratio_tendsto_one`: **PROVEN** via Mathlib's `tendsto_stirlingSeq_sqrt_pi`
 - `stirling_upper_bound_eventual`: **PROVEN** as consequence of ratio → 1
@@ -143,10 +143,10 @@ Key results:
 - `local_clt_central_region`: **PROVEN** (both upper and lower bounds)
   - Upper bound uses `stirling_ratio_decomp`, `exp_factor_le_one`, `s1_prefactor_le_two` from LocalCLTHelpers.lean
   - Lower bound uses `pinsker_excess_crude` from LocalCLTHelpers.lean
-- `cylinder_prob_convergence`: sorry (main bridge theorem, needs CylinderConvergenceHelpers)
+- `cylinder_prob_convergence`: **PROVEN** (moved to CylinderConvergenceHelpers.lean — main bridge theorem connecting hyperfinite walk probabilities to Wiener integrals)
 
 #### CylinderConvergenceHelpers.lean - **COMPLETE (all proven, 0 sorrys)**
-Infrastructure for `cylinder_prob_convergence`:
+Infrastructure for and proof of `cylinder_prob_convergence`:
 - `gaussianDensitySigma_continuous`: **PROVEN**
 - `gaussianDensitySigma_nonneg`: **PROVEN**
 - `gaussianDensitySigma_le_peak`: **PROVEN**
@@ -166,6 +166,11 @@ Infrastructure for `cylinder_prob_convergence`:
 - `gaussDensity_Riemann_sum_converges`: **PROVEN** (Riemann sum → integral via uniform continuity + crossing zone argument)
   - a=b degenerate case: integral = 0, sum ≤ M·Δ (at most 1 nonzero term)
   - a<b main case: partition [a,b] into lattice bins, UC bound per bin + crossing zone bound for gap bins
+- `cylinder_prob_convergence`: **PROVEN** (main bridge: |scaledProb - wienerProb| < ε for large N)
+  - Combines scaledProb_eq_walkIntervalProb + binomProb_ratio_near_one + gaussDensity_Riemann_sum_converges
+  - Triangle inequality: |scaledProb - wienerProb| ≤ |scaledProb - RS| + |RS - wienerProb|
+  - Term 1 bounded by ratio near-one + lattice point counting
+  - Term 2 bounded by Riemann sum convergence
 - **Chernoff bound chain - ALL PROVEN:**
   - `weighted_exp_markov`: exponential Markov inequality
   - `binomial_mgf`: Σ C(k,j)/2^k exp(λ(2j-k)) = cosh(λ)^k
@@ -343,18 +348,19 @@ What's proven:
    - ✅ `stirlingSeq_triple_ratio_near_one` in Arithmetic.lean - **PROVEN**
    - ✅ Chernoff bound chain in CylinderConvergenceHelpers.lean - **ALL PROVEN**
      - `weighted_exp_markov`, `binomial_mgf`, `binomial_chernoff_upper/lower`, `binomial_tail_small`
-   - Remaining sorrys on critical path to `anderson_theorem_cylinder` (2 total):
-     - `cylinder_prob_convergence` (LocalCLT.lean:1144) - main bridge (uses gaussDensity_Riemann_sum_converges)
-     - `anderson_theorem_cylinder` (AndersonTheorem.lean:516) - uses cylinder_prob_convergence
+   - Remaining sorrys on critical path to `anderson_theorem_cylinder` (1 total):
+     - `anderson_theorem_cylinder` (AndersonTheorem.lean:516) - uses cylinder_prob_convergence + isSt_of_tendsto
    - Standalone sorry (not on critical path):
      - `local_clt_error_bound` (LocalCLT.lean:185) - absolute error bound, superseded by ratio approach
-   - Recently proven (eliminated 4 sorrys):
+   - Recently proven (eliminated 5 sorrys):
      - `pinsker_excess_crude` (LocalCLTHelpers.lean) - **NOW PROVEN**
      - `scaledProb_eq_walkIntervalProb` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
      - `binomProb_ratio_near_one` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
        (Stirling decomposition + entropy excess + sqrt prefactor bounds)
      - `gaussDensity_Riemann_sum_converges` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
        (Uniform continuity on compact [a,b] + lattice partition + crossing zone argument)
+     - `cylinder_prob_convergence` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
+       (Triangle inequality: ratio bound + Riemann sum convergence + lattice point counting)
    - Non-critical sorrys (6 total, for Itô chain):
      - `ito_correspondence` (ItoCorrespondence.lean:202)
      - `ito_isometry_standard` (ItoCorrespondence.lean:229)
@@ -366,13 +372,13 @@ What's proven:
      ```
      anderson_theorem (PROVEN, calls anderson_theorem_cylinder)
        └── anderson_theorem_cylinder (SORRY) ◄── NEXT TARGET
-             └── cylinder_prob_convergence (SORRY) ◄── NEXT TARGET
+             └── cylinder_prob_convergence (PROVEN) ✓
                    ├── scaledProb_eq_walkIntervalProb (PROVEN)
                    ├── binomProb_ratio_near_one (PROVEN)
                    │     └── local_clt_central_region (PROVEN)
                    │           ├── pinsker_excess_crude (PROVEN)
                    │           └── exp_factor_le_one (PROVEN)
-                   ├── gaussDensity_Riemann_sum_converges (PROVEN) ✓
+                   ├── gaussDensity_Riemann_sum_converges (PROVEN)
                    │     └── gaussianDensitySigma_continuous (PROVEN)
                    └── binomial_tail_small (PROVEN, Chernoff bounds)
      local_clt_error_bound (SORRY, standalone - not on critical path)
@@ -439,7 +445,7 @@ Nonstandard/
 │   ├── MaximalInequality.lean   [COMPLETE] P(max |S_i| > M) bound (0 sorries)
 │   ├── SContinuity.lean         [COMPLETE] Increment variance, modulus (0 sorries)
 │   ├── SContinuityAS.lean       [COMPLETE] Borel-Cantelli, Lévy modulus (0 sorries)
-│   ├── LocalCLT.lean            [WIP] Stirling, binomial → Gaussian (2 sorries)
+│   ├── LocalCLT.lean            [WIP] Stirling, binomial → Gaussian (1 sorry)
 │   ├── LocalCLTHelpers.lean     [COMPLETE] Factor-2 bound helpers (0 sorrys)
 │   ├── BinomGaussRatioHelpers.lean [COMPLETE] Stirling decomposition helpers (0 sorrys)
 │   ├── RatioConvergenceHelpers.lean [COMPLETE] Product-near-one helpers (0 sorrys)
