@@ -2155,4 +2155,231 @@ theorem cylinder_prob_convergence (a b : ℝ) (t : ℝ) (ha : a < b) (ht : 0 < t
     _ < ε / 3 + ε / 3 := add_lt_add_of_le_of_lt h_term1 h_term2
     _ < ε := by linarith
 
+/-! ## Riemann Sum Convergence for Bounded Continuous Functions -/
+
+/-- General Riemann sum convergence: for any continuous function h with |h| ≤ M,
+    the lattice-based Riemann sum converges to the set integral over [a,b].
+    This generalizes `gaussDensity_Riemann_sum_converges` from Gaussian density to
+    arbitrary continuous bounded functions. -/
+theorem riemann_sum_continuous_converges (a b : ℝ) (t : ℝ) (ha : a ≤ b) (ht : 0 < t)
+    (ht1 : t ≤ 1) (h : ℝ → ℝ) (hh_cont : Continuous h) (M : ℝ) (hM_pos : 0 < M)
+    (hh_bound : ∀ x, |h x| ≤ M) :
+    ∀ δ > 0, ∃ N₀ : ℕ, ∀ N ≥ N₀,
+      let k := Nat.floor (t * ↑N)
+      |∑ j ∈ Finset.range (k + 1),
+        (if a ≤ (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ∧
+            (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ≤ b
+         then h ((2 * (j : ℝ) - ↑k) / Real.sqrt ↑N) * (2 / Real.sqrt ↑N)
+         else 0) -
+       ∫ x in Set.Icc a b, h x| < δ := by
+  sorry
+
+/-! ## Binomial CLT for Test Functions
+
+Generalization of `cylinder_prob_convergence` to continuous bounded test functions.
+This is needed for the inductive step of Anderson's theorem (n ≥ 2).
+
+The key result: if φ is continuous and bounded, then
+  ∑ C(k,j)/2^k * φ(x_j) → ∫ gaussianDensitySigma(√t, x) * φ(x) dx
+where x_j = (2j-k)/√N and k = ⌊t·N⌋.
+
+Proof: decompose through Riemann sum, using ratio bound for Term 1
+and `riemann_sum_continuous_converges` for Term 2.
+-/
+
+/-- Binomial CLT for continuous bounded test functions.
+    Generalizes `cylinder_prob_convergence` (which is the case φ = 1). -/
+theorem binomial_test_fn_convergence
+    (a b : ℝ) (t : ℝ) (ha : a < b) (ht : 0 < t) (ht1 : t ≤ 1)
+    (φ : ℝ → ℝ) (hφ_cont : Continuous φ) (hφ_bound : ∀ x, |φ x| ≤ 1) :
+    ∀ ε > 0, ∃ N₀ : ℕ, ∀ N ≥ N₀,
+      let k := Nat.floor (t * ↑N)
+      |∑ j ∈ Finset.range (k + 1),
+        (if a ≤ (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ∧
+            (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ≤ b
+         then (↑(k.choose j) : ℝ) / 2 ^ k * φ ((2 * (j : ℝ) - ↑k) / Real.sqrt ↑N)
+         else 0) -
+       ∫ x in Set.Icc a b, gaussianDensitySigma (Real.sqrt t) x * φ x| < ε := by
+  intro ε hε
+  -- Setup: Gaussian density properties
+  set g := gaussianDensitySigma (Real.sqrt t) with hg_def
+  have hσ : (0 : ℝ) < Real.sqrt t := Real.sqrt_pos.mpr ht
+  set Peak := 1 / (Real.sqrt t * Real.sqrt (2 * Real.pi)) with hPeak_def
+  have hPeak_pos : 0 < Peak := by positivity
+  have hg_le : ∀ x, g x ≤ Peak := fun x => gaussianDensitySigma_le_peak hσ x
+  have hg_nn : ∀ x, 0 ≤ g x := fun x => gaussianDensitySigma_nonneg hσ x
+  have hg_pos : ∀ x, 0 < g x := by
+    intro x; simp only [hg_def, gaussianDensitySigma, hσ, ↓reduceIte]
+    exact mul_pos (div_pos one_pos (by positivity)) (Real.exp_pos _)
+  have hg_cont : Continuous g := gaussianDensitySigma_continuous hσ
+  -- Bound on Riemann sum: RS(g) ≤ B
+  set B := Peak * (b - a + 2) with hB_def
+  have hba : 0 < b - a := by linarith
+  have hB_pos : 0 < B := by positivity
+  -- Term 1: ratio bound with δ' = ε/(3B)
+  set δ' := ε / (3 * B) with hδ'_def
+  have hδ'_pos : 0 < δ' := by positivity
+  obtain ⟨N₁, hN₁⟩ := binomProb_ratio_near_one a b t ha ht δ' hδ'_pos
+  -- Term 2: Riemann sum convergence for h = g * φ
+  set h := fun x => g x * φ x with hh_def
+  have hh_cont : Continuous h := hg_cont.mul hφ_cont
+  have hh_bound : ∀ x, |h x| ≤ Peak := fun x => by
+    simp only [hh_def, abs_mul]
+    calc |g x| * |φ x| ≤ g x * 1 :=
+          mul_le_mul (le_of_eq (abs_of_nonneg (hg_nn x))) (hφ_bound x)
+            (abs_nonneg _) (hg_nn x)
+      _ = g x := mul_one _
+      _ ≤ Peak := hg_le x
+  obtain ⟨N₂, hN₂⟩ := riemann_sum_continuous_converges a b t (le_of_lt ha) ht ht1
+    h hh_cont Peak hPeak_pos hh_bound (ε / 3) (by linarith)
+  -- N₀ = max(N₁, N₂, 1)
+  refine ⟨max (max N₁ N₂) 1, fun N hN => ?_⟩
+  have hN_ge_N₁ : N₁ ≤ N := le_trans (le_max_left _ _) (le_trans (le_max_left _ _) hN)
+  have hN_ge_N₂ : N₂ ≤ N := le_trans (le_max_right _ _) (le_trans (le_max_left _ _) hN)
+  have hN_pos : 0 < N := Nat.lt_of_lt_of_le Nat.one_pos (le_trans (le_max_right _ _) hN)
+  -- Setup local definitions
+  simp only
+  set k := Nat.floor (t * ↑N) with hk_def
+  have hk_le : k ≤ N := by
+    have h1 : (↑k : ℝ) ≤ t * ↑N := Nat.floor_le (by positivity)
+    have h2 : t * (↑N : ℝ) ≤ ↑N := by nlinarith
+    exact_mod_cast le_trans h1 h2
+  have hsqN_pos : (0 : ℝ) < Real.sqrt ↑N := Real.sqrt_pos.mpr (Nat.cast_pos.mpr hN_pos)
+  set Δ := 2 / Real.sqrt ↑N with hΔ_def
+  have hΔ_pos : 0 < Δ := by positivity
+  set x_val := fun j : ℕ => (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N with hx_def
+  set cond := fun j : ℕ => a ≤ x_val j ∧ x_val j ≤ b with hcond_def
+  -- The Riemann sum for g (for bounding)
+  set RS_g := ∑ j ∈ Finset.range (k + 1),
+    (if cond j then g (x_val j) * Δ else 0) with hRS_g_def
+  -- The Riemann sum for h = g*φ
+  set RS_h := ∑ j ∈ Finset.range (k + 1),
+    (if cond j then h (x_val j) * Δ else 0) with hRS_h_def
+  -- The binomial sum (LHS of the goal)
+  set BinSum := ∑ j ∈ Finset.range (k + 1),
+    (if a ≤ x_val j ∧ x_val j ≤ b
+     then (↑(k.choose j) : ℝ) / 2 ^ k * φ (x_val j)
+     else 0)
+  -- Apply bounds from N₁ and N₂
+  have hRatio := hN₁ N hN_ge_N₁
+  have hRS_h_bound := hN₂ N hN_ge_N₂
+  -- Auxiliary: RS_g ≤ B (lattice counting bound, same as cylinder_prob_convergence)
+  have hRS_g_le_B : RS_g ≤ B := by
+    -- Step 1: each g(x_j)*Δ ≤ Peak*Δ
+    have h_step1 : RS_g ≤ ∑ j ∈ Finset.range (k + 1),
+        (if cond j then Peak * Δ else 0) := by
+      rw [hRS_g_def]
+      apply Finset.sum_le_sum; intro j _
+      split_ifs with hc
+      · exact mul_le_mul_of_nonneg_right (hg_le _) hΔ_pos.le
+      · exact le_refl 0
+    -- Step 2: ∑ Peak*Δ ≤ B via lattice counting
+    have h_step2 : ∑ j ∈ Finset.range (k + 1),
+        (if cond j then Peak * Δ else 0) ≤ B := by
+      rw [← Finset.sum_filter (p := fun j => cond j)]
+      simp only [Finset.sum_const, nsmul_eq_mul, hB_def]
+      set S := (Finset.range (k + 1)).filter (fun j => cond j)
+      by_cases hS_ne : S.Nonempty
+      · set j_min := S.min' hS_ne
+        set j_max := S.max' hS_ne
+        have hmin_mem := Finset.min'_mem S hS_ne
+        have hmax_mem := Finset.max'_mem S hS_ne
+        have hmin_cond : cond j_min := (Finset.mem_filter.mp hmin_mem).2
+        have hmax_cond : cond j_max := (Finset.mem_filter.mp hmax_mem).2
+        have hmin_le_max : j_min ≤ j_max := Finset.min'_le S j_max hmax_mem
+        have hcard : S.card ≤ j_max - j_min + 1 := by
+          calc S.card ≤ (Finset.Icc j_min j_max).card :=
+                Finset.card_le_card (fun j hj =>
+                  Finset.mem_Icc.mpr ⟨Finset.min'_le S j hj, Finset.le_max' S j hj⟩)
+            _ = j_max + 1 - j_min := Nat.card_Icc j_min j_max
+            _ = j_max - j_min + 1 := by omega
+        have hx_range : (↑j_max - ↑j_min : ℝ) * Δ ≤ b - a := by
+          have : x_val j_max - x_val j_min = (↑j_max - ↑j_min) * Δ := by
+            simp only [hx_def, hΔ_def]; field_simp; ring
+          linarith [hmin_cond.1, hmax_cond.2]
+        have hΔ_le : Δ ≤ 2 := by
+          rw [hΔ_def, div_le_iff₀ hsqN_pos]
+          calc (2 : ℝ) ≤ 2 * 1 := by norm_num
+            _ ≤ 2 * Real.sqrt ↑N := by
+                apply mul_le_mul_of_nonneg_left _ two_pos.le
+                rw [← Real.sqrt_one]
+                exact Real.sqrt_le_sqrt (by exact_mod_cast (by omega : 1 ≤ N))
+        calc (↑S.card) * (Peak * Δ) = Peak * ((↑S.card) * Δ) := by ring
+          _ ≤ Peak * (b - a + 2) := by
+              apply mul_le_mul_of_nonneg_left _ hPeak_pos.le
+              calc (↑S.card : ℝ) * Δ
+                  ≤ (↑(j_max - j_min + 1) : ℝ) * Δ :=
+                    mul_le_mul_of_nonneg_right (Nat.cast_le.mpr hcard) hΔ_pos.le
+                _ = (↑j_max - ↑j_min + 1) * Δ := by
+                    rw [Nat.cast_add, Nat.cast_one, Nat.cast_sub hmin_le_max]
+                _ = (↑j_max - ↑j_min) * Δ + Δ := by ring
+                _ ≤ (b - a) + 2 := by linarith [hx_range, hΔ_le]
+      · have hS_empty : S = ∅ := by
+          by_contra hne; exact hS_ne (Finset.nonempty_of_ne_empty hne)
+        rw [hS_empty]; simp; positivity
+    linarith
+  -- Auxiliary: δ' * B = ε / 3
+  have hδB_eq : δ' * B = ε / 3 := by rw [hδ'_def, hB_def]; field_simp
+  -- Step 1: |BinSum - RS_h| ≤ ε / 3 (ratio bound)
+  have h_term1 : |BinSum - RS_h| ≤ ε / 3 := by
+    -- Bound: |BinSum - RS_h| ≤ δ' * RS_g ≤ δ' * B = ε/3
+    have h_diff : |BinSum - RS_h| ≤ δ' * RS_g := by
+      rw [show BinSum - RS_h = ∑ j ∈ Finset.range (k + 1),
+          ((if cond j then (↑(k.choose j) : ℝ) / 2 ^ k * φ (x_val j) else 0) -
+           (if cond j then h (x_val j) * Δ else 0)) from by
+        rw [← Finset.sum_sub_distrib]]
+      calc |∑ j ∈ Finset.range (k + 1), _|
+          ≤ ∑ j ∈ Finset.range (k + 1),
+            |(if cond j then (↑(k.choose j) : ℝ) / 2 ^ k * φ (x_val j) else 0) -
+             (if cond j then h (x_val j) * Δ else 0)| :=
+          Finset.abs_sum_le_sum_abs _ _
+        _ ≤ ∑ j ∈ Finset.range (k + 1),
+            (if cond j then δ' * (g (x_val j) * Δ) else 0) := by
+          apply Finset.sum_le_sum; intro j hj
+          split_ifs with hc
+          · have hj_le : j ≤ k := Nat.lt_succ_iff.mp (Finset.mem_range.mp hj)
+            have hgΔ_pos : 0 < g (x_val j) * Δ := mul_pos (hg_pos _) hΔ_pos
+            have hne_gΔ : g (x_val j) * Δ ≠ 0 := ne_of_gt hgΔ_pos
+            have hratio := hRatio j hj_le hc.1 hc.2 hgΔ_pos
+            rw [show (↑(k.choose j) : ℝ) / 2 ^ k * φ (x_val j) - h (x_val j) * Δ =
+                φ (x_val j) * ((↑(k.choose j) : ℝ) / 2 ^ k - g (x_val j) * Δ) from by
+              simp only [hh_def]; ring]
+            rw [abs_mul]
+            calc |φ (x_val j)| * |(↑(k.choose j) : ℝ) / 2 ^ k - g (x_val j) * Δ|
+                ≤ 1 * |(↑(k.choose j) : ℝ) / 2 ^ k - g (x_val j) * Δ| :=
+              mul_le_mul_of_nonneg_right (hφ_bound _) (abs_nonneg _)
+              _ = |(↑(k.choose j) : ℝ) / 2 ^ k - g (x_val j) * Δ| := one_mul _
+              _ = g (x_val j) * Δ * |(↑(k.choose j) : ℝ) / 2 ^ k / (g (x_val j) * Δ) - 1| := by
+                  have hg_ne : g (x_val j) ≠ 0 := ne_of_gt (hg_pos _)
+                  have hΔ_ne : Δ ≠ 0 := ne_of_gt hΔ_pos
+                  have h2k_ne : (2 : ℝ) ^ k ≠ 0 := pow_ne_zero _ two_ne_zero
+                  have key : (↑(k.choose j) : ℝ) / 2 ^ k - g (x_val j) * Δ =
+                      g (x_val j) * Δ * ((↑(k.choose j) : ℝ) / 2 ^ k / (g (x_val j) * Δ) - 1) := by
+                    field_simp [hg_ne, hΔ_ne, h2k_ne]
+                  rw [key, abs_mul, abs_of_pos hgΔ_pos]
+              _ ≤ g (x_val j) * Δ * δ' :=
+                  mul_le_mul_of_nonneg_left (le_of_lt hratio) hgΔ_pos.le
+              _ = δ' * (g (x_val j) * Δ) := by ring
+          · simp
+        _ = δ' * RS_g := by
+          rw [hRS_g_def, Finset.mul_sum]
+          apply Finset.sum_congr rfl; intro j _; split_ifs <;> ring
+    linarith [mul_le_mul_of_nonneg_left hRS_g_le_B hδ'_pos.le]
+  -- Step 2: |RS_h - ∫ h| < ε/3 (Riemann sum convergence)
+  have h_term2 : |RS_h - ∫ x in Set.Icc a b, h x| < ε / 3 := by
+    have h_eq : RS_h = ∑ j ∈ Finset.range (k + 1),
+        (if a ≤ (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ∧
+            (2 * (j : ℝ) - ↑k) / Real.sqrt ↑N ≤ b
+         then h ((2 * (j : ℝ) - ↑k) / Real.sqrt ↑N) * (2 / Real.sqrt ↑N)
+         else 0) := by
+      simp only [hRS_h_def, hcond_def, hx_def, hΔ_def]
+    rw [h_eq]; exact hRS_h_bound
+  -- Combine: the goal is |BinSum - ∫ g*φ| < ε, i.e., |BinSum - ∫ h| < ε
+  -- since h = g * φ by definition, the integrals are definitionally equal
+  calc |BinSum - ∫ x in Set.Icc a b, h x|
+      = |(BinSum - RS_h) + (RS_h - ∫ x in Set.Icc a b, h x)| := by ring_nf
+    _ ≤ |BinSum - RS_h| + |RS_h - ∫ x in Set.Icc a b, h x| := abs_add_le _ _
+    _ < ε / 3 + ε / 3 := add_lt_add_of_le_of_lt h_term1 h_term2
+    _ < ε := by linarith
+
 end SPDE.Nonstandard

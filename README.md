@@ -86,7 +86,7 @@ Anderson's (1976) construction of Brownian motion via hyperfinite random walks, 
 | `HyperfiniteRandomWalk.lean` | Hyperfinite walk, quadratic variation = time exactly (0 sorrys) |
 | `HyperfiniteStochasticIntegral.lean` | Hyperfinite Ito integral, Ito isometry exactly (0 sorrys) |
 
-**Key proven results**: S-continuity a.s. (Loeb-almost-all paths continuous), local CLT (binomial → Gaussian), cylinder set probability convergence, quadratic variation identity, SDE existence/uniqueness via Euler-Maruyama. **8 sorrys** remain (1 on Anderson critical path, 1 standalone, 6 for Ito chain).
+**Key proven results**: S-continuity a.s. (Loeb-almost-all paths continuous), local CLT (binomial → Gaussian), cylinder set probability convergence (general n, with continuous bounded test functions), wienerNestedIntegral properties (nonneg, ≤1, continuous), quadratic variation identity, SDE existence/uniqueness via Euler-Maruyama. **3 sorrys** remain on Anderson critical path (Riemann sum convergence helper, hT₁ coordinate alignment, uniform convergence). **7 additional sorrys** for Itô correspondence and explicit solutions (not on critical path).
 
 ### Proof Infrastructure
 
@@ -132,7 +132,7 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~107 total sorrys** across all files
+- **~109 total sorrys** across all files
 - **0 sorrys** on the Ito formula critical path — **fully proven**
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)

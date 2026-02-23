@@ -5,8 +5,12 @@ Authors: ModularPhysics Contributors
 -/
 import StochasticPDE.Nonstandard.LoebMeasure.WienerMeasure
 import StochasticPDE.Nonstandard.Anderson.LocalCLT
+import StochasticPDE.Nonstandard.Anderson.CylinderConvergenceHelpers
+import StochasticPDE.Nonstandard.Anderson.MultiConstraintConvergence
 import StochasticPDE.Nonstandard.Anderson.SContinuityAS
+import StochasticPDE.Nonstandard.Anderson.WienerNestedIntegral
 import StochasticPDE.Nonstandard.HyperfiniteRandomWalk
+import Mathlib.Analysis.Real.Hyperreal
 
 /-!
 # Anderson's Theorem
@@ -435,20 +439,6 @@ structure WienerMeasureSpec where
 noncomputable def wienerCylinderProb_single (t : ℝ) (a b : ℝ) (_ht : 0 < t) : ℝ :=
   ∫ x in a..b, gaussianDensity t x
 
-/-- Nested integral for computing Wiener cylinder probabilities via independent increments.
-    Recursively computes:
-    ∫_{I₁} ... ∫_{Iₙ} φ(x₁-x₀; t₁-t₀) · ... · φ(xₙ-xₙ₋₁; tₙ-tₙ₋₁) dxₙ...dx₁
-    where (t₀, x₀) = (prevTime, prevPos) is the previous state. -/
-noncomputable def wienerNestedIntegral : (n : ℕ) → (Fin n → ℝ) → (Fin n → ℝ) →
-    (Fin n → ℝ) → ℝ → ℝ → ℝ
-  | 0, _, _, _, _, _ => 1
-  | k + 1, times, lowers, uppers, prevTime, prevPos =>
-      let dt := times 0 - prevTime
-      ∫ x in (lowers 0)..(uppers 0),
-        gaussianDensity dt (x - prevPos) *
-        wienerNestedIntegral k (times ∘ Fin.succ) (lowers ∘ Fin.succ)
-          (uppers ∘ Fin.succ) (times 0) x
-
 /-- Wiener measure of a multi-time cylinder set.
     For times 0 < t₁ < t₂ < ... < tₙ and intervals [aᵢ, bᵢ]:
     P(W(tᵢ) ∈ [aᵢ, bᵢ] for all i) is computed using independent increments.
@@ -497,23 +487,608 @@ def cylinderConstraintToLevelwiseSet {m : ℕ} (c : CylinderConstraint m) : Leve
         let walkValue := dx * (partialSumFin N flips k : ℝ)
         c.lowers i ≤ walkValue ∧ walkValue ≤ c.uppers i }
 
-/-- **Anderson's Theorem (Cylinder Set Version)**:
-    For any cylinder constraint, the pre-Loeb probability that a hyperfinite walk
-    satisfies the constraint converges to the Wiener probability.
+/-! ### Bridge Lemmas for Anderson's Theorem -/
 
-    This is the fundamental bridge between hyperfinite probability and Brownian motion. -/
-theorem anderson_theorem_cylinder (Ω : LoebPathSpace) {n : ℕ} (c : CylinderConstraint n) :
-    -- The pre-Loeb measure of paths satisfying the cylinder constraint c
-    -- equals the Wiener measure of c
+/-- The Gaussian density with variance parameterization equals the one with std dev
+    parameterization: gaussianDensity(t, x) = gaussianDensitySigma(√t, x) for t > 0. -/
+theorem gaussianDensity_eq_gaussianDensitySigma_sqrt {t : ℝ} (ht : 0 < t) (x : ℝ) :
+    gaussianDensity t x = gaussianDensitySigma (Real.sqrt t) x := by
+  unfold gaussianDensity gaussianDensitySigma
+  have hsqrt_pos : 0 < Real.sqrt t := Real.sqrt_pos.mpr ht
+  rw [if_neg (not_le.mpr ht), if_pos (by linarith : Real.sqrt t > 0)]
+  congr 1
+  · -- Prefactors: 1/√(2πt) = 1/(√t · √(2π))
+    have h2pi_nn : (0 : ℝ) ≤ 2 * Real.pi := by positivity
+    rw [show 2 * Real.pi * t = (2 * Real.pi) * t from by ring,
+        Real.sqrt_mul h2pi_nn t]
+    ring
+  · -- Exponents: -x²/(2t) = -x²/(2·(√t)²)
+    rw [Real.sq_sqrt (le_of_lt ht)]
+
+/-- sqrt(1/N) * x = x / sqrt(N) for N > 0. -/
+theorem sqrt_one_div_mul_eq_div_sqrt {N : ℕ} (_hN : 0 < N) (x : ℝ) :
+    Real.sqrt (1 / (N : ℝ)) * x = x / Real.sqrt (N : ℝ) := by
+  rw [Real.sqrt_div (by norm_num : (0 : ℝ) ≤ 1) (↑N : ℝ), Real.sqrt_one]
+  ring
+
+/-- Set.Icc integral = interval integral for a ≤ b with a NoAtoms measure. -/
+theorem set_integral_Icc_eq_intervalIntegral {a b : ℝ} (hab : a ≤ b)
+    (f : ℝ → ℝ) :
+    ∫ x in Set.Icc a b, f x = ∫ x in a..b, f x := by
+  rw [intervalIntegral.integral_of_le hab, MeasureTheory.integral_Icc_eq_integral_Ioc]
+
+/-! ### Multi-Constraint Convergence
+
+The key lemma for the n ≥ 2 case: the fraction of N-step random walks satisfying
+all n cylinder constraints converges to the wiener nested integral.
+
+This follows by induction on n using:
+1. Fiber decomposition (conditioning on walk value at first time point)
+2. Local CLT for the first factor (gaussianDensity approximation)
+3. Inductive hypothesis for the suffix walk's conditional probability
+4. Riemann sum convergence (sum over lattice → integral) -/
+
+/-- **Uniform convergence of multi-constraint probability.**
+    This is the uniform-in-prevPos version: for any ε > 0, there exists N₀ such that
+    for all N ≥ N₀ and ALL prevPos, the difference between the walk probability
+    and the nested integral is less than ε.
+
+    This is proved by strengthened induction: the uniform IH for the suffix
+    gives uniform convergence at the next level because:
+    - hT₁ (binomial CLT) converges uniformly in prevPos
+    - hT₂ (suffix error) ≤ ∑ C(k₁,j)/2^k₁ · ε_m ≤ ε_m by the uniform IH
+
+    The pointwise version `multi_constraint_convergence_shifted` follows as corollary. -/
+theorem multi_constraint_convergence_uniform (n : ℕ) :
+    ∀ (times : Fin n → ℝ) (lowers uppers : Fin n → ℝ)
+      (prevTime : ℝ),
+      0 ≤ prevTime →
+      (∀ i, prevTime < times i) →
+      (∀ i, times i ≤ 1) →
+      (∀ i j : Fin n, i < j → times i < times j) →
+      (∀ i, lowers i < uppers i) →
+    ∀ (eps : ℝ), 0 < eps → ∃ N₀ : ℕ, ∀ N ≥ N₀, ∀ prevPos : ℝ,
+      |(fun (N : ℕ) =>
+        let M : ℕ := N - Nat.floor (prevTime * (N : ℝ))
+        ((Finset.univ : Finset (Fin M → Bool)).filter (fun flips =>
+          ∀ i : Fin n,
+            let step : ℕ := Nat.floor (times i * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ))
+            lowers i ≤ prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ∧
+            prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ≤ uppers i
+        )).card / (2 ^ M : ℝ)) N -
+       wienerNestedIntegral n times lowers uppers prevTime prevPos| < eps := by
+  sorry
+
+/-- **Multi-constraint convergence with shifted starting point.**
+    This is the general version closed under induction: after conditioning on
+    the walk value at time t₁, the suffix walk starts at time prevTime = t₁
+    with position prevPos = x₁.
+
+    All parameters after `n` are universally quantified so that `induction n`
+    naturally produces an IH that quantifies over `prevTime` and `prevPos`. -/
+theorem multi_constraint_convergence_shifted (n : ℕ) :
+    ∀ (times : Fin n → ℝ) (lowers uppers : Fin n → ℝ)
+      (prevTime prevPos : ℝ),
+      0 ≤ prevTime →
+      (∀ i, prevTime < times i) →
+      (∀ i, times i ≤ 1) →
+      (∀ i j : Fin n, i < j → times i < times j) →
+      (∀ i, lowers i < uppers i) →
+    Filter.Tendsto (fun (N : ℕ) =>
+      let M : ℕ := N - Nat.floor (prevTime * (N : ℝ))
+      ((Finset.univ : Finset (Fin M → Bool)).filter (fun flips =>
+        ∀ i : Fin n,
+          let step : ℕ := Nat.floor (times i * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ))
+          lowers i ≤ prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ∧
+          prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ≤ uppers i
+      )).card / (2 ^ M : ℝ))
+      Filter.atTop (nhds (wienerNestedIntegral n times lowers uppers prevTime prevPos)) := by
+  induction n with
+  | zero =>
+    intro times lowers uppers prevTime prevPos hprev_nonneg htimes_gt htimes_le htimes_incr hbounds
+    -- n = 0: no constraints, all 2^M paths satisfy, wienerNestedIntegral 0 = 1
+    have hone : wienerNestedIntegral 0 times lowers uppers prevTime prevPos = 1 := rfl
+    rw [hone]
+    apply Filter.Tendsto.congr (fun N => ?_) tendsto_const_nhds
+    -- All paths satisfy vacuous constraints (Fin 0 is empty)
+    set M : ℕ := N - Nat.floor (prevTime * (N : ℝ)) with hM_def
+    have hfilter : (Finset.univ : Finset (Fin M → Bool)).filter
+        (fun flips => ∀ i : Fin 0,
+          let step : ℕ := Nat.floor (times i * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ))
+          lowers i ≤ prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ∧
+          prevPos + Real.sqrt (1 / (N : ℝ)) * (partialSumFin M flips step : ℝ) ≤ uppers i) =
+        Finset.univ := by
+      ext x; simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨fun _ => trivial, fun _ i => Fin.elim0 i⟩
+    have huniv : (Finset.univ : Finset (Fin M → Bool)).card = 2 ^ M := by
+      rw [Finset.card_univ, Fintype.card_fun, Fintype.card_bool, Fintype.card_fin]
+    simp only [hfilter, huniv, Nat.cast_pow, Nat.cast_ofNat]
+    exact (div_self (pow_ne_zero _ (by norm_num : (2 : ℝ) ≠ 0))).symm
+  | succ m ih =>
+    intro times lowers uppers prevTime prevPos hprev_nonneg htimes_gt htimes_le htimes_incr hbounds
+    -- Setup
+    set dt := times 0 - prevTime with hdt_def
+    have hdt_pos : 0 < dt := sub_pos.mpr (htimes_gt 0)
+    have hab : lowers 0 < uppers 0 := hbounds 0
+    have ht0_nonneg : 0 ≤ times 0 := le_of_lt (lt_of_le_of_lt hprev_nonneg (htimes_gt 0))
+    have ht0_le : times 0 ≤ 1 := htimes_le 0
+    -- Abbreviate the suffix wienerNestedIntegral
+    set W_m := fun x => wienerNestedIntegral m (times ∘ Fin.succ) (lowers ∘ Fin.succ)
+      (uppers ∘ Fin.succ) (times 0) x with hW_m_def
+    -- The IH gives: for each x, the suffix probability converges to W_m(x)
+    have ih_suffix : ∀ x : ℝ, Filter.Tendsto
+        (fun (N : ℕ) =>
+          let M' : ℕ := N - Nat.floor ((times 0) * (N : ℝ))
+          ((Finset.univ : Finset (Fin M' → Bool)).filter (fun flips =>
+            ∀ i : Fin m,
+              let step : ℕ := Nat.floor ((times ∘ Fin.succ) i * (N : ℝ)) - Nat.floor ((times 0) * (N : ℝ))
+              (lowers ∘ Fin.succ) i ≤ x + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M' flips step) ∧
+              x + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M' flips step) ≤ (uppers ∘ Fin.succ) i
+          )).card / (2 ^ M' : ℝ))
+        Filter.atTop (nhds (W_m x)) := by
+      intro x
+      exact ih (times ∘ Fin.succ) (lowers ∘ Fin.succ) (uppers ∘ Fin.succ) (times 0) x
+        ht0_nonneg
+        (fun i => htimes_incr ⟨0, Nat.zero_lt_succ m⟩ (Fin.succ i) (Fin.succ_pos i))
+        (fun i => htimes_le (Fin.succ i))
+        (fun i j hij => htimes_incr (Fin.succ i) (Fin.succ j) (Fin.succ_lt_succ_iff.mpr hij))
+        (fun i => hbounds (Fin.succ i))
+    /- Proof strategy:
+       Step A (fiber decomposition): count/2^M = Σ_j binomProb(k₁,j) × suffixProb(x_j, N)
+       Step B (product convergence): the sum → ∫ gaussianDensity × W_m dx -/
+    -- Define the "sum form" after fiber decomposition at step k₁
+    -- For each N, k₁ = ⌊(times 0)*N⌋₊ - ⌊prevTime*N⌋₊ is the step for the first constraint
+    -- x_j = prevPos + √(1/N) * (2j - k₁) is the rescaled walk value
+    -- suffixProb(x_j, N) is the suffix probability starting from position x_j
+    set sumForm : ℕ → ℝ := fun N =>
+      let k₁ : ℕ := Nat.floor ((times 0) * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ))
+      let M' : ℕ := N - Nat.floor ((times 0) * (N : ℝ))
+      ∑ j ∈ Finset.range (k₁ + 1),
+        let x_j : ℝ := prevPos + Real.sqrt (1 / (N : ℝ)) * (2 * (j : ℝ) - (k₁ : ℝ))
+        if lowers 0 ≤ x_j ∧ x_j ≤ uppers 0 then
+          (Nat.choose k₁ j : ℝ) / (2 : ℝ) ^ k₁ *
+          (((Finset.univ : Finset (Fin M' → Bool)).filter (fun flips =>
+            ∀ i : Fin m,
+              let step : ℕ := Nat.floor ((times ∘ Fin.succ) i * (N : ℝ)) -
+                Nat.floor ((times 0) * (N : ℝ))
+              (lowers ∘ Fin.succ) i ≤ x_j + Real.sqrt (1 / (N : ℝ)) *
+                ↑(partialSumFin M' flips step) ∧
+              x_j + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M' flips step) ≤
+                (uppers ∘ Fin.succ) i
+          )).card / (2 : ℝ) ^ M')
+        else 0
+    -- Step A: Fiber decomposition — the count/2^M equals the sum form
+    -- This is a combinatorial identity using:
+    -- • Finset.card_eq_sum_card_fiberwise (partition by walk value at step k₁)
+    -- • fiber_decomposition (factor prefix × suffix for each walk value)
+    -- • partialSumFin_decompose (split walk at step k₁)
+    -- • walkValueCount_eq_choose (#{prefix | S_{k₁} = 2j-k₁} = C(k₁, j))
+    have hfiber : ∀ (N : ℕ),
+        (let M : ℕ := N - Nat.floor (prevTime * (N : ℝ))
+        ((Finset.univ : Finset (Fin M → Bool)).filter (fun flips =>
+          ∀ i : Fin (m + 1),
+            let step : ℕ := Nat.floor (times i * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ))
+            lowers i ≤ prevPos + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M flips step) ∧
+            prevPos + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M flips step) ≤ uppers i
+        )).card / ((2 : ℝ) ^ M)) = sumForm N := by
+      intro N
+      simp only [sumForm]
+      -- Abbreviations
+      set pN := Nat.floor (prevTime * (N : ℝ)) with hpN_def
+      set t0N := Nat.floor (times 0 * (N : ℝ)) with ht0N_def
+      set M := N - pN with hM_def
+      set k₁ := t0N - pN with hk₁_def
+      set M' := N - t0N with hM'_def
+      -- Floor ordering
+      have hpN_le_t0N : pN ≤ t0N :=
+        Nat.floor_le_floor (mul_le_mul_of_nonneg_right
+          (le_of_lt (htimes_gt 0)) (Nat.cast_nonneg' N))
+      have ht0N_le_N : t0N ≤ N := by
+        apply Nat.floor_le_of_le
+        have : times 0 ≤ 1 := htimes_le 0
+        have : (0 : ℝ) ≤ (N : ℝ) := Nat.cast_nonneg' N
+        nlinarith
+      have hk₁M : k₁ ≤ M := by omega
+      have hMk : M - k₁ = M' := by omega
+      have hpow : (2 : ℝ) ^ M = (2 : ℝ) ^ k₁ * (2 : ℝ) ^ M' := by
+        rw [← pow_add]; congr 1; omega
+      -- Step 1: Rewrite the filter to decomposed form
+      -- Use card_walk_first_suffix_sum to get the ℕ-level sum
+      have hcard := card_walk_first_suffix_sum M k₁ hk₁M
+        (fun v : ℤ => lowers 0 ≤ prevPos + Real.sqrt (1 / ↑N) * (v : ℝ) ∧
+          prevPos + Real.sqrt (1 / ↑N) * (v : ℝ) ≤ uppers 0)
+        (fun v : ℤ => fun g : Fin (M - k₁) → Bool =>
+          ∀ j : Fin m,
+            let step' := Nat.floor (times (Fin.succ j) * (N : ℝ)) - t0N
+            (lowers ∘ Fin.succ) j ≤
+              (prevPos + Real.sqrt (1 / ↑N) * (v : ℝ)) +
+              Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁) g step') ∧
+            (prevPos + Real.sqrt (1 / ↑N) * (v : ℝ)) +
+              Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁) g step') ≤
+              (uppers ∘ Fin.succ) j)
+      -- Step 2: Show the original filter has the same card as the decomposed filter
+      have hfilter_eq :
+          (Finset.univ.filter (fun f : Fin M → Bool =>
+            ∀ i : Fin (m + 1),
+              let step := Nat.floor (times i * ↑N) - pN
+              lowers i ≤ prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f step) ∧
+                prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f step) ≤ uppers i)).card =
+          (Finset.univ.filter (fun f : Fin M → Bool =>
+            (lowers 0 ≤ prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f k₁) ∧
+              prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f k₁) ≤ uppers 0) ∧
+            ∀ j : Fin m,
+              let step' := Nat.floor (times (Fin.succ j) * ↑N) - t0N
+              (lowers ∘ Fin.succ) j ≤
+                (prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f k₁)) +
+                Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁)
+                  (fun i => f ⟨k₁ + i.val, by omega⟩) step') ∧
+              (prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f k₁)) +
+                Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁)
+                  (fun i => f ⟨k₁ + i.val, by omega⟩) step') ≤
+                (uppers ∘ Fin.succ) j)).card := by
+        congr 1; ext f; simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        rw [Fin.forall_fin_succ]
+        constructor
+        · rintro ⟨h0, hsucc⟩
+          exact ⟨h0, fun j => by
+            specialize hsucc j
+            -- Need partialSumFin_decompose to rewrite the step
+            have hstep_ge : k₁ ≤ Nat.floor (times (Fin.succ j) * ↑N) - pN := by
+              have : t0N ≤ Nat.floor (times (Fin.succ j) * ↑N) :=
+                Nat.floor_le_floor (mul_le_mul_of_nonneg_right
+                  (le_of_lt (htimes_incr ⟨0, Nat.zero_lt_succ m⟩ (Fin.succ j)
+                    (Fin.succ_pos j))) (Nat.cast_nonneg' N))
+              omega
+            have hdecomp := partialSumFin_decompose M f k₁
+              (Nat.floor (times (Fin.succ j) * ↑N) - pN) hk₁M hstep_ge
+            have hstep_sub : (Nat.floor (times (Fin.succ j) * ↑N) - pN) - k₁ =
+                Nat.floor (times (Fin.succ j) * ↑N) - t0N := by omega
+            rw [hdecomp, hstep_sub] at hsucc
+            -- Now hsucc has the decomposed form, but with ↑(a + b) instead of ↑a + ↑b
+            -- Need to show: ↑(S_k₁ + S_suffix) cast to ℝ gives the right form
+            simp only [Function.comp_apply] at hsucc ⊢
+            convert hsucc using 2 <;> push_cast <;> ring⟩
+        · rintro ⟨h0, hsucc⟩
+          exact ⟨h0, fun j => by
+            specialize hsucc j
+            have hstep_ge : k₁ ≤ Nat.floor (times (Fin.succ j) * ↑N) - pN := by
+              have : t0N ≤ Nat.floor (times (Fin.succ j) * ↑N) :=
+                Nat.floor_le_floor (mul_le_mul_of_nonneg_right
+                  (le_of_lt (htimes_incr ⟨0, Nat.zero_lt_succ m⟩ (Fin.succ j)
+                    (Fin.succ_pos j))) (Nat.cast_nonneg' N))
+              omega
+            have hdecomp := partialSumFin_decompose M f k₁
+              (Nat.floor (times (Fin.succ j) * ↑N) - pN) hk₁M hstep_ge
+            have hstep_sub : (Nat.floor (times (Fin.succ j) * ↑N) - pN) - k₁ =
+                Nat.floor (times (Fin.succ j) * ↑N) - t0N := by omega
+            rw [hdecomp, hstep_sub]
+            simp only [Function.comp_apply] at hsucc ⊢
+            convert hsucc using 2 <;> push_cast <;> ring⟩
+      -- Step 3: Combine filter_eq with card_walk_first_suffix_sum
+      rw [show (↑(Finset.univ.filter (fun f : Fin M → Bool =>
+            ∀ i : Fin (m + 1),
+              let step := Nat.floor (times i * ↑N) - pN
+              lowers i ≤ prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f step) ∧
+                prevPos + Real.sqrt (1 / ↑N) * ↑(partialSumFin M f step) ≤ uppers i)).card : ℝ) =
+          (↑(∑ j ∈ Finset.range (k₁ + 1),
+            if lowers 0 ≤ prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁) ∧
+               prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁) ≤ uppers 0 then
+              Nat.choose k₁ j *
+              (Finset.univ.filter (fun g : Fin (M - k₁) → Bool =>
+                ∀ j_1 : Fin m,
+                  let step' := Nat.floor (times (Fin.succ j_1) * ↑N) - t0N
+                  (lowers ∘ Fin.succ) j_1 ≤
+                    (prevPos + Real.sqrt (1 / ↑N) * (2 * ↑j - ↑k₁)) +
+                    Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁) g step') ∧
+                  (prevPos + Real.sqrt (1 / ↑N) * (2 * ↑j - ↑k₁)) +
+                    Real.sqrt (1 / ↑N) * ↑(partialSumFin (M - k₁) g step') ≤
+                    (uppers ∘ Fin.succ) j_1)).card
+            else 0) : ℝ) from by
+          exact_mod_cast (hfilter_eq ▸ hcard)]
+      -- Step 4: Divide by 2^M, simplify
+      -- First, rewrite M - k₁ to M' to match suffix types
+      conv_lhs => rw [show M - k₁ = M' from hMk]
+      -- Distribute ℕ→ℝ cast through sum and if, then divide
+      push_cast
+      rw [Finset.sum_div]
+      -- Term-by-term equality
+      apply Finset.sum_congr rfl
+      intro x hx
+      split_ifs with hc
+      · -- ↑(C(k₁,x) * suffix_count) / 2^M = ↑C(k₁,x)/2^k₁ * (↑suffix_count/2^M')
+        -- Normalize (times ∘ Fin.succ) i → times i.succ so both .card terms are syntactically equal
+        simp only [Function.comp_apply]
+        rw [hpow]; ring
+      · ring
+    -- Step B: Product convergence — the sum form converges to the integral
+    -- wienerNestedIntegral (m+1) definitionally equals:
+    --   ∫ x in (lowers 0)..(uppers 0), gaussianDensity dt (x - prevPos) * W_m x
+    -- The sum form converges to this via:
+    -- • Local CLT: C(k₁,j)/2^k₁ ≈ gaussianDensity(dt, x_j - prevPos) × (2/√N)
+    -- • IH (ih_suffix): suffixProb(x_j, N) → W_m(x_j) pointwise
+    -- • Riemann sum convergence for the product
+    have hprod_conv : Filter.Tendsto sumForm Filter.atTop
+        (nhds (wienerNestedIntegral (m + 1) times lowers uppers prevTime prevPos)) := by
+      -- Decompose sumForm = T₁ + T₂ where
+      -- T₁(N) = ∑ C(k₁,j)/2^k₁ * W_m(x_j) (limit function weighted by binomial)
+      -- T₂(N) = sumForm(N) - T₁(N) = ∑ C(k₁,j)/2^k₁ * (suffProb - W_m)(x_j)
+      set T₁ : ℕ → ℝ := fun N =>
+        let k₁ := Nat.floor (times 0 * ↑N) - Nat.floor (prevTime * ↑N)
+        ∑ j ∈ Finset.range (k₁ + 1),
+          let x_j := prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁)
+          if lowers 0 ≤ x_j ∧ x_j ≤ uppers 0 then
+            (↑(k₁.choose j) : ℝ) / 2 ^ k₁ * W_m x_j
+          else 0
+      -- T₁ → ∫ gauss * W_m by:
+      -- (a) Local CLT: C(k₁,j)/2^k₁ ≈ gaussDensity(dt, x_j-prevPos) * Δx
+      -- (b) Riemann sum convergence: ∑ gauss * W_m * Δx → ∫ gauss * W_m
+      -- This is the "binomial distribution converges weakly to Gaussian" applied to W_m
+      have hT₁ : Filter.Tendsto T₁ Filter.atTop
+          (nhds (wienerNestedIntegral (m + 1) times lowers uppers prevTime prevPos)) := by
+        /-
+        Proof strategy for hT₁ (binomial CLT for test functions):
+        Target = ∫ x in a..b, gaussianDensity(dt, x - prevPos) * W_m(x) dx
+
+        T₁(N) = ∑ C(k₁,j)/2^k₁ * W_m(x_j) [for x_j ∈ [a,b]]
+
+        Key properties of W_m:
+        - Continuous (by wienerNestedIntegral_continuous)
+        - Bounded: 0 ≤ W_m ≤ 1 (by wienerNestedIntegral_nonneg/_le_one)
+
+        Decomposition: |T₁ - target| ≤ |T₁ - RS| + |RS - target|
+        where RS = ∑ gauss(dt, x_j - p) * (2/√N) * W_m(x_j)
+
+        Term 1: |T₁ - RS| = |∑ (C/2^k - gauss*Δ) * W_m| ≤ ∑ |C/2^k - gauss*Δ| → 0
+          (from binomProb_ratio_near_one + binomial_tail_small)
+        Term 2: |RS - target| → 0
+          (Riemann sum convergence for continuous function gauss * W_m)
+        -/
+        sorry
+      have hT₂ : Filter.Tendsto (fun N => sumForm N - T₁ N) Filter.atTop (nhds 0) := by
+        -- Use uniform convergence of suffix probability to W_m
+        -- (from multi_constraint_convergence_uniform applied to suffix constraints)
+        have h_unif := multi_constraint_convergence_uniform m
+          (times ∘ Fin.succ) (lowers ∘ Fin.succ) (uppers ∘ Fin.succ) (times 0)
+          ht0_nonneg
+          (fun i => htimes_incr ⟨0, Nat.zero_lt_succ m⟩ (Fin.succ i) (Fin.succ_pos i))
+          (fun i => htimes_le (Fin.succ i))
+          (fun i j hij => htimes_incr (Fin.succ i) (Fin.succ j) (Fin.succ_lt_succ_iff.mpr hij))
+          (fun i => hbounds (Fin.succ i))
+        rw [Metric.tendsto_atTop]
+        intro eps heps
+        obtain ⟨N₀, hN₀⟩ := h_unif (eps / 2) (by linarith)
+        refine ⟨N₀, fun N hN => ?_⟩
+        rw [Real.dist_eq, sub_zero]
+        -- Abbreviate the suffix probability function
+        set suffProb := fun (x : ℝ) =>
+          let M' := N - Nat.floor ((times 0) * (N : ℝ))
+          ((Finset.univ : Finset (Fin M' → Bool)).filter (fun flips =>
+            ∀ i : Fin m,
+              let step := Nat.floor ((times ∘ Fin.succ) i * (N : ℝ)) -
+                Nat.floor ((times 0) * (N : ℝ))
+              (lowers ∘ Fin.succ) i ≤ x + Real.sqrt (1 / (N : ℝ)) *
+                ↑(partialSumFin M' flips step) ∧
+              x + Real.sqrt (1 / (N : ℝ)) * ↑(partialSumFin M' flips step) ≤
+                (uppers ∘ Fin.succ) i
+          )).card / (2 : ℝ) ^ M' with hsP_def
+        -- The uniform bound: |suffProb(x) - W_m(x)| < eps/2 for all x
+        have h_bound : ∀ x : ℝ, |suffProb x - W_m x| < eps / 2 := by
+          intro x
+          have := hN₀ N hN x
+          simp only [Function.comp_apply] at this
+          exact this
+        -- The difference sumForm(N) - T₁(N) is the weighted sum of (suffProb - W_m)
+        set k₁ := Nat.floor ((times 0) * (N : ℝ)) - Nat.floor (prevTime * (N : ℝ)) with hk₁_def
+        set w := fun j => (↑(k₁.choose j) : ℝ) / 2 ^ k₁ with hw_def
+        have hw_nn : ∀ j, 0 ≤ w j := fun j => div_nonneg (Nat.cast_nonneg' _) (by positivity)
+        -- ∑ w_j = 1
+        have hw_sum : ∑ j ∈ Finset.range (k₁ + 1), w j = 1 := by
+          simp only [hw_def, ← Finset.sum_div]
+          rw [show ∑ j ∈ Finset.range (k₁ + 1), (↑(k₁.choose j) : ℝ) =
+              (↑(∑ j ∈ Finset.range (k₁ + 1), k₁.choose j) : ℝ) from by push_cast; rfl]
+          rw [Nat.sum_range_choose]
+          simp [Nat.cast_pow]
+        -- Show the difference matches the weighted sum form
+        have h_diff_eq : sumForm N - T₁ N =
+            ∑ j ∈ Finset.range (k₁ + 1),
+              let x_j := prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁)
+              if lowers 0 ≤ x_j ∧ x_j ≤ uppers 0 then
+                w j * (suffProb x_j - W_m x_j)
+              else 0 := by
+          simp only [sumForm, T₁, hk₁_def, hw_def, hsP_def, hW_m_def]
+          rw [← Finset.sum_sub_distrib]
+          apply Finset.sum_congr rfl
+          intro j _
+          split_ifs with hc
+          · ring
+          · ring
+        -- Bound using triangle inequality and uniform convergence
+        calc |sumForm N - T₁ N|
+            = |∑ j ∈ Finset.range (k₁ + 1),
+                let x_j := prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁)
+                if lowers 0 ≤ x_j ∧ x_j ≤ uppers 0 then
+                  w j * (suffProb x_j - W_m x_j)
+                else 0| := by rw [h_diff_eq]
+          _ ≤ ∑ j ∈ Finset.range (k₁ + 1),
+                |let x_j := prevPos + Real.sqrt (1 / ↑N) * (2 * (j : ℝ) - ↑k₁)
+                if lowers 0 ≤ x_j ∧ x_j ≤ uppers 0 then
+                  w j * (suffProb x_j - W_m x_j)
+                else 0| := Finset.abs_sum_le_sum_abs _ _
+          _ ≤ ∑ j ∈ Finset.range (k₁ + 1), w j * (eps / 2) := by
+                apply Finset.sum_le_sum
+                intro j _
+                dsimp only
+                split_ifs with hc
+                · rw [abs_mul, abs_of_nonneg (hw_nn j)]
+                  exact mul_le_mul_of_nonneg_left (le_of_lt (h_bound _)) (hw_nn j)
+                · simp only [abs_zero]
+                  exact mul_nonneg (hw_nn j) (le_of_lt (by linarith))
+          _ < eps := by
+                have : ∑ j ∈ Finset.range (k₁ + 1), w j * (eps / 2) = eps / 2 := by
+                  rw [← Finset.sum_mul, hw_sum, one_mul]
+                linarith
+      -- Combine: sumForm = T₁ + (sumForm - T₁), and T₁ → L and (sumForm - T₁) → 0
+      have h := hT₁.add hT₂
+      rw [add_zero] at h
+      exact Filter.Tendsto.congr (fun N => by simp [T₁]) h
+    -- Combine: the original function agrees with sumForm, so it converges too
+    exact hprod_conv.congr (fun N => (hfiber N).symm)
+
+set_option maxHeartbeats 400000 in
+/-- **Anderson's Theorem (Cylinder Set Version)**:
+    For any cylinder constraint with strictly positive times and strict bounds,
+    the pre-Loeb probability that a hyperfinite walk satisfies the constraint
+    converges to the Wiener probability.
+
+    This is the fundamental bridge between hyperfinite probability and Brownian motion.
+
+    **Hypotheses**: Times must be strictly positive (t > 0) because W(0) = 0 is deterministic,
+    not Gaussian. Bounds must be strict (a < b) so the cylinder set has positive measure. -/
+theorem anderson_theorem_cylinder (Ω : LoebPathSpace) {n : ℕ} (c : CylinderConstraint n)
+    (htimes_pos : ∀ i, 0 < (c.times i).val)
+    (hbounds_strict : ∀ i, c.lowers i < c.uppers i) :
     let cylinderEvent : LevelwiseSet := cylinderConstraintToLevelwiseSet c
     Ω.preLoebMeasure cylinderEvent = wienerCylinderProb c := by
-  -- The proof uses the local CLT to show that each marginal converges to Gaussian
-  -- and the independence of increments (product structure)
-  -- Key steps:
-  -- 1. For single-time constraints, use local CLT (LocalCLT.cylinder_prob_convergence)
-  -- 2. For multi-time constraints, use independence of increments
-  -- 3. Product of Gaussian convergence → joint Gaussian limit
-  sorry
+  intro cylinderEvent
+  -- Define the fraction sequence: at level N, count satisfying paths / 2^N
+  have hfrac_le_one : ∀ N,
+      ((cylinderEvent.sets N).toFinset.card : ℝ) / (2 ^ N : ℝ) ≤ 1 := by
+    intro N
+    rw [div_le_one (by positivity : (0 : ℝ) < 2 ^ N)]
+    have : (cylinderEvent.sets N).toFinset ⊆ (Finset.univ : Finset (CoinFlips N)) :=
+      Finset.subset_univ _
+    calc ((cylinderEvent.sets N).toFinset.card : ℝ)
+        ≤ ((Finset.univ : Finset (CoinFlips N)).card : ℝ) :=
+          Nat.cast_le.mpr (Finset.card_le_card this)
+      _ = 2 ^ N := by simp [CoinFlips, Fintype.card_fin, Fintype.card_bool]
+  have hfrac_nonneg : ∀ N,
+      0 ≤ ((cylinderEvent.sets N).toFinset.card : ℝ) / (2 ^ N : ℝ) := fun N =>
+    div_nonneg (Nat.cast_nonneg _) (by positivity)
+  -- hyperfiniteProb = ofSeq of fractions (by prob_counting)
+  have hprob := Ω.prob_counting cylinderEvent
+  -- hyperfiniteProb is not infinite (fractions ∈ [0, 1])
+  have hfinite : ¬Infinite (Ω.hyperfiniteProb cylinderEvent) := by
+    rw [hprob, not_infinite_iff_exist_lt_gt]
+    exact ⟨-1, 2,
+      Filter.Germ.coe_lt.mpr (Filter.Eventually.of_forall
+        (fun N => by linarith [hfrac_nonneg N])),
+      Filter.Germ.coe_lt.mpr (Filter.Eventually.of_forall
+        (fun N => by linarith [hfrac_le_one N]))⟩
+  -- preLoebMeasure = st(ofSeq frac)
+  unfold LoebPathSpace.preLoebMeasure
+  rw [dif_neg hfinite, hprob]
+  -- Goal: st (ofSeq (fun N => card/2^N)) = wienerCylinderProb c
+  -- Suffices to show convergence (then use isSt_of_tendsto + IsSt.st_eq)
+  suffices hconv : Filter.Tendsto
+      (fun N => ((cylinderEvent.sets N).toFinset.card : ℝ) / (2 ^ N : ℝ))
+      Filter.atTop (nhds (wienerCylinderProb c)) by
+    exact (Hyperreal.isSt_of_tendsto hconv).st_eq
+  -- Case split on n
+  cases n with
+  | zero =>
+    -- n = 0: fraction = 1 for all N, wienerCylinderProb c = 1
+    have hwiener_one : wienerCylinderProb c = 1 := by
+      simp only [wienerCylinderProb, wienerNestedIntegral]
+    rw [hwiener_one]
+    apply Filter.Tendsto.congr (fun N => ?_) tendsto_const_nhds
+    -- Show fraction N = 1
+    have hsets_univ : ∀ flips : CoinFlips N, flips ∈ (cylinderEvent.sets N) := by
+      intro flips; exact fun i => Fin.elim0 i
+    have hcard : (cylinderEvent.sets N).toFinset.card = 2 ^ N := by
+      have hsub1 : (cylinderEvent.sets N).toFinset ⊆ Finset.univ := Finset.subset_univ _
+      have hsub2 : Finset.univ ⊆ (cylinderEvent.sets N).toFinset := by
+        intro x _; exact Set.mem_toFinset.mpr (hsets_univ x)
+      have := Finset.Subset.antisymm hsub1 hsub2
+      rw [this]; simp [CoinFlips, Fintype.card_fin, Fintype.card_bool]
+    simp [hcard]
+  | succ m =>
+    cases m with
+    | zero =>
+      -- n = 1: use cylinder_prob_convergence
+      have ht_pos : 0 < (c.times 0).val := htimes_pos 0
+      have ht_le_one : (c.times 0).val ≤ 1 := (c.times 0).property.2
+      have hab : c.lowers 0 < c.uppers 0 := hbounds_strict 0
+      -- Bridge: wienerCylinderProb c = ∫ x in Icc a b, gaussianDensitySigma (√t) x
+      have hwiener_bridge : wienerCylinderProb c =
+          ∫ x in Set.Icc (c.lowers 0) (c.uppers 0),
+            gaussianDensitySigma (Real.sqrt (c.times 0).val) x := by
+        unfold wienerCylinderProb wienerNestedIntegral
+        simp only [Fin.isValue, sub_zero]
+        -- Reduce wienerNestedIntegral 0 ... = 1 (base case of recursion)
+        have hbase : ∀ t' x', wienerNestedIntegral 0
+          ((fun i => (c.times i).val) ∘ Fin.succ) (c.lowers ∘ Fin.succ)
+          (c.uppers ∘ Fin.succ) t' x' = 1 := fun _ _ => rfl
+        simp only [hbase, mul_one]
+        rw [← set_integral_Icc_eq_intervalIntegral (le_of_lt hab)]
+        congr 1; ext x
+        exact gaussianDensity_eq_gaussianDensitySigma_sqrt ht_pos x
+      rw [hwiener_bridge, Metric.tendsto_atTop]
+      intro eps heps
+      obtain ⟨N₀, hN₀⟩ := cylinder_prob_convergence (c.lowers 0) (c.uppers 0)
+        (c.times 0).val hab ht_pos ht_le_one eps heps
+      use max N₀ 1
+      intro N hN
+      have hN_ge_N₀ : N₀ ≤ N := le_of_max_le_left hN
+      have hN_pos : 0 < N := Nat.lt_of_lt_of_le (by omega : 0 < max N₀ 1) hN
+      rw [Real.dist_eq]
+      -- Bridge: our fraction equals cylinder_prob_convergence's scaledProb
+      -- The key identity: sqrt(1/N) * S = S / sqrt(N)
+      have hcard_eq : (cylinderEvent.sets N).toFinset.card =
+          ((Finset.univ : Finset (Fin N → Bool)).filter (fun flips =>
+            let walk := (partialSumFin N flips (Nat.floor ((c.times 0).val * N)) : ℝ) /
+              Real.sqrt N
+            c.lowers 0 ≤ walk ∧ walk ≤ c.uppers 0)).card := by
+        congr 1
+        ext flips
+        simp only [Set.mem_toFinset, Finset.mem_filter, Finset.mem_univ, true_and]
+        constructor
+        · intro h
+          -- h : flips ∈ cylinderEvent.sets N (i.e., ∀ i : Fin 1, let walkValue := √(1/N) * S; ...)
+          -- Specialize at i = 0 and reduce let bindings
+          have h0 := h (0 : Fin 1)
+          dsimp only [] at h0
+          rwa [sqrt_one_div_mul_eq_div_sqrt hN_pos] at h0
+        · intro h i
+          have hi := Fin.eq_zero i; subst hi
+          dsimp only []
+          rwa [sqrt_one_div_mul_eq_div_sqrt hN_pos]
+      rw [hcard_eq]
+      exact hN₀ N hN_ge_N₀
+    | succ p =>
+      -- n ≥ 2: use multi_constraint_convergence_shifted with prevTime=0, prevPos=0
+      have hmcs := multi_constraint_convergence_shifted (p + 2)
+        (fun i => (c.times i).val) c.lowers c.uppers 0 0
+        le_rfl (fun i => htimes_pos i)
+        (fun i => (c.times i).property.2)
+        (fun i j hij => c.times_increasing i j hij)
+        hbounds_strict
+      -- Bridge: cylinderEvent.sets N matches the filter in hmcs (after prevTime=0 simplification)
+      have hcard_eq : ∀ N : ℕ,
+          (cylinderEvent.sets N).toFinset.card =
+          ((Finset.univ : Finset (Fin N → Bool)).filter (fun flips =>
+            ∀ i : Fin (p + 2),
+              c.lowers i ≤ Real.sqrt (1 / (N : ℝ)) *
+                (partialSumFin N flips (Nat.floor ((c.times i).val * (N : ℝ))) : ℝ) ∧
+              Real.sqrt (1 / (N : ℝ)) *
+                (partialSumFin N flips (Nat.floor ((c.times i).val * (N : ℝ))) : ℝ) ≤
+                c.uppers i)).card := by
+        intro N; congr 1; ext flips
+        simp only [Set.mem_toFinset, Set.mem_setOf_eq, Finset.mem_filter,
+          Finset.mem_univ, true_and, cylinderConstraintToLevelwiseSet, cylinderEvent]
+      -- Apply hmcs: show our function = hmcs function (after simplifying prevTime = 0)
+      exact hmcs.congr (fun N => by
+        have h0 : ⌊(0:ℝ) * (N:ℝ)⌋₊ = 0 := by simp
+        -- Simplify non-dependent occurrences (step computation, 0+x, 2^M)
+        simp only [h0, Nat.sub_zero, zero_add]
+        -- The only remaining N - ⌊0*N⌋₊ is in the dependent type position
+        -- (Fin (N - ⌊0*N⌋₊) → Bool in the set builder).
+        -- Use generalize + subst to handle the dependent type change.
+        generalize hMeq : N - ⌊(0:ℝ) * (N:ℝ)⌋₊ = M
+        have hMN : M = N := by simp [← hMeq]
+        subst hMN
+        -- Now both sides have Fin N → Bool. Bridge the card expressions.
+        congr 1; congr 1
+        rw [hcard_eq])
 
 /-- Helper: The hyperfinite walk satisfies a cylinder constraint iff its
     standard part does (up to infinitesimals). -/
@@ -551,9 +1126,11 @@ equals Wiener measure.
     2. `sContinuous_loebMeasureOne`: S-continuity a.s. (paths are continuous)
 
     Together these characterize Wiener measure uniquely via Kolmogorov extension. -/
-theorem anderson_theorem (Ω : LoebPathSpace) {n : ℕ} (c : CylinderConstraint n) :
+theorem anderson_theorem (Ω : LoebPathSpace) {n : ℕ} (c : CylinderConstraint n)
+    (htimes_pos : ∀ i, 0 < (c.times i).val)
+    (hbounds_strict : ∀ i, c.lowers i < c.uppers i) :
     Ω.preLoebMeasure (cylinderConstraintToLevelwiseSet c) = wienerCylinderProb c := by
-  exact anderson_theorem_cylinder Ω c
+  exact anderson_theorem_cylinder Ω c htimes_pos hbounds_strict
 
 /-! ## Corollaries
 

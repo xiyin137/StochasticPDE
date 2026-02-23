@@ -104,7 +104,7 @@ condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
 
 ---
 
-## Current Sorry Count (as of 2026-02-21)
+## Current Sorry Count (as of 2026-02-22)
 
 | File | Sorrys | Key Items |
 |------|--------|-----------|
@@ -114,25 +114,83 @@ condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
 | **ItoCalculus/Basic.lean** | **1** | is_martingale_of_bounded (needs uniform integrability) |
 | **RegularityStructures.lean** | **1** | Abstract approach (complementary to folder) |
 | **ItoCalculus/Probability/Basic.lean** | **2** | condexp_jensen, doob_maximal_L2 |
-| **ItoCalculus/ItoCalculus/ItoFormulaProof.lean** | **0** | FULLY PROVEN ✓ |
-| **ItoCalculus/ItoCalculus/WeightedQVBound.lean** | **0** | FULLY PROVEN ✓ |
-| **ItoCalculus/ItoCalculus/IsometryTheorems.lean** | **0** | FULLY PROVEN ✓ |
-| **ItoCalculus/ItoCalculus/ConditionalIsometry.lean** | **0** | FULLY PROVEN ✓ |
-| **ItoCalculus/ItoCalculus/QuarticBound.lean** | **0** | FULLY PROVEN |
-| **ItoCalculus/ItoCalculus/QVConvergence.lean** | **0** | FULLY PROVEN |
-| **ItoCalculus/ItoCalculus/ItoFormulaDecomposition.lean** | **0** | FULLY PROVEN |
-| **ItoCalculus/ItoCalculus/QuadraticVariation.lean** | **0** | FULLY PROVEN |
 | **Helpers/InnerIntegralIntegrability.lean** | **5** | Tonelli/Fubini infrastructure (NOT on ito_formula critical path) |
 | **ItoCalculus/** (all other files) | **0** | Fully proven |
-| **ItoCalculus/Probability/IndependenceHelpers.lean** | **0** | Fully proven |
-| **ItoCalculus/Probability/Pythagoras.lean** | **0** | Fully proven |
 | **EKMS/** | **16** | Hyperbolicity, InvariantMeasure, TwoSidedMinimizers, OneSidedMinimizers, Basic |
 | **Examples/** | **15** | YangMills2D, Phi4, KPZ |
-| **Nonstandard/Anderson/** | **9** | ItoCorrespondence, ExplicitSolutions, LocalCLT, AndersonTheorem |
+| **Nonstandard/Anderson/AndersonTheorem.lean** | **2** | multi_constraint_convergence_uniform, hT₁ |
+| **Nonstandard/Anderson/CylinderConvergenceHelpers.lean** | **1** | riemann_sum_continuous_converges |
+| **Nonstandard/Anderson/ExplicitSolutions.lean** | **2** | gbm_explicit_solution, ou_explicit_solution |
+| **Nonstandard/Anderson/ItoCorrespondence.lean** | **4** | ito_correspondence, ito_isometry_hyperfinite, ito_lemma_hyperfinite, ito_correspondence_integral_finiteness |
+| **Nonstandard/Anderson/LocalCLT.lean** | **1** | local_clt_error_bound |
 | **RegularityStructures/** | **41** | See RegularityStructures/TODO.md |
 
-**Total: ~107 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 9 Nonstandard)
-**Critical path: 0 sorrys — Itô formula FULLY PROVEN** ✓
+**Total: ~109 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
+**Itô formula critical path: 0 sorrys — FULLY PROVEN** ✓
+**Anderson theorem critical path: 3 sorrys** (see below)
+
+---
+
+## Anderson's Theorem — Critical Path (as of 2026-02-22)
+
+**Goal:** `anderson_random_walk_pushforward` — pushforward of Loeb measure under standard part = Wiener measure, proved via cylinder set convergence.
+
+**3 sorrys on critical path.**
+
+### Dependency chain:
+```
+anderson_random_walk_pushforward
+  → multi_constraint_convergence_shifted (induction on n)
+    base case (n=0): PROVED ✓
+    inductive step (n+1 = m+1):
+      → hT₁: |∑ C(k,j)/2^k * W_m(x_j) - ∫ gauss * W_m| → 0     [SORRY]
+         → binomial_test_fn_convergence (CylinderConvergenceHelpers)  [PROVED ✓]
+            → riemann_sum_continuous_converges                         [SORRY]
+      → hT₂: sumForm - T₁ → 0                                       [PROVED ✓]
+         → multi_constraint_convergence_uniform (for n = m)            [SORRY]
+```
+
+### Blocking sorrys (3):
+
+1. **`riemann_sum_continuous_converges`** (CylinderConvergenceHelpers.lean:2175)
+   - Riemann sum convergence for continuous bounded functions on lattice mesh
+   - Generalizes `gaussDensity_Riemann_sum_converges` (already proved for Gaussian)
+   - Standard analysis: uniform continuity on compact sets → mesh → 0
+   - **Difficulty: medium** (infrastructure lemma, no deep math)
+
+2. **`hT₁`** (AndersonTheorem.lean:846)
+   - Connects `binomial_test_fn_convergence` to the specific goal
+   - Test function is `W_m = wienerNestedIntegral` (continuous, bounded by [0,1])
+   - Main subtlety: coordinate alignment (k₁ = ⌊t₁*N⌋ - ⌊p*N⌋ vs ⌊dt*N⌋)
+   - **Difficulty: medium** (bookkeeping, `binomial_test_fn_convergence` does the heavy lifting)
+
+3. **`multi_constraint_convergence_uniform`** (AndersonTheorem.lean:560)
+   - Uniform-in-prevPos version: ∀ prevPos, |count/2^M - W_n(prevPos)| < ε
+   - Needed by hT₂ proof (for suffix constraints after conditioning on x₁)
+   - Proof: by induction on n, leveraging equicontinuity of wienerNestedIntegral
+   - **Difficulty: hard** (combines induction + uniform convergence + equicontinuity)
+
+### Proved components (Anderson):
+
+| Component | File | Status |
+|-----------|------|--------|
+| `cylinder_prob_convergence` (n=1, φ=1) | CylinderConvergenceHelpers | PROVED ✓ |
+| `binomial_test_fn_convergence` (n=1, general φ) | CylinderConvergenceHelpers | PROVED ✓ |
+| `gaussDensity_Riemann_sum_converges` | CylinderConvergenceHelpers | PROVED ✓ |
+| `binomProb_ratio_near_one` (local CLT ratio) | CylinderConvergenceHelpers | PROVED ✓ |
+| `binomial_tail_small` | CylinderConvergenceHelpers | PROVED ✓ |
+| `wienerNestedIntegral_nonneg` | WienerNestedIntegral | PROVED ✓ |
+| `wienerNestedIntegral_le_one` | WienerNestedIntegral | PROVED ✓ |
+| `wienerNestedIntegral_continuous` | WienerNestedIntegral | PROVED ✓ |
+| hT₂ (suffix error → 0) | AndersonTheorem | PROVED ✓ |
+| hfiber (count/2^M = sumForm) | AndersonTheorem | PROVED ✓ |
+| Nonstandard Foundation (all) | Foundation/ | PROVED ✓ (0 sorrys) |
+| Loeb measure + Wiener measure | LoebMeasure/ | PROVED ✓ (0 sorrys) |
+
+### Not on Anderson critical path (7 sorrys):
+- `ExplicitSolutions.lean` (2): GBM, OU explicit solutions
+- `ItoCorrespondence.lean` (4): hyperfinite Itô correspondence
+- `LocalCLT.lean` (1): local_clt_error_bound (Berry-Esseen style)
 
 ---
 
