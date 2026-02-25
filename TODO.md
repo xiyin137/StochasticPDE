@@ -201,6 +201,8 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 - [x] Minimize residual local legacy reconstructions in helper wrappers
   (`IsometryTheorems.lean` / `ConditionalIsometry.lean` migrated)
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
+  (progress: added `ito_formula_martingale_of_bounds` so the legacy
+  martingale theorem can be used without explicit `hrem_int`/`hrem_sq_int`)
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
 - [x] Run full `lake build` after each migration batch to protect existing infrastructure
 
