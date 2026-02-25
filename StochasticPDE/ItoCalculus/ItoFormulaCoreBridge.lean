@@ -44,8 +44,6 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
     ∀ s t : ℝ, 0 ≤ s → s ≤ t →
       ∀ A : Set Ω, @MeasurableSet Ω (F.σ_algebra s) A →
       ∫ ω in A, itoRemainderCore X f t ω ∂μ = ∫ ω in A, itoRemainderCore X f s ω ∂μ := by
-  let JM : ItoProcessCoefficientJointMeasurability X :=
-    ItoProcessCoefficientJointMeasurability.ofDriftDiffusion DR D
   let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
   let Xp : ItoProcess F μ := X.toItoProcess R
   have hdiff_bdd_core : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M := hdiff_bdd
@@ -73,11 +71,15 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
       hX0_sq
   have hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainderCore X f t') μ := by
     intro t' ht'
-    exact itoRemainder_integrable_core X C FC JM f hf_t hf_x hMx hMt hMxx hd hσ
+    exact itoRemainder_integrable_core X C FC
+      DR.drift_jointly_measurable D.diffusion_jointly_measurable
+      f hf_t hf_x hMx hMt hMxx hd hσ
       hf_t_cont hf'_cont hf''_cont hX0 t' ht'
   have hrem_sq_int : ∀ t', 0 ≤ t' → Integrable (fun ω => (itoRemainderCore X f t' ω)^2) μ := by
     intro t' ht'
-    exact itoRemainder_sq_integrable_core X C FC JM f hf_t hf_x hMx hMt hMxx hd hσ
+    exact itoRemainder_sq_integrable_core X C FC
+      DR.drift_jointly_measurable D.diffusion_jointly_measurable
+      f hf_t hf_x hMx hMt hMxx hd hσ
       hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
   have hrem_int' : ∀ t', 0 ≤ t' →
       Integrable (itoRemainder Xp f t') μ := by

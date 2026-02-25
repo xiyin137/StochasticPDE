@@ -133,9 +133,11 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Removed redundant compatibility bundle `ItoFormulaAssumptions` and its
   roundtrip projections from `ItoProcessCore.lean` after full migration to
   split bundles + regularity-first adapters
+- Removed redundant coefficient-joint-measurability mini-bundle
+  `ItoProcessCoefficientJointMeasurability`; core remainder-integrability
+  adapters now take explicit drift/diffusion joint measurability hypotheses
 - Added Phase 3 constructor helpers:
-  `ItoProcessRegularity.ofSplit` and
-  `ItoProcessCoefficientJointMeasurability.ofDriftDiffusion`
+  `ItoProcessRegularity.ofSplit`
 - Added regularity-first Itô formula bridge entry points:
   `ito_formula_core_ofRegularity` and
   `ito_formula_martingale_core_ofRegularity`

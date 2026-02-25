@@ -126,32 +126,12 @@ structure ItoProcessDiffusionRegularity {F : Filtration Ω ℝ}
   diffusion_sq_integral_integrable : ∀ (t : ℝ), 0 ≤ t →
     Integrable (fun ω => ∫ s in Set.Icc 0 t, (X.diffusion s ω)^2 ∂volume) μ
 
-/-- Joint measurability of Itô coefficients on top of core data. -/
-structure ItoProcessCoefficientJointMeasurability {F : Filtration Ω ℝ}
-    (X : ItoProcessCore F μ) where
-  drift_jointly_measurable : Measurable (Function.uncurry X.drift)
-  diffusion_jointly_measurable : Measurable (Function.uncurry X.diffusion)
-
 /-- Filtration compatibility hypotheses for Itô processes on top of core data. -/
 structure ItoProcessFiltrationCompatibility {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) where
   F_le_BM_F : ∀ t, F.σ_algebra t ≤ X.BM.F.σ_algebra t
   BM_adapted_to_F : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (X.BM.process t)
   usual_conditions : F.usualConditions μ
-
-namespace ItoProcessCoefficientJointMeasurability
-
-/-- Build coefficient joint measurability directly from drift/diffusion
-    regularity bundles. -/
-def ofDriftDiffusion {F : Filtration Ω ℝ}
-    {X : ItoProcessCore F μ}
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X) :
-    ItoProcessCoefficientJointMeasurability X where
-  drift_jointly_measurable := DR.drift_jointly_measurable
-  diffusion_jointly_measurable := D.diffusion_jointly_measurable
-
-end ItoProcessCoefficientJointMeasurability
 
 namespace ItoProcess
 
@@ -208,13 +188,6 @@ def toDiffusionRegularity {F : Filtration Ω ℝ}
   diffusion_jointly_measurable := R.diffusion_jointly_measurable
   diffusion_sq_time_integrable := R.diffusion_sq_time_integrable
   diffusion_sq_integral_integrable := R.diffusion_sq_integral_integrable
-
-/-- Project to coefficient joint measurability assumptions. -/
-def toCoefficientJointMeasurability {F : Filtration Ω ℝ}
-    {X : ItoProcessCore F μ}
-    (R : ItoProcessRegularity X) : ItoProcessCoefficientJointMeasurability X where
-  drift_jointly_measurable := R.drift_jointly_measurable
-  diffusion_jointly_measurable := R.diffusion_jointly_measurable
 
 /-- Project to filtration compatibility assumptions. -/
 def toFiltrationCompatibility {F : Filtration Ω ℝ}

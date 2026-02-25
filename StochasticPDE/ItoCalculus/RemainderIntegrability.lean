@@ -684,7 +684,8 @@ theorem itoRemainder_integrable_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
     (FC : ItoProcessFiltrationCompatibility X)
-    (JM : ItoProcessCoefficientJointMeasurability X)
+    (hdrift_jm : Measurable (Function.uncurry X.drift))
+    (hdiffusion_jm : Measurable (Function.uncurry X.diffusion))
     (f : ℝ → ℝ → ℝ)
     (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
@@ -762,9 +763,9 @@ theorem itoRemainder_integrable_core {F : Filtration Ω ℝ}
         apply Measurable.add
         · apply Measurable.add
           · exact hf_t_cont.measurable.comp h_sY
-          · exact (hf'_cont.measurable.comp h_sY).mul JM.drift_jointly_measurable
+          · exact (hf'_cont.measurable.comp h_sY).mul hdrift_jm
         · exact (measurable_const.mul (hf''_cont.measurable.comp h_sY)).mul
-            (JM.diffusion_jointly_measurable.pow_const 2)
+            (hdiffusion_jm.pow_const 2)
       have h_int_sm := h_jm_Y.stronglyMeasurable.integral_prod_left'
         (μ := volume.restrict (Set.Icc 0 t'))
       have hS_ae : Sᶜ ∈ ae μ := by rw [mem_ae_iff, compl_compl]; exact hS_null
@@ -833,7 +834,8 @@ theorem itoRemainder_sq_integrable_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
     (FC : ItoProcessFiltrationCompatibility X)
-    (JM : ItoProcessCoefficientJointMeasurability X)
+    (hdrift_jm : Measurable (Function.uncurry X.drift))
+    (hdiffusion_jm : Measurable (Function.uncurry X.diffusion))
     (f : ℝ → ℝ → ℝ)
     (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
     (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
@@ -856,7 +858,7 @@ theorem itoRemainder_sq_integrable_core {F : Filtration Ω ℝ}
   have hMσ : 0 ≤ Mσ := le_trans (abs_nonneg _) (hσ 0 (Classical.arbitrary Ω))
   have hX0 : Integrable (X.process 0) μ :=
     integrable_of_sq_integrable (process_aesm_core X 0) hX0_sq
-  have hrem_int := itoRemainder_integrable_core X C FC JM f
+  have hrem_int := itoRemainder_integrable_core X C FC hdrift_jm hdiffusion_jm f
     hf_t hf_x hMx hMt hMxx hd hσ hf_t_cont hf'_cont hf''_cont hX0 t' ht'
   have hasm : AEStronglyMeasurable (fun ω => (itoRemainderCore X f t' ω) ^ 2) μ :=
     hrem_int.aestronglyMeasurable.pow 2

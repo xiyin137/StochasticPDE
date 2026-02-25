@@ -140,7 +140,7 @@ This is an active research project. The codebase contains `sorry` placeholders f
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
 - `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
-- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV/helper/isometry adapters migrated to direct core proof bodies; `ito_formula_core` and `ito_formula_martingale_core` are now proved directly in the core bridge layer rather than one-line delegation to legacy theorem bodies, local reconstruction wrappers are normalized to `ItoProcessRegularity.ofSplit` + `toItoProcess`, and the redundant `ItoFormulaAssumptions` compatibility bundle has been removed
+- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV/helper/isometry adapters migrated to direct core proof bodies; `ito_formula_core` and `ito_formula_martingale_core` are now proved directly in the core bridge layer rather than one-line delegation to legacy theorem bodies, local reconstruction wrappers are normalized to `ItoProcessRegularity.ofSplit` + `toItoProcess`, and redundant compatibility bundles (`ItoFormulaAssumptions`, `ItoProcessCoefficientJointMeasurability`) have been removed
 
 ## Near-Term Roadmap
 
