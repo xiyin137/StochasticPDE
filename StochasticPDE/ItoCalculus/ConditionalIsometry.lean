@@ -1686,4 +1686,40 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
       (X := X.toItoProcessOfSplit C DR D FC)
       hMσ s₁ t₁ s₂ t₂ hs₁ hst₁ ht₁s₂ hst₂)
 
+/-- Regularity-first adapter for conditional compensated-square set-integral zero. -/
+theorem ItoProcessCore.compensated_sq_setIntegral_zero_core_ofRegularity
+    {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s₂ t₂ : ℝ) (hs₂ : 0 ≤ s₂) (hst₂ : s₂ ≤ t₂)
+    (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s₂) A) :
+    ∫ ω in A, ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
+               ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
+  simpa using
+    (X.compensated_sq_setIntegral_zero_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMσ s₂ t₂ hs₂ hst₂ A hA)
+
+/-- Regularity-first adapter for orthogonality of compensated squared increments. -/
+theorem ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity
+    {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s₁ t₁ s₂ t₂ : ℝ)
+    (hs₁ : 0 ≤ s₁) (hst₁ : s₁ ≤ t₁) (ht₁s₂ : t₁ ≤ s₂) (hst₂ : s₂ ≤ t₂) :
+    ∫ ω, ((X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 -
+           ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) *
+          ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
+           ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
+  simpa using
+    (X.stoch_integral_squared_orthogonal_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMσ s₁ t₁ s₂ t₂ hs₁ hst₁ ht₁s₂ hst₂)
+
 end SPDE

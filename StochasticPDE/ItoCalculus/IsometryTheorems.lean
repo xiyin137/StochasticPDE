@@ -496,4 +496,88 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     (compensated_sq_sq_integrable'
       (X := X.toItoProcessOfSplit C DR D FC) hMσ s t hs hst)
 
+/-- Regularity-first adapter for Itô isometry of stochastic integral increments. -/
+theorem ItoProcessCore.stoch_integral_isometry_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    ∫ ω, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ =
+    ∫ ω, (∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ∂μ := by
+  simpa using
+    (X.stoch_integral_isometry_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      s t hs hst)
+
+/-- Regularity-first adapter for interval-integrability of `∫_s^t σ²`. -/
+lemma ItoProcessCore.diffusion_sq_interval_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
+  simpa using
+    (X.diffusion_sq_interval_integrable_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      s t hs hst)
+
+/-- Regularity-first adapter for square-integrability of stochastic integral increments. -/
+lemma ItoProcessCore.si_increment_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
+  simpa using
+    (X.si_increment_sq_integrable_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      s t hs hst)
+
+/-- Regularity-first adapter for integrability of compensated squared increments. -/
+lemma ItoProcessCore.compensated_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω =>
+      (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
+      ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
+  simpa using
+    (X.compensated_sq_integrable_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      s t hs hst)
+
+/-- Regularity-first adapter for the deterministic bound on `∫_s^t σ²`. -/
+lemma ItoProcessCore.diffusion_sq_integral_bound_core_ofRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (ω : Ω) :
+    |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
+  simpa using
+    (X.diffusion_sq_integral_bound_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMσ s t hs hst ω)
+
+/-- Regularity-first adapter for square-integrability of compensated increments. -/
+lemma ItoProcessCore.compensated_sq_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω =>
+      ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
+       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
+  simpa using
+    (X.compensated_sq_sq_integrable_core
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMσ s t hs hst)
+
 end SPDE

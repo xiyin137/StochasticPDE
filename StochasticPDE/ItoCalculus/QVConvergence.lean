@@ -2128,4 +2128,169 @@ theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
     rw [h, show (0 : ℝ) = Cst * 0 from by ring]
     exact tendsto_const_nhds.mul tendsto_one_div_add_atTop_nhds_zero_nat
 
+/-- Regularity-first adapter for a.e. increment decomposition on partitions. -/
+theorem ito_process_increment_decomp_ae_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (t : ℝ) (ht : 0 < t) (n : ℕ) :
+    ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
+      X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+      X.process (↑(i : ℕ) * t / ↑(n + 1)) ω =
+      (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        X.drift s ω ∂volume) +
+      (X.stoch_integral ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+       X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
+  simpa using
+    (ito_process_increment_decomp_ae_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      t ht n)
+
+/-- Regularity-first adapter for drift increment bound. -/
+lemma drift_increment_bound_core_ofRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
+    |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
+  simpa using
+    (drift_increment_bound_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ s u hsu ω)
+
+/-- Regularity-first adapter for deterministic bound on squared drift increments. -/
+lemma drift_sq_sum_bound_core_ofRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω) :
+    ∑ i : Fin (n + 1),
+      (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        X.drift s ω ∂volume) ^ 2 ≤
+    Mμ ^ 2 * t ^ 2 / ↑(n + 1) := by
+  simpa using
+    (drift_sq_sum_bound_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ t ht n ω)
+
+/-- Regularity-first adapter for partition splitting of quadratic variation. -/
+lemma qv_partition_sum_core_ofRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω)
+    (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 t) volume) :
+    X.quadraticVariation t ω =
+    ∑ i : Fin (n + 1),
+      ∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        (X.diffusion s ω) ^ 2 ∂volume := by
+  simpa using
+    (qv_partition_sum_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      t ht n ω hf_int)
+
+/-- Regularity-first adapter for single compensated SI² increment L² bound. -/
+lemma si_compensated_sq_L2_single_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
+    ∫ ω,
+      ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
+       ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
+    8 * Mσ ^ 4 * (u - s) ^ 2 := by
+  simpa using
+    (si_compensated_sq_L2_single_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMσ s u hs hsu)
+
+/-- Regularity-first adapter for capped discrete QV L² bound. -/
+theorem capped_ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) (n : ℕ) :
+    ∫ ω,
+      (∑ i : Fin (n + 1),
+        (X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+         X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
+       X.quadraticVariation u ω) ^ 2 ∂μ ≤
+    (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
+     24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
+  simpa using
+    (capped_ito_qv_L2_bound_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ hMσ T u hT hu huT n)
+
+/-- Regularity-first adapter for endpoint discrete QV L² bound. -/
+theorem ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 < t) (n : ℕ) :
+    ∫ ω,
+      (∑ i : Fin (n + 1),
+        (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+         X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+       X.quadraticVariation t ω) ^ 2 ∂μ ≤
+    (3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 +
+     24 * Mσ ^ 4 * t ^ 2) / ↑(n + 1) := by
+  simpa using
+    (ito_qv_L2_bound_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ hMσ t ht n)
+
+/-- Regularity-first adapter for discrete QV convergence in L². -/
+theorem ito_process_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 < t) :
+    Filter.Tendsto
+      (fun n => ∫ ω,
+        (∑ i : Fin (n + 1),
+          (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+           X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+         X.quadraticVariation t ω) ^ 2 ∂μ)
+      Filter.atTop (nhds 0) := by
+  simpa using
+    (ito_process_discrete_qv_L2_convergence_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ hMσ t ht)
+
+/-- Regularity-first adapter for capped discrete QV convergence in L². -/
+theorem capped_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) :
+    Filter.Tendsto
+      (fun n => ∫ ω,
+        (∑ i : Fin (n + 1),
+          (X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+           X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
+         X.quadraticVariation u ω) ^ 2 ∂μ)
+      Filter.atTop (nhds 0) := by
+  simpa using
+    (capped_discrete_qv_L2_convergence_core (X := X)
+      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      hMμ hMσ T u hT hu huT)
+
 end SPDE

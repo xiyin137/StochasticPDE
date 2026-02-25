@@ -133,14 +133,28 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Rewired core bridges (`ItoFormulaCoreBridge.lean`, `QVConvergence.lean`) to
   use `toItoProcessOfSplit`, removing local `ItoFormulaAssumptions` rebuilding
   boilerplate at call sites
+- Added Phase 3 constructor helpers:
+  `ItoProcessRegularity.ofSplit` and
+  `ItoProcessCoefficientJointMeasurability.ofDriftDiffusion`
+- Added regularity-first Itô formula bridge entry points:
+  `ito_formula_core_ofRegularity` and
+  `ito_formula_martingale_core_ofRegularity`
+- Added regularity-first core isometry adapters in `IsometryTheorems.lean`
+  (`*_core_ofRegularity` wrappers over split-bundle adapters)
+- Added regularity-first core QV adapters in `QVConvergence.lean`
+  (`*_core_ofRegularity` wrappers for decomposition/bounds/convergence)
+- Added regularity-first conditional-isometry adapters in
+  `ConditionalIsometry.lean`
+  (`compensated_sq_setIntegral_zero_core_ofRegularity`,
+   `stoch_integral_squared_orthogonal_core_ofRegularity`)
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
 
 Goal: continue removing assumption-heavy entry points while preserving theorem usability.
 
-- [ ] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
-- [ ] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
+- [x] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
+- [x] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
 - [ ] Run full `lake build` after each migration batch to protect existing infrastructure

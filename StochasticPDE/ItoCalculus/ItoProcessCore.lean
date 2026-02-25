@@ -149,6 +149,20 @@ structure ItoFormulaAssumptions {F : Filtration Ω ℝ}
       ItoProcessDiffusionRegularity X,
       ItoProcessFiltrationCompatibility X
 
+namespace ItoProcessCoefficientJointMeasurability
+
+/-- Build coefficient joint measurability directly from drift/diffusion
+    regularity bundles. -/
+def ofDriftDiffusion {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X) :
+    ItoProcessCoefficientJointMeasurability X where
+  drift_jointly_measurable := DR.drift_jointly_measurable
+  diffusion_jointly_measurable := D.diffusion_jointly_measurable
+
+end ItoProcessCoefficientJointMeasurability
+
 namespace ItoProcess
 
 /-- Forget heavy regularity fields. -/
@@ -236,6 +250,27 @@ def toItoFormulaAssumptions {F : Filtration Ω ℝ}
   F_le_BM_F := R.F_le_BM_F
   BM_adapted_to_F := R.BM_adapted_to_F
   usual_conditions := R.usual_conditions
+
+/-- Assemble the full regularity package from split assumptions. -/
+def ofSplit {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X) :
+    ItoProcessRegularity X where
+  stoch_integral_is_L2_limit := C.stoch_integral_is_L2_limit
+  process_continuous := C.process_continuous
+  drift_time_integrable := DR.drift_time_integrable
+  drift_adapted := DR.drift_adapted
+  drift_jointly_measurable := DR.drift_jointly_measurable
+  diffusion_adapted := D.diffusion_adapted
+  diffusion_jointly_measurable := D.diffusion_jointly_measurable
+  diffusion_sq_time_integrable := D.diffusion_sq_time_integrable
+  diffusion_sq_integral_integrable := D.diffusion_sq_integral_integrable
+  F_le_BM_F := FC.F_le_BM_F
+  BM_adapted_to_F := FC.BM_adapted_to_F
+  usual_conditions := FC.usual_conditions
 
 end ItoProcessRegularity
 
@@ -333,19 +368,7 @@ def toItoProcessOfSplit {F : Filtration Ω ℝ}
     (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X) : ItoProcess F μ :=
-  X.toItoProcess
-    { stoch_integral_is_L2_limit := C.stoch_integral_is_L2_limit
-      process_continuous := C.process_continuous
-      drift_time_integrable := DR.drift_time_integrable
-      drift_adapted := DR.drift_adapted
-      drift_jointly_measurable := DR.drift_jointly_measurable
-      diffusion_adapted := D.diffusion_adapted
-      diffusion_jointly_measurable := D.diffusion_jointly_measurable
-      diffusion_sq_time_integrable := D.diffusion_sq_time_integrable
-      diffusion_sq_integral_integrable := D.diffusion_sq_integral_integrable
-      F_le_BM_F := FC.F_le_BM_F
-      BM_adapted_to_F := FC.BM_adapted_to_F
-      usual_conditions := FC.usual_conditions }
+  X.toItoProcess (ItoProcessRegularity.ofSplit C DR D FC)
 
 @[simp] theorem toCore_toItoProcess {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) (R : ItoProcessRegularity X) :
