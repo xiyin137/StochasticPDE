@@ -169,6 +169,9 @@ Introduced a compatibility-first split of Itô process assumptions:
   as a direct L²-limit martingale transfer proof (using
   `martingale_setIntegral_eq_of_L2_limit` and core-derived integrability),
   removing direct delegation to legacy `ito_formula_martingale`
+- Normalized local legacy reconstruction in `ItoFormulaCoreBridge.lean`
+  and QV wrappers to `ItoProcessRegularity.ofSplit` + `toItoProcess`
+  (no remaining `toItoProcessOfSplit` usage in those files)
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
@@ -177,9 +180,9 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 
 - [x] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
 - [x] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
-- [ ] Remove remaining direct legacy theorem-body delegation inside core adapters
-  (next target: `ItoFormulaCoreBridge.lean`; residual `toItoProcessOfSplit`
-  usage in QV capped bounds is now for measurability/L4 facts, not one-line theorem delegation)
+- [x] Remove remaining direct legacy theorem-body delegation inside core adapters
+- [ ] Minimize residual local legacy reconstructions in helper wrappers
+  (next target: `IsometryTheorems.lean` / `ConditionalIsometry.lean`)
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
 - [x] Run full `lake build` after each migration batch to protect existing infrastructure

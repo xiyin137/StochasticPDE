@@ -46,7 +46,8 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
       ∫ ω in A, itoRemainderCore X f t ω ∂μ = ∫ ω in A, itoRemainderCore X f s ω ∂μ := by
   let JM : ItoProcessCoefficientJointMeasurability X :=
     ItoProcessCoefficientJointMeasurability.ofDriftDiffusion DR D
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hdiff_bdd_core : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M := hdiff_bdd
   have hdrift_bdd_core : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M := hdrift_bdd
   have hf_x_bdd_core : ∃ M : ℝ, ∀ t x, |deriv (fun x => f t x) x| ≤ M := hf_x_bdd

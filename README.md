@@ -144,7 +144,7 @@ This is an active research project. The codebase contains `sorry` placeholders f
 
 ## Near-Term Roadmap
 
-- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface (next: `ItoFormulaCoreBridge.lean`)
+- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface (next: residual local reconstruction cleanup in `IsometryTheorems.lean` / `ConditionalIsometry.lean`)
 - Reduce assumption-heavy legacy `ItoProcess` entry points while keeping `ito_formula` and `ito_formula_martingale` statement-compatible
 - Keep the Ito formula path sorry-free during migration and validate with full `lake build`
 

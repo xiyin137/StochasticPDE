@@ -1534,7 +1534,8 @@ private lemma stoch_integral_increment_L4_integrable_core {F : Filtration Ω ℝ
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
     Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
     intro t ω
     change |X.diffusion t ω| ≤ Mσ
@@ -1553,7 +1554,8 @@ private lemma stoch_integral_increment_L4_bound_core {F : Filtration Ω ℝ}
     (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
     ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
       3 * Mσ ^ 4 * (u - s) ^ 2 := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
     intro t ω
     change |X.diffusion t ω| ≤ Mσ
@@ -1570,7 +1572,8 @@ private theorem stoch_integral_measurable_core {F : Filtration Ω ℝ}
     (FC : ItoProcessFiltrationCompatibility X)
     (t : ℝ) (ht : 0 ≤ t) :
     Measurable (X.stoch_integral t) := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   simpa [Xp] using Xp.stoch_integral_measurable t ht
 
 /-- Core version: QV(u) splits along capped partition times. -/
