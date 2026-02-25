@@ -147,6 +147,12 @@ Introduced a compatibility-first split of Itô process assumptions:
   `ConditionalIsometry.lean`
   (`compensated_sq_setIntegral_zero_core_ofRegularity`,
    `stoch_integral_squared_orthogonal_core_ofRegularity`)
+- Rewrote `ItoProcessCore.stoch_integral_squared_orthogonal_core`
+  as a direct core proof (removed direct delegation to legacy
+  `ItoProcess.stoch_integral_squared_orthogonal` theorem body)
+- Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
+  as a direct core proof (removed direct delegation to legacy
+  `ItoProcess.compensated_sq_setIntegral_zero` theorem body)
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
@@ -155,6 +161,8 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 
 - [x] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
 - [x] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
+- [ ] Remove remaining direct legacy theorem-body delegation inside core adapters
+  (next target: isometry-layer core adapters)
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
 - [ ] Run full `lake build` after each migration batch to protect existing infrastructure

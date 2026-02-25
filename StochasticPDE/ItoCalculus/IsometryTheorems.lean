@@ -417,9 +417,67 @@ theorem ItoProcessCore.stoch_integral_isometry_core {F : Filtration Ω ℝ}
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     ∫ ω, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ =
     ∫ ω, (∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ∂μ := by
-  simpa using
-    (ItoProcess.stoch_integral_isometry
-      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hcore : ∫ ω, (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2 ∂μ =
+      ∫ ω, (∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ := by
+    have hs_ge : s ≥ 0 := hs
+    have ht_ge : t ≥ 0 := le_trans hs hst
+    have hSI_s_int := Xp.stoch_integral_integrable s hs_ge
+    have hSI_t_int := Xp.stoch_integral_integrable t ht_ge
+    have hSI_s_sq := Xp.stoch_integral_sq_integrable s hs_ge
+    have hSI_t_sq := Xp.stoch_integral_sq_integrable t ht_ge
+    have hprod_int : Integrable (fun ω =>
+        Xp.stoch_integral t ω * Xp.stoch_integral s ω) μ := by
+      apply Integrable.mono' (hSI_t_sq.add hSI_s_sq)
+      · exact hSI_t_int.aestronglyMeasurable.mul hSI_s_int.aestronglyMeasurable
+      · filter_upwards with ω
+        simp only [Real.norm_eq_abs, Pi.add_apply]
+        rw [abs_mul]
+        nlinarith [sq_abs (Xp.stoch_integral t ω),
+          sq_abs (Xp.stoch_integral s ω),
+          sq_nonneg (|Xp.stoch_integral t ω| - |Xp.stoch_integral s ω|)]
+    have hiso_t := Xp.stoch_integral_isometry_base t (le_trans hs hst)
+    have hiso_s := Xp.stoch_integral_isometry_base s hs
+    have hcross := Xp.stoch_integral_cross_term s t hs hst
+    have h_diff : ∫ ω, (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2 ∂μ =
+        ∫ ω, (∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ -
+        ∫ ω, (∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ := by
+      have h_pw : ∫ ω, (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2 ∂μ =
+          ∫ ω, (Xp.stoch_integral t ω ^ 2 + Xp.stoch_integral s ω ^ 2 -
+          2 * (Xp.stoch_integral t ω * Xp.stoch_integral s ω)) ∂μ :=
+        integral_congr_ae (ae_of_all _ (fun ω => by ring))
+      have h_sub := integral_sub (hSI_t_sq.add hSI_s_sq) (hprod_int.const_mul 2)
+      have h_add := integral_add hSI_t_sq hSI_s_sq
+      have h_mul := integral_const_mul (μ := μ) (2 : ℝ)
+        (fun ω => Xp.stoch_integral t ω * Xp.stoch_integral s ω)
+      simp only [Pi.add_apply] at h_sub h_add
+      linarith
+    have h_pw_split : ∀ ω, ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume =
+        ∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume +
+        ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume := by
+      intro ω
+      exact setIntegral_Icc_split' hs hst (Xp.diffusion_sq_time_integrable ω t (le_trans hs hst))
+    have h_int_t := Xp.diffusion_sq_integral_integrable t (le_trans hs hst)
+    have h_int_s := Xp.diffusion_sq_integral_integrable s hs
+    have h_int_st : Integrable
+        (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) μ := by
+      have heq : (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) =
+          (fun ω => ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) -
+          (fun ω => ∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) := by
+        ext ω; simp only [Pi.sub_apply]; linarith [h_pw_split ω]
+      rw [heq]
+      exact h_int_t.sub h_int_s
+    have h_outer : ∫ ω, (∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ -
+        ∫ ω, (∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ =
+        ∫ ω, (∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ := by
+      rw [← integral_sub h_int_t h_int_s]
+      exact integral_congr_ae (ae_of_all _ (fun ω => by
+        show (fun ω => ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) ω -
+             (fun ω => ∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) ω =
+             ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume
+        simp only []; linarith [h_pw_split ω]))
+    linarith
+  simpa [Xp] using hcore
 
 /-- Core adapter for interval-integrability of `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_interval_integrable_core {F : Filtration Ω ℝ}
@@ -430,9 +488,17 @@ lemma ItoProcessCore.diffusion_sq_interval_integrable_core {F : Filtration Ω �
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
-  simpa using
-    (diffusion_sq_interval_integrable
-      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have ht : 0 ≤ t := le_trans hs hst
+  have heq : (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) =
+      (fun ω => ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) -
+      (fun ω => ∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) := by
+    ext ω; simp only [Pi.sub_apply]
+    linarith [setIntegral_Icc_split' hs hst (Xp.diffusion_sq_time_integrable ω t ht)]
+  change Integrable (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) μ
+  rw [heq]
+  exact (Xp.diffusion_sq_integral_integrable t ht).sub
+    (Xp.diffusion_sq_integral_integrable s hs)
 
 /-- Core adapter for square-integrability of stochastic integral increments. -/
 lemma ItoProcessCore.si_increment_sq_integrable_core {F : Filtration Ω ℝ}
@@ -444,9 +510,24 @@ lemma ItoProcessCore.si_increment_sq_integrable_core {F : Filtration Ω ℝ}
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
-  simpa using
-    (si_increment_sq_integrable'
-      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hcore : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2) μ := by
+    have ht : 0 ≤ t := le_trans hs hst
+    have ha := Xp.stoch_integral_sq_integrable t ht
+    have hb := Xp.stoch_integral_sq_integrable s hs
+    have hasm : AEStronglyMeasurable
+        (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2) μ :=
+      ((Xp.stoch_integral_aestronglyMeasurable t ht).sub
+        (Xp.stoch_integral_aestronglyMeasurable s hs)).pow 2
+    exact ((ha.const_mul 2).add (hb.const_mul 2)).mono' hasm
+      (ae_of_all _ fun ω => by
+        simp only [Real.norm_eq_abs, Pi.add_apply]
+        have h1 := sq_abs (Xp.stoch_integral t ω)
+        have h2 := sq_abs (Xp.stoch_integral s ω)
+        have h3 := sq_nonneg (Xp.stoch_integral t ω + Xp.stoch_integral s ω)
+        rw [abs_of_nonneg (sq_nonneg _)]
+        nlinarith)
+  simpa [Xp] using hcore
 
 /-- Core adapter for integrability of compensated squared increments. -/
 lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
@@ -460,9 +541,8 @@ lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
     Integrable (fun ω =>
       (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
-  simpa using
-    (compensated_sq_integrable'
-      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+  exact (X.si_increment_sq_integrable_core C DR D FC s t hs hst).sub
+    (X.diffusion_sq_interval_integrable_core C DR D FC s t hs hst)
 
 /-- Core adapter for the deterministic bound on `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
@@ -475,9 +555,20 @@ lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
-  simpa using
-    (diffusion_sq_integral_bound
-      (X := X.toItoProcessOfSplit C DR D FC) hMσ s t hs hst ω)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  change |∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s)
+  rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (Xp.diffusion u ω)))]
+  calc ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume
+      ≤ ∫ u in Icc s t, Mσ ^ 2 ∂volume := by
+        apply integral_mono_of_nonneg
+        · exact ae_of_all _ fun _ => sq_nonneg _
+        · exact integrable_const _
+        · exact ae_of_all _ fun u => by
+            calc (Xp.diffusion u ω) ^ 2 = |Xp.diffusion u ω| ^ 2 := by rw [sq_abs]
+              _ ≤ Mσ ^ 2 := by
+                simpa [Xp] using (pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
+    _ = Mσ ^ 2 * (t - s) := by
+        rw [setIntegral_const, smul_eq_mul, Real.volume_real_Icc_of_le hst, mul_comm]
 
 /-- Core adapter for square-integrability of compensated squared increments. -/
 lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
@@ -492,9 +583,35 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     Integrable (fun ω =>
       ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
-  simpa using
-    (compensated_sq_sq_integrable'
-      (X := X.toItoProcessOfSplit C DR D FC) hMσ s t hs hst)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
+    simpa [Xp] using hMσ
+  have hΔ4 : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 4) μ :=
+    stoch_integral_increment_L4_integrable_proof Xp hMσp s t hs hst
+  have hQ_bdd := X.diffusion_sq_integral_bound_core C DR D FC hMσ s t hs hst
+  set C0 := Mσ ^ 2 * (t - s)
+  have hasm : AEStronglyMeasurable
+      (fun ω => ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
+       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ :=
+    (X.compensated_sq_integrable_core C DR D FC s t hs hst).aestronglyMeasurable.pow 2
+  have hdom : Integrable
+      (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4 + 2 * C0 ^ 2) μ := by
+    have h1 : Integrable (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ := by
+      simpa [Xp] using hΔ4.const_mul 2
+    have h2 : Integrable (fun _ : Ω => 2 * C0 ^ 2) μ := integrable_const _
+    exact h1.add h2
+  exact hdom.mono' hasm (ae_of_all _ fun ω => by
+    rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+    have h4eq : (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4 =
+        ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) ^ 2 := by ring
+    rw [h4eq]
+    have hQ_nn : 0 ≤ ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume :=
+      integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (X.diffusion u ω))
+    have hQ_le : ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume ≤ C0 := by
+      have := hQ_bdd ω; rwa [abs_of_nonneg hQ_nn] at this
+    nlinarith [sq_nonneg ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 +
+        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume),
+      pow_le_pow_left₀ hQ_nn hQ_le 2])
 
 /-- Regularity-first adapter for Itô isometry of stochastic integral increments. -/
 theorem ItoProcessCore.stoch_integral_isometry_core_ofRegularity {F : Filtration Ω ℝ}
