@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
 import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoProcessCore
 import StochasticPDE.ItoCalculus.QuarticBound
 import Mathlib.MeasureTheory.Function.ConditionalExpectation.PullOut
 
@@ -402,5 +403,97 @@ lemma compensated_sq_sq_integrable' {F : Filtration Ω ℝ}
     nlinarith [sq_nonneg ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 +
         ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume),
       pow_le_pow_left₀ hQ_nn hQ_le 2])
+
+/-! ## Core adapters -/
+
+/-- Core adapter for Itô isometry of stochastic integral increments. -/
+theorem ItoProcessCore.stoch_integral_isometry_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    ∫ ω, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ =
+    ∫ ω, (∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ∂μ := by
+  simpa using
+    (ItoProcess.stoch_integral_isometry
+      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+
+/-- Core adapter for interval-integrability of `∫_s^t σ²`. -/
+lemma ItoProcessCore.diffusion_sq_interval_integrable_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
+  simpa using
+    (diffusion_sq_interval_integrable
+      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+
+/-- Core adapter for square-integrability of stochastic integral increments. -/
+lemma ItoProcessCore.si_increment_sq_integrable_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
+  simpa using
+    (si_increment_sq_integrable'
+      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+
+/-- Core adapter for integrability of compensated squared increments. -/
+lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω =>
+      (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
+      ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
+  simpa using
+    (compensated_sq_integrable'
+      (X := X.toItoProcessOfSplit C DR D FC) s t hs hst)
+
+/-- Core adapter for the deterministic bound on `∫_s^t σ²`. -/
+lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (ω : Ω) :
+    |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
+  simpa using
+    (diffusion_sq_integral_bound
+      (X := X.toItoProcessOfSplit C DR D FC) hMσ s t hs hst ω)
+
+/-- Core adapter for square-integrability of compensated squared increments. -/
+lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω =>
+      ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
+       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
+  simpa using
+    (compensated_sq_sq_integrable'
+      (X := X.toItoProcessOfSplit C DR D FC) hMσ s t hs hst)
 
 end SPDE

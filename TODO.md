@@ -113,7 +113,37 @@ Introduced a compatibility-first split of Itô process assumptions:
   - `ito_formula_core` and `ito_formula_martingale_core` (`ItoFormulaCoreBridge.lean`)
   - Core adapters for quadratic variation and QV convergence
   - Core adapters for process/SI/remainder integrability
+- Added split reconstruction helper: `ItoProcessCore.toItoProcessOfSplit`
+- Refined `toItoProcessOfSplit` to assemble `ItoProcessRegularity` directly
+  from split bundles (no intermediate `ItoFormulaAssumptions` reconstruction)
+- Added split-core adapters for isometry/orthogonality infrastructure:
+  `ItoProcessCore.stoch_integral_isometry_core`,
+  `ItoProcessCore.stoch_integral_squared_orthogonal_core`, and related
+  interval integrability/bound wrappers in `IsometryTheorems.lean`
+- Added split-core helper adapters in `QVConvergence.lean` for:
+  increment decomposition, drift increment/squared-sum bounds, QV partition split,
+  and single compensated increment L² bound
+- Rewrote `capped_ito_qv_L2_bound_core` as a direct core proof
+  (no `simpa` delegation to the legacy capped theorem body)
+- Reworked `ito_qv_L2_bound_core` to derive from
+  `capped_ito_qv_L2_bound_core` at `u = T = t`, eliminating the remaining
+  legacy theorem-body dependency on the QV endpoint bound
+- QV endpoint status: both `capped_ito_qv_L2_bound_core` and
+  `ito_qv_L2_bound_core` now avoid direct delegation to legacy theorem bodies
+- Rewired core bridges (`ItoFormulaCoreBridge.lean`, `QVConvergence.lean`) to
+  use `toItoProcessOfSplit`, removing local `ItoFormulaAssumptions` rebuilding
+  boilerplate at call sites
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
+
+### ItoProcess Phase 3 (next)
+
+Goal: continue removing assumption-heavy entry points while preserving theorem usability.
+
+- [ ] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
+- [ ] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
+- [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
+- [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
+- [ ] Run full `lake build` after each migration batch to protect existing infrastructure
 
 ---
 

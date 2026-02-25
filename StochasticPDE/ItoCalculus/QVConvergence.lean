@@ -1521,10 +1521,565 @@ theorem capped_discrete_qv_L2_convergence {F : Filtration Ω ℝ}
     rw [h, show (0 : ℝ) = C * 0 from by ring]
     exact tendsto_const_nhds.mul tendsto_one_div_add_atTop_nhds_zero_nat
 
+/-! ## Core helper adapters -/
+
+/-- Core adapter for a.e. increment decomposition `ΔX = ΔD + ΔSI` on partitions. -/
+theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (t : ℝ) (ht : 0 < t) (n : ℕ) :
+    ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
+      X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+      X.process (↑(i : ℕ) * t / ↑(n + 1)) ω =
+      (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        X.drift s ω ∂volume) +
+      (X.stoch_integral ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+       X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
+  simpa using
+    (ito_process_increment_decomp_ae
+      (X := X.toItoProcessOfSplit C DR D FC) t ht n)
+
+/-- Core adapter for drift increment bound. -/
+lemma drift_increment_bound_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
+    |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
+  simpa using
+    (drift_increment_bound
+      (X := X.toItoProcessOfSplit C DR D FC) hMμ s u hsu ω)
+
+/-- Core adapter for deterministic bound on squared drift increments. -/
+lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω) :
+    ∑ i : Fin (n + 1),
+      (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        X.drift s ω ∂volume) ^ 2 ≤
+    Mμ ^ 2 * t ^ 2 / ↑(n + 1) := by
+  simpa using
+    (drift_sq_sum_bound
+      (X := X.toItoProcessOfSplit C DR D FC) hMμ t ht n ω)
+
+/-- Core adapter for partition splitting of quadratic variation. -/
+lemma qv_partition_sum_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω)
+    (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 t) volume) :
+    X.quadraticVariation t ω =
+    ∑ i : Fin (n + 1),
+      ∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        (X.diffusion s ω) ^ 2 ∂volume := by
+  simpa [ItoProcess.quadraticVariation_eq_core] using
+    (qv_partition_sum
+      (X := X.toItoProcessOfSplit C DR D FC) t ht n ω hf_int)
+
+/-- Core adapter for single compensated SI² increment L² bound. -/
+lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
+    ∫ ω,
+      ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
+       ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
+    8 * Mσ ^ 4 * (u - s) ^ 2 := by
+  simpa using
+    (si_compensated_sq_L2_single
+      (X := X.toItoProcessOfSplit C DR D FC) hMσ s u hs hsu)
+
+set_option maxHeartbeats 400000 in
+/-- Core adapter for capped discrete QV L² bound. -/
+theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) (n : ℕ) :
+    ∫ ω,
+      (∑ i : Fin (n + 1),
+        (X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+         X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
+       X.quadraticVariation u ω) ^ 2 ∂μ ≤
+    (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
+     24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
+  have hn_pos : (0 : ℝ) < ↑(n + 1) := by positivity
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  -- Abbreviate capped partition times
+  set sc : ℕ → ℝ := fun i => min (↑i * T / ↑(n + 1)) u
+  -- Bridge: sc (k+1) = min ((↑k + 1) * T / ↑(n+1)) u (unmatched by `set`)
+  have hsc_succ : ∀ k : ℕ, sc (k + 1) = min ((↑k + 1) * T / ↑(n + 1)) u := by
+    intro k; simp only [sc, Nat.cast_succ]
+  -- Replace remaining min ((↑k + 1) * ...) with sc (k + 1) everywhere
+  simp_rw [← hsc_succ]
+  -- Mesh bound: sc(i+1) - sc(i) ≤ T/(n+1)
+  have hΔ_le : ∀ i : ℕ, sc (i + 1) - sc i ≤ T / ↑(n + 1) := by
+    intro i
+    show min _ _ - min _ _ ≤ _
+    calc min (↑(i + 1) * T / ↑(n + 1)) u - min (↑i * T / ↑(n + 1)) u
+        ≤ ↑(i + 1) * T / ↑(n + 1) - ↑i * T / ↑(n + 1) :=
+          min_sub_min_le (by
+            apply div_le_div_of_nonneg_right _ (by positivity : (0 : ℝ) < ↑(n + 1)).le
+            have : (↑i : ℝ) ≤ ↑(i + 1) := by exact_mod_cast Nat.le_succ i
+            nlinarith)
+      _ = T / ↑(n + 1) := by rw [Nat.cast_succ]; ring
+  -- QV partition sum
+  have h_qv : ∀ ω, X.quadraticVariation u ω =
+      ∑ i : Fin (n + 1),
+        ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+          (X.diffusion s ω) ^ 2 ∂volume := by
+    intro ω
+    simpa [sc, hsc_succ, ItoProcess.quadraticVariation_eq_core] using
+      (capped_qv_partition_sum Xp T u hu huT n ω
+        (D.diffusion_sq_time_integrable ω u hu))
+  -- A.e. decomposition
+  have h_decomp := capped_increment_decomp_ae Xp T u hT hu huT n
+  -- Define drift/SI increments
+  set ΔD : Fin (n + 1) → Ω → ℝ := fun i ω =>
+    ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)), X.drift s ω ∂volume
+  set ΔSI : Fin (n + 1) → Ω → ℝ := fun i ω =>
+    X.stoch_integral (sc ((i : ℕ) + 1)) ω - X.stoch_integral (sc (i : ℕ)) ω
+  set A : Ω → ℝ := fun ω => ∑ i : Fin (n + 1), (ΔD i ω) ^ 2
+  set B : Ω → ℝ := fun ω => ∑ i : Fin (n + 1), ΔD i ω * ΔSI i ω
+  set Cf : Ω → ℝ := fun ω => ∑ i : Fin (n + 1),
+    ((ΔSI i ω) ^ 2 -
+      ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+        (X.diffusion s ω) ^ 2 ∂volume)
+  -- Convert h_decomp from min-form to sc/ΔD/ΔSI form
+  have h_decomp_sc : ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
+      X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω =
+      ΔD i ω + ΔSI i ω := by
+    filter_upwards [h_decomp] with ω hω i
+    have := hω i
+    simp only [sc, ΔD, ΔSI] at this ⊢
+    exact_mod_cast this
+  -- Capped time properties
+  have hsc_nn : ∀ i : ℕ, 0 ≤ sc i := fun i =>
+    capped_nonneg T u hT.le hu n i
+  have hsc_mono : ∀ i : ℕ, sc i ≤ sc (i + 1) := fun i => by
+    simp only [sc]; exact_mod_cast capped_mono T hT.le u n i
+  -- A.e. bound: error² ≤ 3A² + 12B² + 3Cf²
+  have h_ae : ∀ᵐ ω ∂μ,
+      (∑ i : Fin (n + 1),
+        (X.process (sc ((i : ℕ) + 1)) ω -
+         X.process (sc (i : ℕ)) ω) ^ 2 -
+       X.quadraticVariation u ω) ^ 2 ≤
+      3 * (A ω) ^ 2 + 12 * (B ω) ^ 2 + 3 * (Cf ω) ^ 2 := by
+    have h_young : ∀ a b c : ℝ, (a + 2 * b + c) ^ 2 ≤
+        3 * a ^ 2 + 12 * b ^ 2 + 3 * c ^ 2 := by
+      intro a b c
+      nlinarith [sq_nonneg (a - c), sq_nonneg (a - 2 * b), sq_nonneg (c - 2 * b)]
+    filter_upwards [h_decomp_sc] with ω hω
+    have h_eq :
+        ∑ i : Fin (n + 1),
+          (X.process (sc ((i : ℕ) + 1)) ω -
+           X.process (sc (i : ℕ)) ω) ^ 2 -
+         X.quadraticVariation u ω =
+        A ω + 2 * B ω + Cf ω := by
+      simp only [A, B, Cf]; rw [h_qv ω]
+      rw [← Finset.sum_sub_distrib]; simp_rw [hω]
+      simp_rw [show ∀ (a b c : ℝ), (a + b) ^ 2 - c =
+          a ^ 2 + 2 * (a * b) + (b ^ 2 - c) from fun a b c => by ring]
+      simp only [Finset.sum_add_distrib, ← Finset.mul_sum]
+    rw [h_eq]; exact h_young (A ω) (B ω) (Cf ω)
+  -- Integrability: SI increments squared
+  have hΔSI_sq_int : ∀ i : Fin (n + 1),
+      Integrable (fun ω => (ΔSI i ω) ^ 2) μ := by
+    intro i; simp only [ΔSI]
+    exact ItoProcessCore.si_increment_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+  -- Integrability: compensated Z² (from L⁴ domination)
+  have hZ_sq_int : ∀ i : Fin (n + 1),
+      Integrable (fun ω => ((ΔSI i ω) ^ 2 -
+        ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+          (X.diffusion s ω) ^ 2 ∂volume) ^ 2) μ := by
+    intro i; simp only [ΔSI]
+    exact ItoProcessCore.compensated_sq_sq_integrable_core X C DR D FC hMσ _ _ (hsc_nn _) (hsc_mono _)
+  -- Strong measurability of ΔSI and ΔX
+  have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
+    intro i; simp only [ΔSI]
+    exact (Xp.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable.sub
+      (Xp.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable
+  have hΔX_sm : ∀ i : Fin (n + 1), StronglyMeasurable (fun ω =>
+      X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω) := by
+    intro i
+    exact ((X.process_adapted _).mono (F.le_ambient _) le_rfl).stronglyMeasurable.sub
+      ((X.process_adapted _).mono (F.le_ambient _) le_rfl).stronglyMeasurable
+  -- Integrability of Cf²
+  have hCf_int : Integrable (fun ω => (Cf ω) ^ 2) μ := by
+    have hZ_prod_int : ∀ i j : Fin (n + 1),
+        Integrable (fun ω =>
+          ((ΔSI i ω) ^ 2 - ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+              (X.diffusion s ω) ^ 2 ∂volume) *
+          ((ΔSI j ω) ^ 2 - ∫ s in Icc (sc (j : ℕ)) (sc ((j : ℕ) + 1)),
+              (X.diffusion s ω) ^ 2 ∂volume)) μ := by
+      intro i j
+      have hZk_int : ∀ k : Fin (n + 1),
+          Integrable (fun ω => (ΔSI k ω) ^ 2 -
+            ∫ s in Icc (sc (k : ℕ)) (sc ((k : ℕ) + 1)),
+              (X.diffusion s ω) ^ 2 ∂volume) μ := by
+        intro k; simp only [ΔSI]
+        exact ItoProcessCore.compensated_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+      apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
+        ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
+      filter_upwards with ω
+      simp only [Real.norm_eq_abs, Pi.mul_apply, Pi.add_apply]
+      set zi := ΔSI i ω ^ 2 - ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+          (X.diffusion s ω) ^ 2 ∂volume
+      set zj := ΔSI j ω ^ 2 - ∫ s in Icc (sc (j : ℕ)) (sc ((j : ℕ) + 1)),
+          (X.diffusion s ω) ^ 2 ∂volume
+      rw [abs_of_nonneg (div_nonneg (add_nonneg (sq_nonneg _) (sq_nonneg _))
+        (by norm_num : (0 : ℝ) ≤ 2))]
+      have h1 : |zi * zj| = |zi| * |zj| := abs_mul zi zj
+      have h2 : 2 * (|zi| * |zj|) ≤ zi ^ 2 + zj ^ 2 := by
+        have h := two_mul_le_add_sq (|zi|) (|zj|)
+        rw [sq_abs, sq_abs] at h; linarith
+      linarith
+    have heq : (fun ω => (Cf ω) ^ 2) = (fun ω =>
+        ∑ i : Fin (n + 1), ∑ j : Fin (n + 1),
+          ((ΔSI i ω) ^ 2 - ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+              (X.diffusion s ω) ^ 2 ∂volume) *
+          ((ΔSI j ω) ^ 2 - ∫ s in Icc (sc (j : ℕ)) (sc ((j : ℕ) + 1)),
+              (X.diffusion s ω) ^ 2 ∂volume)) := by
+      ext ω; simp only [Cf]; rw [sq, Fintype.sum_mul_sum]
+    rw [heq]; exact integrable_finset_sum _ fun i _ =>
+      integrable_finset_sum _ fun j _ => hZ_prod_int i j
+  -- Pointwise bound on B²
+  have hB_bound : ∀ ω, (B ω) ^ 2 ≤
+      Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 * ↑(n + 1) *
+      ∑ i : Fin (n + 1), (ΔSI i ω) ^ 2 := by
+      intro ω
+      have h1 : |B ω| ≤ Mμ * (T / ↑(n + 1)) * ∑ i, |ΔSI i ω| := by
+        simp only [B]
+        calc |∑ i, ΔD i ω * ΔSI i ω|
+            ≤ ∑ i, |ΔD i ω * ΔSI i ω| := by
+              rw [← Real.norm_eq_abs]; exact norm_sum_le _ _
+          _ = ∑ i, |ΔD i ω| * |ΔSI i ω| := by
+              congr 1; ext i; exact abs_mul _ _
+          _ ≤ ∑ i, Mμ * (T / ↑(n + 1)) * |ΔSI i ω| :=
+              Finset.sum_le_sum fun i _ => mul_le_mul_of_nonneg_right (by
+                simp only [ΔD]
+                calc |∫ s in Icc _ _, X.drift s ω ∂volume| ≤ Mμ * (_ - _) :=
+                    drift_increment_bound_core X C DR D FC hMμ _ _ (hsc_mono _) ω
+                  _ ≤ Mμ * (T / ↑(n + 1)) := by
+                    exact mul_le_mul_of_nonneg_left (hΔ_le _) (le_trans (abs_nonneg _) (hMμ 0 ω)))
+                (abs_nonneg _)
+          _ = Mμ * (T / ↑(n + 1)) * ∑ i, |ΔSI i ω| := by rw [← Finset.mul_sum]
+      have h_cs : (∑ i : Fin (n + 1), |ΔSI i ω|) ^ 2 ≤
+          ↑(n + 1) * ∑ i : Fin (n + 1), (ΔSI i ω) ^ 2 := by
+        have h := @sq_sum_le_card_mul_sum_sq _ ℝ _ _ _ _ Finset.univ
+          (fun i : Fin (n + 1) => |ΔSI i ω|)
+        simp only [Finset.card_univ, Fintype.card_fin] at h
+        calc _ ≤ ↑(n + 1) * ∑ i, |ΔSI i ω| ^ 2 := h
+          _ = _ := by congr 1; exact Finset.sum_congr rfl fun i _ => sq_abs _
+      calc (B ω) ^ 2 = |B ω| ^ 2 := (sq_abs _).symm
+        _ ≤ (Mμ * (T / ↑(n + 1)) * ∑ i, |ΔSI i ω|) ^ 2 :=
+            pow_le_pow_left₀ (abs_nonneg _) h1 2
+        _ = (Mμ * (T / ↑(n + 1))) ^ 2 * (∑ i, |ΔSI i ω|) ^ 2 := by ring
+        _ ≤ (Mμ * (T / ↑(n + 1))) ^ 2 * (↑(n + 1) * ∑ i, (ΔSI i ω) ^ 2) :=
+            mul_le_mul_of_nonneg_left h_cs (sq_nonneg _)
+        _ = _ := by ring
+  -- B is a.e. measurable
+  have hB_aesm : AEStronglyMeasurable B μ :=
+    (Finset.stronglyMeasurable_sum Finset.univ fun i _ =>
+      ((hΔX_sm i).sub (hΔSI_sm i)).mul (hΔSI_sm i)).aestronglyMeasurable.congr
+    (by filter_upwards [h_decomp_sc] with ω hω
+        simp only [Fintype.sum_apply, Pi.sub_apply, Pi.mul_apply, B]
+        exact Finset.sum_congr rfl fun i _ => by
+          congr 1; linarith [hω i])
+  have hB_int : Integrable (fun ω => (B ω) ^ 2) μ :=
+    Integrable.mono
+      ((integrable_finset_sum _ fun i _ => hΔSI_sq_int i).const_mul
+        (Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 * ↑(n + 1)))
+      (hB_aesm.pow 2)
+      (by filter_upwards with ω
+          simp only [Real.norm_eq_abs]
+          rw [abs_of_nonneg (sq_nonneg _),
+              abs_of_nonneg (mul_nonneg (by positivity)
+                (Finset.sum_nonneg fun i _ => sq_nonneg _))]
+          exact hB_bound ω)
+  -- Integrability of A²
+  have hA_int : Integrable (fun ω => (A ω) ^ 2) μ := by
+    have hA_bound : ∀ ω, A ω ≤ Mμ ^ 2 * T ^ 2 / ↑(n + 1) := by
+      intro ω; simp only [A]
+      calc ∑ i : Fin (n + 1), (ΔD i ω) ^ 2
+          ≤ ∑ i : Fin (n + 1), Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 :=
+            Finset.sum_le_sum fun i _ => by
+              simp only [ΔD]
+              have h := drift_increment_bound_core X C DR D FC hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
+              calc _ ≤ |∫ s in Icc _ _, X.drift s ω ∂volume| ^ 2 := by rw [sq_abs]
+                _ ≤ (Mμ * (sc (↑i + 1) - sc ↑i)) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) h 2
+                _ ≤ (Mμ * (T / ↑(n + 1))) ^ 2 := by
+                    apply pow_le_pow_left₀ (mul_nonneg (le_trans (abs_nonneg _) (hMμ 0 ω))
+                      (sub_nonneg.mpr (hsc_mono _)))
+                    exact mul_le_mul_of_nonneg_left (hΔ_le _) (le_trans (abs_nonneg _) (hMμ 0 ω))
+                _ = _ := by ring
+        _ = ↑(n + 1) * (Mμ ^ 2 * (T / ↑(n + 1)) ^ 2) := by
+            rw [Finset.sum_const, Finset.card_fin, nsmul_eq_mul]
+        _ = Mμ ^ 2 * T ^ 2 / ↑(n + 1) := by field_simp
+    have hA_aesm : AEStronglyMeasurable A μ :=
+      (Finset.stronglyMeasurable_sum Finset.univ fun i _ =>
+        ((hΔX_sm i).sub (hΔSI_sm i)).pow 2).aestronglyMeasurable.congr
+      (by filter_upwards [h_decomp_sc] with ω hω
+          simp only [Fintype.sum_apply, Pi.sub_apply, Pi.pow_apply, A]
+          exact Finset.sum_congr rfl fun i _ => by
+            congr 1; linarith [hω i])
+    exact (integrable_const ((Mμ ^ 2 * T ^ 2 / ↑(n + 1)) ^ 2)).mono (hA_aesm.pow 2)
+      (by filter_upwards with ω
+          simp only [Real.norm_eq_abs]
+          rw [abs_of_nonneg (sq_nonneg _), abs_of_nonneg (sq_nonneg _)]
+          exact pow_le_pow_left₀ (Finset.sum_nonneg fun i _ => sq_nonneg _)
+            (hA_bound ω) 2)
+  -- Integrability of dominator
+  have h_dom_int : Integrable (fun ω =>
+      3 * (A ω) ^ 2 + 12 * (B ω) ^ 2 + 3 * (Cf ω) ^ 2) μ :=
+    ((hA_int.const_mul 3).add (hB_int.const_mul 12)).add (hCf_int.const_mul 3)
+  -- Main calc
+  calc ∫ ω, (∑ i : Fin (n + 1),
+        (X.process (sc ((i : ℕ) + 1)) ω -
+         X.process (sc (i : ℕ)) ω) ^ 2 -
+       X.quadraticVariation u ω) ^ 2 ∂μ
+    ≤ ∫ ω, (3 * (A ω) ^ 2 + 12 * (B ω) ^ 2 + 3 * (Cf ω) ^ 2) ∂μ :=
+      integral_mono_of_nonneg (ae_of_all _ fun ω => sq_nonneg _) h_dom_int h_ae
+    _ = 3 * ∫ ω, (A ω) ^ 2 ∂μ + 12 * ∫ ω, (B ω) ^ 2 ∂μ +
+        3 * ∫ ω, (Cf ω) ^ 2 ∂μ := by
+      have h1 := integral_add ((hA_int.const_mul 3).add (hB_int.const_mul 12))
+        (hCf_int.const_mul 3)
+      have h2 := integral_add (hA_int.const_mul 3) (hB_int.const_mul 12)
+      simp only [integral_const_mul, Pi.add_apply] at h1 h2; linarith
+    _ ≤ 3 * (Mμ ^ 2 * T ^ 2 / ↑(n + 1)) ^ 2 +
+        12 * (Mμ ^ 2 * Mσ ^ 2 * T ^ 3 / ↑(n + 1)) +
+        3 * (8 * Mσ ^ 4 * T ^ 2 / ↑(n + 1)) := by
+      gcongr
+      · -- E[A²] ≤ (Mμ²T²/(n+1))²
+        calc ∫ ω, (A ω) ^ 2 ∂μ
+            ≤ ∫ _, (Mμ ^ 2 * T ^ 2 / ↑(n + 1)) ^ 2 ∂μ :=
+            integral_mono_of_nonneg (ae_of_all _ fun _ => sq_nonneg _)
+              (integrable_const _)
+              (ae_of_all _ fun ω => pow_le_pow_left₀
+                (Finset.sum_nonneg fun i _ => sq_nonneg _)
+                (by simp only [A]
+                    calc ∑ i : Fin (n + 1), (ΔD i ω) ^ 2
+                        ≤ ∑ i : Fin (n + 1), Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 :=
+                          Finset.sum_le_sum fun i _ => by
+                            simp only [ΔD]
+                            have h := drift_increment_bound_core X C DR D FC hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
+                            calc _ ≤ |∫ s in Icc _ _, X.drift s ω ∂volume| ^ 2 := by rw [sq_abs]
+                              _ ≤ (Mμ * (sc (↑i + 1) - sc ↑i)) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) h 2
+                              _ ≤ (Mμ * (T / ↑(n + 1))) ^ 2 := by
+                                  apply pow_le_pow_left₀ (mul_nonneg (le_trans (abs_nonneg _) (hMμ 0 ω))
+                                    (sub_nonneg.mpr (hsc_mono _)))
+                                  exact mul_le_mul_of_nonneg_left (hΔ_le _)
+                                    (le_trans (abs_nonneg _) (hMμ 0 ω))
+                              _ = _ := by ring
+                      _ = _ := by rw [Finset.sum_const, Finset.card_fin, nsmul_eq_mul]; field_simp) 2)
+          _ = (Mμ ^ 2 * T ^ 2 / ↑(n + 1)) ^ 2 := by
+              simp [integral_const, Measure.real, measure_univ]
+      · -- E[B²] ≤ Mμ²Mσ²T³/(n+1) via isometry
+        calc ∫ ω, (B ω) ^ 2 ∂μ
+            ≤ ∫ ω, (Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 * ↑(n + 1) *
+              ∑ i, (ΔSI i ω) ^ 2) ∂μ :=
+              integral_mono_of_nonneg (ae_of_all _ fun ω => sq_nonneg _)
+                ((integrable_finset_sum _ fun i _ => hΔSI_sq_int i).const_mul _)
+                (ae_of_all _ hB_bound)
+            _ = Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 * ↑(n + 1) *
+                ∑ i, ∫ ω, (ΔSI i ω) ^ 2 ∂μ := by
+              rw [integral_const_mul, integral_finset_sum _ fun i _ => hΔSI_sq_int i]
+            _ ≤ Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 * ↑(n + 1) *
+                ∑ i : Fin (n + 1), Mσ ^ 2 * (T / ↑(n + 1)) := by
+              gcongr with i
+              simp only [ΔSI]
+              rw [ItoProcessCore.stoch_integral_isometry_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)]
+              calc ∫ ω, ∫ r in Icc _ _, (X.diffusion r ω) ^ 2 ∂volume ∂μ
+                  ≤ ∫ ω, (Mσ ^ 2 * (T / ↑(n + 1))) ∂μ := by
+                    apply integral_mono_of_nonneg
+                    · exact ae_of_all _ fun ω =>
+                        setIntegral_nonneg measurableSet_Icc fun r _ => sq_nonneg _
+                    · exact integrable_const _
+                    · exact ae_of_all _ fun ω => by
+                        calc ∫ r in Icc _ _, (X.diffusion r ω) ^ 2 ∂volume
+                            ≤ ∫ r in Icc _ _, Mσ ^ 2 ∂volume := by
+                              apply integral_mono_of_nonneg
+                              · exact ae_of_all _ fun _ => sq_nonneg _
+                              · exact integrableOn_const (by rw [Real.volume_Icc]; exact ENNReal.ofReal_ne_top)
+                              · exact ae_of_all _ fun r => by
+                                  calc _ = |X.diffusion r ω| ^ 2 := (sq_abs _).symm
+                                    _ ≤ Mσ ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hMσ r ω) 2
+                          _ ≤ Mσ ^ 2 * (T / ↑(n + 1)) := by
+                              rw [setIntegral_const]
+                              simp only [smul_eq_mul, Measure.real, Real.volume_Icc,
+                                ENNReal.toReal_ofReal (sub_nonneg.mpr (hsc_mono _))]
+                              rw [mul_comm]
+                              exact mul_le_mul_of_nonneg_left (hΔ_le _) (sq_nonneg _)
+                _ = Mσ ^ 2 * (T / ↑(n + 1)) := by
+                    simp [integral_const, Measure.real, measure_univ]
+            _ = Mμ ^ 2 * Mσ ^ 2 * T ^ 3 / ↑(n + 1) := by
+              rw [Finset.sum_const, Finset.card_fin, nsmul_eq_mul]; field_simp
+      · -- E[Cf²] ≤ 8Mσ⁴T²/(n+1) via Pythagorean + individual bound
+        -- Set up Z functions
+        set Z : Fin (n + 1) → Ω → ℝ := fun i ω =>
+          (ΔSI i ω) ^ 2 - ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
+            (X.diffusion s ω) ^ 2 ∂volume
+        -- Integrability of products
+        have hZZ_int : ∀ i j : Fin (n + 1), Integrable (fun ω => Z i ω * Z j ω) μ := by
+          intro i j
+          have hZk_int : ∀ k : Fin (n + 1), Integrable (Z k) μ := by
+            intro k; simp only [Z, ΔSI]
+            exact ItoProcessCore.compensated_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+          apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
+            ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
+          filter_upwards with ω
+          simp only [Real.norm_eq_abs, Pi.mul_apply, Pi.add_apply]
+          set zi := Z i ω
+          set zj := Z j ω
+          have h_am := two_mul_le_add_sq (|zi|) (|zj|)
+          rw [sq_abs, sq_abs] at h_am
+          rw [abs_of_nonneg (div_nonneg (add_nonneg (sq_nonneg _) (sq_nonneg _))
+            (by norm_num : (0 : ℝ) ≤ 2))]
+          have h1 : |zi * zj| = |zi| * |zj| := abs_mul zi zj
+          have h2 : 2 * (|zi| * |zj|) ≤ zi ^ 2 + zj ^ 2 := by
+            have h := two_mul_le_add_sq (|zi|) (|zj|)
+            rw [sq_abs, sq_abs] at h; linarith
+          linarith
+        -- Orthogonality
+        have horth : ∀ i j : Fin (n + 1), i ≠ j → ∫ ω, Z i ω * Z j ω ∂μ = 0 := by
+          intro i j hij
+          rcases Nat.lt_or_gt_of_ne (Fin.val_ne_of_ne hij) with h | h
+          · simp only [Z, ΔSI]
+            exact ItoProcessCore.stoch_integral_squared_orthogonal_core X C DR D FC hMσ _ _ _ _
+              (hsc_nn _) (hsc_mono _)
+              (by exact_mod_cast capped_disjoint T hT.le u n i j h)
+              (hsc_mono _)
+          · rw [show (fun ω => Z i ω * Z j ω) = (fun ω => Z j ω * Z i ω) from by
+                ext ω; ring]
+            simp only [Z, ΔSI]
+            exact ItoProcessCore.stoch_integral_squared_orthogonal_core X C DR D FC hMσ _ _ _ _
+              (hsc_nn _) (hsc_mono _)
+              (by exact_mod_cast capped_disjoint T hT.le u n j i h)
+              (hsc_mono _)
+        -- Pythagorean identity + individual bounds
+        have hCf_eq : (fun ω => (Cf ω) ^ 2) = (fun ω => (∑ i, Z i ω) ^ 2) := by
+          ext ω; simp only [Cf, Z]
+        rw [hCf_eq, integral_sq_sum_orthogonal Z hZZ_int horth]
+        calc ∑ i : Fin (n + 1), ∫ ω, (Z i ω) ^ 2 ∂μ
+            ≤ ∑ i : Fin (n + 1), 8 * Mσ ^ 4 * (T / ↑(n + 1)) ^ 2 := by
+              apply Finset.sum_le_sum; intro i _; simp only [Z, ΔSI]
+              calc ∫ ω, _ ^ 2 ∂μ
+                  ≤ 8 * Mσ ^ 4 * (sc ((i : ℕ) + 1) - sc (i : ℕ)) ^ 2 :=
+                    si_compensated_sq_L2_single_core X C DR D FC hMσ _ _ (hsc_nn _) (hsc_mono _)
+                _ ≤ 8 * Mσ ^ 4 * (T / ↑(n + 1)) ^ 2 := by
+                    gcongr
+                    · exact sub_nonneg.mpr (hsc_mono _)
+                    · exact hΔ_le _
+          _ = 8 * Mσ ^ 4 * T ^ 2 / ↑(n + 1) := by
+              rw [Finset.sum_const, Finset.card_fin, nsmul_eq_mul]; field_simp
+    _ ≤ (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
+         24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
+      have hn1 : (1 : ℝ) ≤ ↑(n + 1) := by exact_mod_cast Nat.succ_pos n
+      have hN_le : (↑(n + 1) : ℝ) ≤ (↑(n + 1) : ℝ) ^ 2 := by
+        rw [sq]; exact le_mul_of_one_le_right hn_pos.le hn1
+      have h_sq_le : (Mμ ^ 2 * T ^ 2 / ↑(n + 1)) ^ 2 ≤ Mμ ^ 4 * T ^ 4 / ↑(n + 1) := by
+        rw [div_pow, show (Mμ ^ 2 * T ^ 2) ^ 2 = Mμ ^ 4 * T ^ 4 from by ring]
+        exact div_le_div_of_nonneg_left (by positivity) hn_pos hN_le
+      have hrw : (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
+          24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) =
+          3 * (Mμ ^ 4 * T ^ 4 / ↑(n + 1)) +
+          12 * (Mμ ^ 2 * Mσ ^ 2 * T ^ 3 / ↑(n + 1)) +
+          3 * (8 * Mσ ^ 4 * T ^ 2 / ↑(n + 1)) := by
+        field_simp; ring
+      rw [hrw]
+      linarith [mul_le_mul_of_nonneg_left h_sq_le (by norm_num : (0 : ℝ) ≤ 3)]
+
 /-- Core adapter for discrete quadratic variation convergence in L². -/
+theorem ito_qv_L2_bound_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 < t) (n : ℕ) :
+    ∫ ω,
+      (∑ i : Fin (n + 1),
+        (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+         X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+       X.quadraticVariation t ω) ^ 2 ∂μ ≤
+    (3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 +
+     24 * Mσ ^ 4 * t ^ 2) / ↑(n + 1) := by
+  have h_cap := capped_ito_qv_L2_bound_core (X := X) C DR D FC hMμ hMσ t t ht ht.le le_rfl n
+  have hrew :
+      (fun ω =>
+        (∑ i : Fin (n + 1),
+          (X.process (min ((↑(i : ℕ) + 1) * t / ↑(n + 1)) t) ω -
+           X.process (min (↑(i : ℕ) * t / ↑(n + 1)) t) ω) ^ 2 -
+         X.quadraticVariation t ω) ^ 2) =
+      (fun ω =>
+        (∑ i : Fin (n + 1),
+          (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+           X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+         X.quadraticVariation t ω) ^ 2) := by
+    ext ω
+    have hsum :
+        ∑ i : Fin (n + 1),
+          (X.process (min ((↑(i : ℕ) + 1) * t / ↑(n + 1)) t) ω -
+           X.process (min (↑(i : ℕ) * t / ↑(n + 1)) t) ω) ^ 2 =
+        ∑ i : Fin (n + 1),
+          (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+           X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 := by
+      apply Finset.sum_congr rfl
+      intro i _
+      have hsucc_le : ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ≤ t :=
+        partition_time_le t ht.le n i
+      have hcurr_le : (↑(i : ℕ) * t / ↑(n + 1)) ≤ t :=
+        le_trans (partition_time_mono t ht.le n (i : ℕ)) hsucc_le
+      rw [min_eq_left hsucc_le, min_eq_left hcurr_le]
+    have hsub :
+        (∑ i : Fin (n + 1),
+          (X.process (min ((↑(i : ℕ) + 1) * t / ↑(n + 1)) t) ω -
+           X.process (min (↑(i : ℕ) * t / ↑(n + 1)) t) ω) ^ 2 -
+         X.quadraticVariation t ω) =
+        (∑ i : Fin (n + 1),
+          (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+           X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+         X.quadraticVariation t ω) := by
+      linarith [hsum]
+    exact congrArg (fun z : ℝ => z ^ 2) hsub
+  rw [hrew] at h_cap
+  exact h_cap
+
 theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
-    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (t : ℝ) (ht : 0 < t) :
@@ -1535,13 +2090,24 @@ theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
          X.quadraticVariation t ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
-  simpa [ItoProcess.quadraticVariation_eq_core] using
-    (ito_process_discrete_qv_L2_convergence (X := X.toItoProcess R) hMμ hMσ t ht)
+  set Cst := 3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 + 24 * Mσ ^ 4 * t ^ 2
+  apply squeeze_zero
+  · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
+  · intro n; exact ito_qv_L2_bound_core X C DR D FC hMμ hMσ t ht n
+  · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
+        (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
+      ext n; rw [Nat.cast_succ]; ring
+    rw [h, show (0 : ℝ) = Cst * 0 from by ring]
+    exact tendsto_const_nhds.mul tendsto_one_div_add_atTop_nhds_zero_nat
 
 /-- Core adapter for capped discrete quadratic variation convergence in L². -/
 theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
-    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) :
@@ -1552,7 +2118,14 @@ theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
          X.quadraticVariation u ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
-  simpa [ItoProcess.quadraticVariation_eq_core] using
-    (capped_discrete_qv_L2_convergence (X := X.toItoProcess R) hMμ hMσ T u hT hu huT)
+  set Cst := 3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 + 24 * Mσ ^ 4 * T ^ 2
+  apply squeeze_zero
+  · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
+  · intro n; exact capped_ito_qv_L2_bound_core X C DR D FC hMμ hMσ T u hT hu huT n
+  · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
+        (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
+      ext n; rw [Nat.cast_succ]; ring
+    rw [h, show (0 : ℝ) = Cst * 0 from by ring]
+    exact tendsto_const_nhds.mul tendsto_one_div_add_atTop_nhds_zero_nat
 
 end SPDE

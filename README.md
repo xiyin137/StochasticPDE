@@ -22,7 +22,7 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 | `ItoCalculus/Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
 | `ItoCalculus/ItoFormulaProof.lean` | Complete Ito formula proof (0 sorrys) |
 | `ItoCalculus/ItoProcessCore.lean` | Core/regularity split for Ito processes with compatibility adapters |
-| `ItoCalculus/ItoFormulaCoreBridge.lean` | Ito formula bridge theorem for `ItoProcessCore + ItoProcessRegularity` |
+| `ItoCalculus/ItoFormulaCoreBridge.lean` | Ito formula bridge theorems for `ItoProcessCore` with split regularity bundles |
 | `ItoCalculus/KolmogorovChentsov/` | Kolmogorov-Chentsov theorem: Hölder continuous modifications (0 sorrys) |
 | `ItoCalculus/AdaptedLimit.lean` | Measurability of L^2 limits under usual conditions |
 | `ItoCalculus/RemainderIntegrability.lean` | Ito remainder integrability derived from boundedness (0 sorrys) |
@@ -37,6 +37,7 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 - **BM quadratic variation**: `[W]_t = t` (L^2 convergence of discrete approximations)
 - **Weighted QV convergence** for adapted bounded processes
 - **Ito process discrete QV L^2 convergence**
+- **Core QV endpoint bounds**: split-core adapters with no legacy theorem-body delegation
 - **Ito error decomposition** (telescope + Taylor identity for Ito formula)
 - **Kolmogorov-Chentsov theorem**: processes with `E[|X_t - X_s|^p] ≤ M|t-s|^q` (q>1) have Hölder continuous modifications
 - **Stochastic integral continuous modification** via KC (p=4, q=2)
@@ -139,6 +140,13 @@ This is an active research project. The codebase contains `sorry` placeholders f
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
 - `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
+- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds bridged without legacy theorem-body delegation
+
+## Near-Term Roadmap
+
+- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface
+- Reduce assumption-heavy legacy `ItoProcess` entry points while keeping `ito_formula` and `ito_formula_martingale` statement-compatible
+- Keep the Ito formula path sorry-free during migration and validate with full `lake build`
 
 See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.
 

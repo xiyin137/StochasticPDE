@@ -80,6 +80,75 @@ structure ItoProcessRegularity {F : Filtration Ω ℝ}
   BM_adapted_to_F : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (X.BM.process t)
   usual_conditions : F.usualConditions μ
 
+/-- Construction hypotheses for Itô processes on top of core data. -/
+structure ItoProcessConstruction {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) where
+  stoch_integral_is_L2_limit : ∃ (approx : ℕ → SimpleProcess F),
+    (∀ n, ∀ i : Fin (approx n).n,
+      @Measurable Ω ℝ (F.σ_algebra ((approx n).times i)) _ ((approx n).values i)) ∧
+    (∀ n, ∀ i : Fin (approx n).n, ∃ C : ℝ, ∀ ω, |(approx n).values i ω| ≤ C) ∧
+    (∀ n, ∀ i : Fin (approx n).n, 0 ≤ (approx n).times i) ∧
+    (∀ t : ℝ, t ≥ 0 →
+    Filter.Tendsto (fun n => ∫ ω, (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
+                                     X.stoch_integral t ω)^2 ∂μ)
+      Filter.atTop (nhds 0)) ∧
+    (∀ t : ℝ, t ≥ 0 →
+    Filter.Tendsto
+      (fun n => ∫ ω, (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω)^2 ∂μ)
+      Filter.atTop
+      (nhds (∫ ω, (∫ (s : ℝ) in Set.Icc 0 t, (X.diffusion s ω)^2 ∂volume) ∂μ))) ∧
+    (∀ t : ℝ, t ≥ 0 →
+    Filter.Tendsto
+      (fun n => ∫ ω, (∫ s in Set.Icc 0 t,
+        (SimpleProcess.valueAtTime (approx n) s ω - X.diffusion s ω) ^ 2 ∂volume) ∂μ)
+      Filter.atTop (nhds 0)) ∧
+    (∀ t : ℝ, t ≥ 0 → ∀ᵐ ω ∂μ,
+      Filter.Tendsto (fun n =>
+        SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω)
+        Filter.atTop (nhds (X.stoch_integral t ω)))
+  process_continuous : ∀ᵐ ω ∂μ, Continuous (fun t => X.process t ω)
+
+/-- Drift regularity hypotheses for Itô processes on top of core data. -/
+structure ItoProcessDriftRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) where
+  drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+    IntegrableOn (fun s => X.drift s ω) (Set.Icc 0 t) volume
+  drift_adapted : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (X.drift t)
+  drift_jointly_measurable : Measurable (Function.uncurry X.drift)
+
+/-- Diffusion regularity hypotheses for Itô processes on top of core data. -/
+structure ItoProcessDiffusionRegularity {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) where
+  diffusion_adapted : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (X.diffusion t)
+  diffusion_jointly_measurable : Measurable (Function.uncurry X.diffusion)
+  diffusion_sq_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+    IntegrableOn (fun s => (X.diffusion s ω)^2) (Set.Icc 0 t) volume
+  diffusion_sq_integral_integrable : ∀ (t : ℝ), 0 ≤ t →
+    Integrable (fun ω => ∫ s in Set.Icc 0 t, (X.diffusion s ω)^2 ∂volume) μ
+
+/-- Joint measurability of Itô coefficients on top of core data. -/
+structure ItoProcessCoefficientJointMeasurability {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) where
+  drift_jointly_measurable : Measurable (Function.uncurry X.drift)
+  diffusion_jointly_measurable : Measurable (Function.uncurry X.diffusion)
+
+/-- Filtration compatibility hypotheses for Itô processes on top of core data. -/
+structure ItoProcessFiltrationCompatibility {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) where
+  F_le_BM_F : ∀ t, F.σ_algebra t ≤ X.BM.F.σ_algebra t
+  BM_adapted_to_F : ∀ t : ℝ, @Measurable Ω ℝ (F.σ_algebra t) _ (X.BM.process t)
+  usual_conditions : F.usualConditions μ
+
+/-- Bundle of assumptions currently needed by the Itô formula pipeline on
+    top of `ItoProcessCore`. This is split out to support gradual minimization
+    of theorem hypotheses without changing the existing proof chain. -/
+structure ItoFormulaAssumptions {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    extends ItoProcessConstruction X,
+      ItoProcessDriftRegularity X,
+      ItoProcessDiffusionRegularity X,
+      ItoProcessFiltrationCompatibility X
+
 namespace ItoProcess
 
 /-- Forget heavy regularity fields. -/
@@ -110,6 +179,128 @@ def toRegularity {F : Filtration Ω ℝ}
 
 end ItoProcess
 
+namespace ItoProcessRegularity
+
+/-- Project to construction assumptions. -/
+def toConstruction {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoProcessConstruction X where
+  stoch_integral_is_L2_limit := R.stoch_integral_is_L2_limit
+  process_continuous := R.process_continuous
+
+/-- Project to drift regularity assumptions. -/
+def toDriftRegularity {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoProcessDriftRegularity X where
+  drift_time_integrable := R.drift_time_integrable
+  drift_adapted := R.drift_adapted
+  drift_jointly_measurable := R.drift_jointly_measurable
+
+/-- Project to diffusion regularity assumptions. -/
+def toDiffusionRegularity {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoProcessDiffusionRegularity X where
+  diffusion_adapted := R.diffusion_adapted
+  diffusion_jointly_measurable := R.diffusion_jointly_measurable
+  diffusion_sq_time_integrable := R.diffusion_sq_time_integrable
+  diffusion_sq_integral_integrable := R.diffusion_sq_integral_integrable
+
+/-- Project to coefficient joint measurability assumptions. -/
+def toCoefficientJointMeasurability {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoProcessCoefficientJointMeasurability X where
+  drift_jointly_measurable := R.drift_jointly_measurable
+  diffusion_jointly_measurable := R.diffusion_jointly_measurable
+
+/-- Project to filtration compatibility assumptions. -/
+def toFiltrationCompatibility {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoProcessFiltrationCompatibility X where
+  F_le_BM_F := R.F_le_BM_F
+  BM_adapted_to_F := R.BM_adapted_to_F
+  usual_conditions := R.usual_conditions
+
+/-- Project to the current Itô-formula assumptions bundle. -/
+def toItoFormulaAssumptions {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) : ItoFormulaAssumptions X where
+  stoch_integral_is_L2_limit := R.stoch_integral_is_L2_limit
+  process_continuous := R.process_continuous
+  drift_time_integrable := R.drift_time_integrable
+  drift_adapted := R.drift_adapted
+  drift_jointly_measurable := R.drift_jointly_measurable
+  diffusion_adapted := R.diffusion_adapted
+  diffusion_jointly_measurable := R.diffusion_jointly_measurable
+  diffusion_sq_time_integrable := R.diffusion_sq_time_integrable
+  diffusion_sq_integral_integrable := R.diffusion_sq_integral_integrable
+  F_le_BM_F := R.F_le_BM_F
+  BM_adapted_to_F := R.BM_adapted_to_F
+  usual_conditions := R.usual_conditions
+
+end ItoProcessRegularity
+
+namespace ItoFormulaAssumptions
+
+/-- Assemble `ItoFormulaAssumptions` from split assumption bundles. -/
+def ofSplit {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X) : ItoFormulaAssumptions X where
+  stoch_integral_is_L2_limit := C.stoch_integral_is_L2_limit
+  process_continuous := C.process_continuous
+  drift_time_integrable := DR.drift_time_integrable
+  drift_adapted := DR.drift_adapted
+  drift_jointly_measurable := DR.drift_jointly_measurable
+  diffusion_adapted := D.diffusion_adapted
+  diffusion_jointly_measurable := D.diffusion_jointly_measurable
+  diffusion_sq_time_integrable := D.diffusion_sq_time_integrable
+  diffusion_sq_integral_integrable := D.diffusion_sq_integral_integrable
+  F_le_BM_F := FC.F_le_BM_F
+  BM_adapted_to_F := FC.BM_adapted_to_F
+  usual_conditions := FC.usual_conditions
+
+/-- Project to coefficient joint measurability assumptions. -/
+def toCoefficientJointMeasurability {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (A : ItoFormulaAssumptions X) : ItoProcessCoefficientJointMeasurability X where
+  drift_jointly_measurable := A.drift_jointly_measurable
+  diffusion_jointly_measurable := A.diffusion_jointly_measurable
+
+/-- Rebuild `ItoProcessRegularity` from the split Itô-formula assumptions. -/
+def toRegularity {F : Filtration Ω ℝ}
+    {X : ItoProcessCore F μ}
+    (A : ItoFormulaAssumptions X) : ItoProcessRegularity X where
+  stoch_integral_is_L2_limit := A.stoch_integral_is_L2_limit
+  process_continuous := A.process_continuous
+  drift_time_integrable := A.drift_time_integrable
+  drift_adapted := A.drift_adapted
+  drift_jointly_measurable := A.drift_jointly_measurable
+  diffusion_adapted := A.diffusion_adapted
+  diffusion_jointly_measurable := A.diffusion_jointly_measurable
+  diffusion_sq_time_integrable := A.diffusion_sq_time_integrable
+  diffusion_sq_integral_integrable := A.diffusion_sq_integral_integrable
+  F_le_BM_F := A.F_le_BM_F
+  BM_adapted_to_F := A.BM_adapted_to_F
+  usual_conditions := A.usual_conditions
+
+end ItoFormulaAssumptions
+
+@[simp] theorem ItoProcessRegularity.toItoFormulaAssumptions_toRegularity
+    {F : Filtration Ω ℝ} {X : ItoProcessCore F μ}
+    (R : ItoProcessRegularity X) :
+    R.toItoFormulaAssumptions.toRegularity = R := by
+  cases R
+  rfl
+
+@[simp] theorem ItoFormulaAssumptions.toRegularity_toItoFormulaAssumptions
+    {F : Filtration Ω ℝ} {X : ItoProcessCore F μ}
+    (A : ItoFormulaAssumptions X) :
+    A.toRegularity.toItoFormulaAssumptions = A := by
+  cases A
+  rfl
+
 namespace ItoProcessCore
 
 /-- Rebuild the legacy `ItoProcess` from `core + regularity`. -/
@@ -135,9 +326,39 @@ def toItoProcess {F : Filtration Ω ℝ}
   usual_conditions := R.usual_conditions
   process_continuous := R.process_continuous
 
+/-- Rebuild the legacy `ItoProcess` from split assumption bundles. -/
+def toItoProcessOfSplit {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X) : ItoProcess F μ :=
+  X.toItoProcess
+    { stoch_integral_is_L2_limit := C.stoch_integral_is_L2_limit
+      process_continuous := C.process_continuous
+      drift_time_integrable := DR.drift_time_integrable
+      drift_adapted := DR.drift_adapted
+      drift_jointly_measurable := DR.drift_jointly_measurable
+      diffusion_adapted := D.diffusion_adapted
+      diffusion_jointly_measurable := D.diffusion_jointly_measurable
+      diffusion_sq_time_integrable := D.diffusion_sq_time_integrable
+      diffusion_sq_integral_integrable := D.diffusion_sq_integral_integrable
+      F_le_BM_F := FC.F_le_BM_F
+      BM_adapted_to_F := FC.BM_adapted_to_F
+      usual_conditions := FC.usual_conditions }
+
 @[simp] theorem toCore_toItoProcess {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) (R : ItoProcessRegularity X) :
     (X.toItoProcess R).toCore = X := by
+  rfl
+
+@[simp] theorem toCore_toItoProcessOfSplit {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X) :
+    (X.toItoProcessOfSplit C DR D FC).toCore = X := by
   rfl
 
 end ItoProcessCore

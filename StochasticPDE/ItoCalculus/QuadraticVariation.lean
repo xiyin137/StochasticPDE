@@ -163,13 +163,26 @@ theorem ItoProcessCore.quadraticVariation_le {F : Filtration Ω ℝ}
 /-- Core-version adapter for QV square-integrability. -/
 theorem ItoProcessCore.quadraticVariation_sq_integrable {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
-    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    (X : ItoProcessCore F μ) (D : ItoProcessDiffusionRegularity X)
     {Mσ : ℝ} (_hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (t : ℝ) (_ht : 0 ≤ t) :
     Integrable (fun ω => (X.quadraticVariation t ω) ^ 2) μ := by
-  simpa [ItoProcess.quadraticVariation_eq_core] using
-    (ItoProcess.quadraticVariation_sq_integrable
-      (X := X.toItoProcess R) _hMσ R.diffusion_jointly_measurable t _ht)
+  have h_bdd : ∀ ω, ‖(X.quadraticVariation t ω) ^ 2‖ ≤ (Mσ ^ 2 * t) ^ 2 := by
+    intro ω
+    rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+    exact sq_le_sq' (by linarith [X.quadraticVariation_nonneg t ω,
+      X.quadraticVariation_le _hMσ t _ht ω])
+      (X.quadraticVariation_le _hMσ t _ht ω)
+  have h_asm : AEStronglyMeasurable (fun ω => (X.quadraticVariation t ω) ^ 2) μ := by
+    have h_sm_sq : StronglyMeasurable (Function.uncurry (fun s (ω : Ω) =>
+        (X.diffusion s ω) ^ 2)) :=
+      (D.diffusion_jointly_measurable.pow_const 2).stronglyMeasurable
+    have h_sm : StronglyMeasurable (fun ω => ∫ s in Set.Icc 0 t,
+        (X.diffusion s ω) ^ 2 ∂MeasureTheory.volume) :=
+      StronglyMeasurable.integral_prod_left
+        (μ := MeasureTheory.volume.restrict (Set.Icc 0 t)) h_sm_sq
+    exact (h_sm.measurable.pow_const 2).aestronglyMeasurable
+  exact (integrable_const ((Mσ ^ 2 * t) ^ 2)).mono' h_asm (ae_of_all _ h_bdd)
 
 /-! ## Discrete QV L² convergence
 
