@@ -162,6 +162,9 @@ Introduced a compatibility-first split of Itô process assumptions:
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
   inside its theorem body
+- Rewrote `ito_formula_core` in `ItoFormulaCoreBridge.lean` as a direct
+  core proof (using `itoRemainderCore` + `ito_formula_martingale_core`)
+  instead of delegating to legacy `ito_formula`
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)

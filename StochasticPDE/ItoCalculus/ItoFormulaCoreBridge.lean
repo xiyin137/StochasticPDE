@@ -116,9 +116,20 @@ theorem ito_formula_core {F : Filtration Ω ℝ}
              (1 / 2) * deriv (deriv (fun x => f s x)) (X.process s ω) *
              (X.diffusion s ω) ^ 2) ∂volume) +
           stoch_int t ω) := by
-  simpa using
-    (ito_formula (X := X.toItoProcessOfSplit C DR D FC) f hf_t hf_x hdiff_bdd hdrift_bdd
-      hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont hX0_sq)
+  refine ⟨itoRemainderCore X f, ?_, ?_, ?_⟩
+  · filter_upwards with ω
+    unfold itoRemainderCore
+    have hmeas_zero : (volume.restrict (Set.Icc (0 : ℝ) 0)) = 0 := by
+      rw [Measure.restrict_eq_zero, Set.Icc_self]
+      simp
+    rw [hmeas_zero, integral_zero_measure]
+    ring
+  · exact ito_formula_martingale_core X C DR D FC f hf_t hf_x hdiff_bdd hdrift_bdd
+      hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont hX0_sq
+  · intro t ht
+    filter_upwards with ω
+    unfold itoRemainderCore
+    ring
 
 /-- Regularity-first entry point for the martingale part of Itô formula on
     `ItoProcessCore`. -/
