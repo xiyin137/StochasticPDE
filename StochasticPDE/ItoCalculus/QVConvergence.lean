@@ -1521,4 +1521,38 @@ theorem capped_discrete_qv_L2_convergence {F : Filtration Ω ℝ}
     rw [h, show (0 : ℝ) = C * 0 from by ring]
     exact tendsto_const_nhds.mul tendsto_one_div_add_atTop_nhds_zero_nat
 
+/-- Core adapter for discrete quadratic variation convergence in L². -/
+theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 < t) :
+    Filter.Tendsto
+      (fun n => ∫ ω,
+        (∑ i : Fin (n + 1),
+          (X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
+           X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
+         X.quadraticVariation t ω) ^ 2 ∂μ)
+      Filter.atTop (nhds 0) := by
+  simpa [ItoProcess.quadraticVariation_eq_core] using
+    (ito_process_discrete_qv_L2_convergence (X := X.toItoProcess R) hMμ hMσ t ht)
+
+/-- Core adapter for capped discrete quadratic variation convergence in L². -/
+theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) :
+    Filter.Tendsto
+      (fun n => ∫ ω,
+        (∑ i : Fin (n + 1),
+          (X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+           X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
+         X.quadraticVariation u ω) ^ 2 ∂μ)
+      Filter.atTop (nhds 0) := by
+  simpa [ItoProcess.quadraticVariation_eq_core] using
+    (capped_discrete_qv_L2_convergence (X := X.toItoProcess R) hMμ hMσ T u hT hu huT)
+
 end SPDE

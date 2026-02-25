@@ -1,23 +1,38 @@
-Instruction for Claude Code (IMPORTANT TO READ ALL OF THIS!):
-1. do not ever use "axiom" in rigorous formalization which is what we do here
-2. definitions must be rigorous and sound, theorem statements must be correct. "conceptually correct" is not good enough - prioritize accurate and proper definitions. do not simplify by cutting corners.
-3. avoid placeholders whenever possible (watch out for .choose, `True := trivial`, or arbitrary choices in definitions). always write proper definitions and check files for problematic definitions.
-4. do not give up on proving sorrys (especially if you have already made partial progress in a proof, don't revert to sorry while facing complexity). do not be afraid of complexity. proceed systematically.
-5. do not hesitate to develop infrastructure, create new sub folders or files for infrastructure and helper lemmas (but check local folders to avoid repetition!)
-6. always search mathlib for available lemmas, always check local (ModularPhysics) imports, don't repeat what is already available
-7. for complex proofs, develop helper lemmas as needed. when the file gets large consider refactoring helper lemmas into other files or subfolders.
-8. do not use "lake build" by itself (it causes cache issues). compile specific folders instead, e.g. `lake build ModularPhysics/RigorousQFT/SPDE/`. if there are build issues, never run `lake clean` (especially not Mathlib!) - ask the user instead.
-9. read and update TODO.md
-10. you can use read_references.py to read pdf files in /references/ folder. if you need to download reference papers or books in pdf, let me know.
-11. when you have trouble with proof, double check that the definitions and statements are sound. document promising but unfinished/unrealized proof ideas in /test/proofideas_***.lean
-12. Do not stop at proving sorrys just because "significant infrastructure" is needed. If this is the case, and that the infrastructure is not availabel in mathlib, then develop infrastructure systematically right here and right now.
-13. Always verify that definitions are proper and sound!
-14. When having trouble proving sorrys, check if definitions are wrong and think about whether infrastructure is missing.
-15. Proof difficulty could be either due to complexity (develop infrastructures now!) or due to wrong definitions (double check definitions, structures, and theorem statements!)
-16. Axiom smuggling is absolutely not allowed! Do not ever smuggle assumptions in bundled structures. Computational result cannot be assumed in definition or structure.
-17. Do not "simplify" definitions. A "simplified" definition is a wrong definition!
-18. type level issues are important and should be fixed as soon as possible since they might be due to improper definitions or lack of bridge lemmas
-19. read and continue to update Proofideas/ files.
-20. Frequently document proof ideas to avoid losing track of thoughts when running out of context window.
-21. Use the Gemini MCP (`gemini_chat` / `gemini_deep_research`) to assist with proof strategy — e.g. ask about mathematical facts, standard proof techniques, whether a theorem holds, or get references. This is especially useful for complex mathematical arguments where domain knowledge from the physics/math literature is needed.
-22. It helps to write the proof attempt with a first draft, document what works and what needs adjustment, and iterate. Write the proof and compile to see what the goal state looks like.
+# Codex/Claude Agent Guidance for StochasticPDE
+
+This file is the working guidance for coding agents in this repository.
+
+## Core rigor rules
+
+1. Never introduce `axiom` (or any assumption-smuggling equivalent) in Lean code.
+2. Prioritize fully correct, sound definitions over shortcuts.
+3. Avoid fake definitions and placeholder constructions (`True := trivial`, unjustified `.choose`, arbitrary junk terms) unless mathematically justified.
+4. Do not use placeholder models/definitions to close goals; this applies to both test/scratch files and main files.
+5. Do not "simplify" definitions if it changes meaning; simplified but wrong definitions are not acceptable.
+6. If a proof fails, check in this order: statement correctness, definition correctness, then missing infrastructure.
+7. Do not weaken theorem statements only to make proofs easier.
+8. Type-level issues are high-priority and often indicate wrong definitions or missing bridge lemmas.
+9. Computational results must be proved as theorems, not embedded as assumed structure fields.
+
+## Sorry-closing workflow
+
+1. Do not give up on `sorry` proofs; proceed systematically.
+2. For substantial proofs, create helper lemmas and infrastructure rather than brittle one-shot proofs.
+3. Reuse existing lemmas first: search Mathlib and local `StochasticPDE` imports before re-proving.
+4. If a proof remains blocked, write down proof ideas in `test/proofideas_*.lean` or relevant `Proofideas/` notes.
+5. Keep `TODO.md` and proof-idea notes updated as progress is made.
+6. If infrastructure is missing, build it now instead of parking the main proof.
+
+## Build and tooling rules
+
+1. Do not run bare `lake build`; use targeted builds (`lake env lean <file>` or `lake build <module>`).
+2. Never run `lake clean` unless explicitly approved by the user.
+3. Use `read_references.py` for PDFs in `references/` when needed.
+4. If available, use strategy-assist tools (for example Gemini MCP) for math/proof references and techniques.
+
+## Practical proof tactics
+
+1. Write proof drafts early and compile to inspect goal states.
+2. Split long proofs into local/private helper lemmas with explicit names.
+3. Promote broadly useful infrastructure into reusable files/subfolders instead of duplicating it.
+4. Validate soundness continuously; successful compilation is necessary but not sufficient.

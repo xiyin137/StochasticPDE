@@ -6,6 +6,8 @@ Authors: ModularPhysics Contributors
 
 -- Import the top-level results (these transitively pull in everything)
 import StochasticPDE.ItoCalculus.ItoFormulaProof
+import StochasticPDE.ItoCalculus.ItoProcessCore
+import StochasticPDE.ItoCalculus.ItoFormulaCoreBridge
 import StochasticPDE.ItoCalculus.StochasticIntegration
 import StochasticPDE.ItoCalculus.IsometryTheorems
 
@@ -46,6 +48,8 @@ depending only on Mathlib.
 * `IsometryAt` — Isometry at partition level
 * `IsometryTheorems` — Full isometry theorems
 * `ConditionalIsometry` — Conditional isometry results
+* `ItoProcessCore` — Core/regularity split for Itô processes + compatibility bridge
+* `ItoFormulaCoreBridge` — Itô formula adapter theorem for `ItoProcessCore`
 * `GronwallForSDE` — Gronwall-type lemma for SDEs
 * `ProductL2Convergence` — Product L² convergence
 * `IteratedProductConvergence` — Iterated product convergence

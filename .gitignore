@@ -3,5 +3,7 @@ lake-packages/
 build/
 /.claude/
 CLAUDE.md
+agent.md
+test/
 references/
 .mcp.json

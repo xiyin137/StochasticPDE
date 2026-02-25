@@ -1315,13 +1315,6 @@ theorem is_martingale (I : ItoIntegral F μ T) [IsProbabilityMeasure μ]
   exact ito_integral_martingale_setIntegral I.BM I.integral approx
     hadapted hbdd hnn hL2 I.integrable_limit I.sq_integrable_limit hs hst ht hA
 
-/-- Burkholder-Davis-Gundy inequality: E[sup|M_t|^p] ≤ C_p E[⟨M⟩_T^{p/2}] -/
-theorem bdg_inequality (I : ItoIntegral F μ T) (p : ℝ) (_hp : 1 ≤ p) :
-    ∃ (Cp : ℝ), Cp > 0 ∧
-      ∫ ω, (⨆ (t : Set.Icc 0 T), |I.integral t ω|)^p ∂μ ≤
-      Cp * ∫ ω, ((∫ (s : ℝ) in Set.Icc 0 T, (I.integrand.process s ω)^2 ∂volume))^(p/2) ∂μ := by
-  sorry
-
 end ItoIntegral
 
 /-! ## Itô Processes -/

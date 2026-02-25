@@ -75,7 +75,7 @@ enorm → ofReal → Fatou → Bochner conversion → isometry convergence → T
   not pathwise — the null set depends on t. Continuity is a choice of version.
 
 **Soundness audit (2026-02-21):** All definitions feeding into the Ito formula have been audited.
-No axiom smuggling, no placeholders, no wrong definitions. All structures are mathematically sound.
+No axiom smuggling, no placeholder definitions, no wrong definitions. All structures are mathematically sound.
 
 **Ito formula critical path: still 0 sorrys.** All downstream files (8 files, ~47 call sites) updated and compile successfully.
 
@@ -102,13 +102,26 @@ derived internally from the boundedness hypotheses (`hdiff_bdd`, `hdrift_bdd`, `
 condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
 `itoRemainder_sq_integrable` from `RemainderIntegrability.lean`.
 
+### ItoProcess Core/Regularity Split (2026-02-25)
+
+Introduced a compatibility-first split of Itô process assumptions:
+
+- Added `ItoProcessCore` and `ItoProcessRegularity` in `ItoCalculus/ItoProcessCore.lean`
+- Added roundtrip adapters: `ItoProcess.toCore`, `ItoProcess.toRegularity`,
+  `ItoProcessCore.toItoProcess`
+- Added core bridge theorems:
+  - `ito_formula_core` and `ito_formula_martingale_core` (`ItoFormulaCoreBridge.lean`)
+  - Core adapters for quadratic variation and QV convergence
+  - Core adapters for process/SI/remainder integrability
+- Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
+
 ---
 
-## Current Sorry Count (as of 2026-02-22)
+## Current Sorry Count (as of 2026-02-25)
 
 | File | Sorrys | Key Items |
 |------|--------|-----------|
-| **ItoCalculus/StochasticIntegration.lean** | **8** | quadratic_variation, bdg_inequality, sde_existence, sde_uniqueness_law, stratonovich, semimartingale_integral, girsanov, martingale_representation |
+| **ItoCalculus/StochasticIntegration.lean** | **7** | quadratic_variation, sde_existence, sde_uniqueness_law, stratonovich, semimartingale_integral, girsanov, martingale_representation |
 | **ItoCalculus/BrownianMotion.lean** | **5** | time_inversion, eval_unit_is_brownian, Q-Wiener continuous_paths, Q-Wiener regularity_from_trace, levy_characterization |
 | **SPDE.lean** | **5** | Generator/semigroup infrastructure |
 | **ItoCalculus/Basic.lean** | **1** | is_martingale_of_bounded (needs uniform integrability) |
@@ -125,7 +138,7 @@ condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
 | **Nonstandard/Anderson/LocalCLT.lean** | **1** | local_clt_error_bound |
 | **RegularityStructures/** | **41** | See RegularityStructures/TODO.md |
 
-**Total: ~109 sorrys** (27 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
+**Total: ~108 sorrys** (26 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
 **Itô formula critical path: 0 sorrys — FULLY PROVEN** ✓
 **Anderson theorem critical path: 3 sorrys** (see below)
 
@@ -326,11 +339,11 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 **Used by**: ItoCalculus/QuarticBound.lean:1260 (`stoch_integral_increment_L4_integrable_proof`)
 -> ItoCalculus/QVConvergence.lean:276,296,347 -> ito_qv_L2_bound -> ito_process_discrete_qv_L2_convergence
 
-### NOT on critical path (19 sorrys in SPDE core)
+### NOT on critical path (see table below)
 
 | File | Count | Sorrys | Notes |
 |------|-------|--------|-------|
-| ItoCalculus/StochasticIntegration.lean | 8 | bdg_inequality, quadratic_variation, sde_existence_uniqueness, sde_uniqueness_law, stratonovich_chain_rule, semimartingale_integral_exists, girsanov, martingale_representation | Independent theorems |
+| ItoCalculus/StochasticIntegration.lean | 7 | quadratic_variation, sde_existence_uniqueness, sde_uniqueness_law, stratonovich_chain_rule, semimartingale_integral_exists, girsanov, martingale_representation | Independent theorems |
 | Helpers/InnerIntegralIntegrability.lean | 5 | inner_sq_integral_integrable_of_sub_interval, inner_product_integral_integrable, integrableOn_sq_ae_of_square_integrable, integrableOn_ae_of_square_integrable, integrableOn_product_ae_of_square_integrable | Not on ito_formula critical path |
 | ItoCalculus/Probability/Basic.lean | 2 | condexp_jensen, doob_maximal_L2 | Not used by SPDE |
 | ItoCalculus/BrownianMotion.lean | 5 | See separate section below |
@@ -380,15 +393,14 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 
 ## Other Sorrys by File
 
-### ItoCalculus/StochasticIntegration.lean (8 sorrys)
-1. `bdg_inequality` (line 1322) — Burkholder-Davis-Gundy inequality
-2. `quadratic_variation` (line 1518) — QV of Ito process (corollary of ito_formula with f(x)=x^2)
-3. `sde_existence_uniqueness` (line 1677) — SDE existence via Picard iteration
-4. `sde_uniqueness_law` (line 1716) — Pathwise uniqueness via Gronwall
-5. `stratonovich_chain_rule` (line 1751) — Stratonovich chain rule
-6. `semimartingale_integral_exists` (line 1900) — Semimartingale integral construction
-7. `girsanov` (line 1930) — Girsanov theorem
-8. `martingale_representation` (line 1956) — Martingale representation theorem
+### ItoCalculus/StochasticIntegration.lean (7 sorrys)
+1. `quadratic_variation` (line 1721) — QV of Ito process (corollary of ito_formula with f(x)=x^2)
+2. `sde_existence_uniqueness` (line 1881) — SDE existence via Picard iteration
+3. `sde_uniqueness_law` (line 1895) — Pathwise uniqueness via Gronwall
+4. `stratonovich_chain_rule` (line 1952) — Stratonovich chain rule
+5. `semimartingale_integral_exists` (line 2101) — Semimartingale integral construction
+6. `girsanov` (line 2129) — Girsanov theorem
+7. `martingale_representation` (line 2148) — Martingale representation theorem
 
 ### ItoCalculus/BrownianMotion.lean (5 sorrys)
 1. `time_inversion` (line 595) — t*W(1/t) is BM

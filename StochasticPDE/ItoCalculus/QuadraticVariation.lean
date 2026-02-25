@@ -3,7 +3,7 @@ Copyright (c) 2025 ModularPhysics. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
-import StochasticPDE.ItoCalculus.StochasticIntegration
+import StochasticPDE.ItoCalculus.ItoProcessCore
 import StochasticPDE.ItoCalculus.ItoFormulaInfrastructure
 import StochasticPDE.ItoCalculus.QuarticBound
 import StochasticPDE.ItoCalculus.TaylorRemainder
@@ -46,6 +46,11 @@ variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
 /-! ## Quadratic variation definition -/
 
+/-- Quadratic variation of an Itô core process: [X]_t(ω) = ∫₀ᵗ σ(s,ω)² ds. -/
+noncomputable def ItoProcessCore.quadraticVariation {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) (t : ℝ) (ω : Ω) : ℝ :=
+  ∫ s in Set.Icc 0 t, (X.diffusion s ω) ^ 2 ∂MeasureTheory.volume
+
 /-- Quadratic variation of an Itô process: [X]_t(ω) = ∫₀ᵗ σ(s,ω)² ds.
 
     For an Itô process dX_t = μ_t dt + σ_t dW_t, the quadratic variation is
@@ -54,6 +59,10 @@ variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 noncomputable def ItoProcess.quadraticVariation {F : Filtration Ω ℝ}
     (X : ItoProcess F μ) (t : ℝ) (ω : Ω) : ℝ :=
   ∫ s in Set.Icc 0 t, (X.diffusion s ω) ^ 2 ∂MeasureTheory.volume
+
+@[simp] theorem ItoProcess.quadraticVariation_eq_core {F : Filtration Ω ℝ}
+    (X : ItoProcess F μ) (t : ℝ) (ω : Ω) :
+    X.quadraticVariation t ω = X.toCore.quadraticVariation t ω := rfl
 
 /-- QV is nonneg (integral of nonneg function). -/
 theorem ItoProcess.quadraticVariation_nonneg {F : Filtration Ω ℝ}
@@ -118,6 +127,49 @@ theorem ItoProcess.quadraticVariation_sq_integrable {F : Filtration Ω ℝ}
         (μ := MeasureTheory.volume.restrict (Set.Icc 0 t)) h_sm_sq
     exact (h_sm.measurable.pow_const 2).aestronglyMeasurable
   exact (integrable_const ((Mσ ^ 2 * t) ^ 2)).mono' h_asm (ae_of_all _ h_bdd)
+
+/-! ## Core adapters -/
+
+/-- Core-version nonnegativity of quadratic variation. -/
+theorem ItoProcessCore.quadraticVariation_nonneg {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) (t : ℝ) (ω : Ω) :
+    0 ≤ X.quadraticVariation t ω :=
+  MeasureTheory.setIntegral_nonneg measurableSet_Icc (fun _s _ => sq_nonneg _)
+
+/-- Core-version boundedness of quadratic variation under bounded diffusion. -/
+theorem ItoProcessCore.quadraticVariation_le {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 ≤ t) (ω : Ω) :
+    X.quadraticVariation t ω ≤ Mσ ^ 2 * t := by
+  unfold ItoProcessCore.quadraticVariation
+  have h_pw : ∀ s, (X.diffusion s ω) ^ 2 ≤ Mσ ^ 2 := by
+    intro s; exact sq_le_sq' (neg_le_of_abs_le (hMσ s ω)) (abs_le.mp (hMσ s ω)).2
+  by_cases h_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Set.Icc 0 t) volume
+  · have h_fin : IsFiniteMeasure (volume.restrict (Set.Icc 0 t)) :=
+      ⟨by rw [Measure.restrict_apply_univ]; exact measure_Icc_lt_top⟩
+    have h_const_int : IntegrableOn (fun _ : ℝ => Mσ ^ 2) (Set.Icc 0 t) volume :=
+      integrable_const _
+    calc ∫ s in Set.Icc 0 t, (X.diffusion s ω) ^ 2 ∂volume
+        ≤ ∫ s in Set.Icc 0 t, Mσ ^ 2 ∂volume :=
+          setIntegral_mono_on h_int h_const_int measurableSet_Icc (fun s _ => h_pw s)
+      _ = Mσ ^ 2 * t := by
+          rw [setIntegral_const]
+          simp only [Measure.real, Real.volume_Icc, sub_zero,
+            ENNReal.toReal_ofReal ht, smul_eq_mul]
+          ring
+  · rw [integral_undef h_int]
+    exact mul_nonneg (sq_nonneg Mσ) ht
+
+/-- Core-version adapter for QV square-integrability. -/
+theorem ItoProcessCore.quadraticVariation_sq_integrable {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ) (R : ItoProcessRegularity X)
+    {Mσ : ℝ} (_hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (_ht : 0 ≤ t) :
+    Integrable (fun ω => (X.quadraticVariation t ω) ^ 2) μ := by
+  simpa [ItoProcess.quadraticVariation_eq_core] using
+    (ItoProcess.quadraticVariation_sq_integrable
+      (X := X.toItoProcess R) _hMσ R.diffusion_jointly_measurable t _ht)
 
 /-! ## Discrete QV L² convergence
 

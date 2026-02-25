@@ -4,7 +4,7 @@ A rigorous formalization of stochastic partial differential equations (SPDEs), s
 
 ## Overview
 
-This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axioms, no placeholders, and proper definitions throughout.
+This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axiom smuggling, no placeholder definitions, and proper definitions throughout; remaining `sorry`s are tracked explicitly outside critical proof paths.
 
 **~52,000 lines of Lean 4** across **99 files**.
 
@@ -21,6 +21,8 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 | `ItoCalculus/StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
 | `ItoCalculus/Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
 | `ItoCalculus/ItoFormulaProof.lean` | Complete Ito formula proof (0 sorrys) |
+| `ItoCalculus/ItoProcessCore.lean` | Core/regularity split for Ito processes with compatibility adapters |
+| `ItoCalculus/ItoFormulaCoreBridge.lean` | Ito formula bridge theorem for `ItoProcessCore + ItoProcessRegularity` |
 | `ItoCalculus/KolmogorovChentsov/` | Kolmogorov-Chentsov theorem: Hölder continuous modifications (0 sorrys) |
 | `ItoCalculus/AdaptedLimit.lean` | Measurability of L^2 limits under usual conditions |
 | `ItoCalculus/RemainderIntegrability.lean` | Ito remainder integrability derived from boundedness (0 sorrys) |
@@ -132,7 +134,7 @@ The first build fetches and compiles Mathlib dependencies, which may take signif
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~109 total sorrys** across all files
+- **~108 total sorrys** across all files
 - **0 sorrys** on the Ito formula critical path — **fully proven**
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
