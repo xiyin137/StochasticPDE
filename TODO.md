@@ -113,9 +113,6 @@ Introduced a compatibility-first split of Itô process assumptions:
   - `ito_formula_core` and `ito_formula_martingale_core` (`ItoFormulaCoreBridge.lean`)
   - Core adapters for quadratic variation and QV convergence
   - Core adapters for process/SI/remainder integrability
-- Added split reconstruction helper: `ItoProcessCore.toItoProcessOfSplit`
-- Refined `toItoProcessOfSplit` to assemble `ItoProcessRegularity` directly
-  from split bundles (no intermediate `ItoFormulaAssumptions` reconstruction)
 - Added split-core adapters for isometry/orthogonality infrastructure:
   `ItoProcessCore.stoch_integral_isometry_core`,
   `ItoProcessCore.stoch_integral_squared_orthogonal_core`, and related
@@ -131,8 +128,8 @@ Introduced a compatibility-first split of Itô process assumptions:
 - QV endpoint status: both `capped_ito_qv_L2_bound_core` and
   `ito_qv_L2_bound_core` now avoid direct delegation to legacy theorem bodies
 - Rewired core bridges (`ItoFormulaCoreBridge.lean`, `QVConvergence.lean`) to
-  use `toItoProcessOfSplit`, removing local `ItoFormulaAssumptions` rebuilding
-  boilerplate at call sites
+  use `ItoProcessRegularity.ofSplit` + `toItoProcess`, removing local
+  `ItoFormulaAssumptions` rebuilding boilerplate at call sites
 - Added Phase 3 constructor helpers:
   `ItoProcessRegularity.ofSplit` and
   `ItoProcessCoefficientJointMeasurability.ofDriftDiffusion`
@@ -172,6 +169,12 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Normalized local legacy reconstruction in `ItoFormulaCoreBridge.lean`
   and QV wrappers to `ItoProcessRegularity.ofSplit` + `toItoProcess`
   (no remaining `toItoProcessOfSplit` usage in those files)
+- Normalized local legacy reconstruction in
+  `IsometryTheorems.lean` and `ConditionalIsometry.lean` to
+  `ItoProcessRegularity.ofSplit` + `toItoProcess`
+  (no remaining `toItoProcessOfSplit` call sites)
+- Removed obsolete split reconstruction helper
+  `ItoProcessCore.toItoProcessOfSplit` after migration
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
@@ -181,8 +184,8 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 - [x] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
 - [x] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
 - [x] Remove remaining direct legacy theorem-body delegation inside core adapters
-- [ ] Minimize residual local legacy reconstructions in helper wrappers
-  (next target: `IsometryTheorems.lean` / `ConditionalIsometry.lean`)
+- [x] Minimize residual local legacy reconstructions in helper wrappers
+  (`IsometryTheorems.lean` / `ConditionalIsometry.lean` migrated)
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
 - [x] Run full `lake build` after each migration batch to protect existing infrastructure

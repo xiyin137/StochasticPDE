@@ -417,7 +417,8 @@ theorem ItoProcessCore.stoch_integral_isometry_core {F : Filtration Ω ℝ}
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     ∫ ω, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ =
     ∫ ω, (∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ∂μ := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hcore : ∫ ω, (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2 ∂μ =
       ∫ ω, (∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ := by
     have hs_ge : s ≥ 0 := hs
@@ -488,7 +489,8 @@ lemma ItoProcessCore.diffusion_sq_interval_integrable_core {F : Filtration Ω �
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have ht : 0 ≤ t := le_trans hs hst
   have heq : (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) =
       (fun ω => ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) -
@@ -510,7 +512,8 @@ lemma ItoProcessCore.si_increment_sq_integrable_core {F : Filtration Ω ℝ}
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hcore : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2) μ := by
     have ht : 0 ≤ t := le_trans hs hst
     have ha := Xp.stoch_integral_sq_integrable t ht
@@ -555,7 +558,8 @@ lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   change |∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s)
   rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (Xp.diffusion u ω)))]
   calc ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume
@@ -583,7 +587,8 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     Integrable (fun ω =>
       ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
     simpa [Xp] using hMσ
   have hΔ4 : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 4) μ :=

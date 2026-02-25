@@ -1520,7 +1520,8 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
     (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s₂) A) :
     ∫ ω in A, ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
                ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
     simpa [Xp] using hMσ
   change ∫ ω in A, ((Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2 -
@@ -1822,7 +1823,8 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
            ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) *
           ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
            ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
+  let Xp : ItoProcess F μ := X.toItoProcess R
   -- Convenience abbreviations and basic facts
   set Z₂ := fun ω => (X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
     ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume

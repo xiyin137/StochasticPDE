@@ -140,11 +140,11 @@ This is an active research project. The codebase contains `sorry` placeholders f
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
 - `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
-- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV helper adapters migrated to direct core proof bodies; `ito_formula_core` and `ito_formula_martingale_core` are now proved directly in the core bridge layer rather than one-line delegation to legacy theorem bodies
+- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV/helper/isometry adapters migrated to direct core proof bodies; `ito_formula_core` and `ito_formula_martingale_core` are now proved directly in the core bridge layer rather than one-line delegation to legacy theorem bodies, and local reconstruction wrappers are normalized to `ItoProcessRegularity.ofSplit` + `toItoProcess`
 
 ## Near-Term Roadmap
 
-- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface (next: residual local reconstruction cleanup in `IsometryTheorems.lean` / `ConditionalIsometry.lean`)
+- Continue reducing assumption-heavy legacy `ItoProcess` adapter hypotheses while preserving theorem usability and statement compatibility
 - Reduce assumption-heavy legacy `ItoProcess` entry points while keeping `ito_formula` and `ito_formula_martingale` statement-compatible
 - Keep the Ito formula path sorry-free during migration and validate with full `lake build`
 

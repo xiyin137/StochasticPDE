@@ -361,27 +361,9 @@ def toItoProcess {F : Filtration Ω ℝ}
   usual_conditions := R.usual_conditions
   process_continuous := R.process_continuous
 
-/-- Rebuild the legacy `ItoProcess` from split assumption bundles. -/
-def toItoProcessOfSplit {F : Filtration Ω ℝ}
-    (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X) : ItoProcess F μ :=
-  X.toItoProcess (ItoProcessRegularity.ofSplit C DR D FC)
-
 @[simp] theorem toCore_toItoProcess {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) (R : ItoProcessRegularity X) :
     (X.toItoProcess R).toCore = X := by
-  rfl
-
-@[simp] theorem toCore_toItoProcessOfSplit {F : Filtration Ω ℝ}
-    (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X) :
-    (X.toItoProcessOfSplit C DR D FC).toCore = X := by
   rfl
 
 end ItoProcessCore
