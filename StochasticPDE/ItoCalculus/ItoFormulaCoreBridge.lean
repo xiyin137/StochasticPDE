@@ -46,16 +46,26 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
       ∫ ω in A, itoRemainderCore X f t ω ∂μ = ∫ ω in A, itoRemainderCore X f s ω ∂μ := by
   let JM : ItoProcessCoefficientJointMeasurability X :=
     ItoProcessCoefficientJointMeasurability.ofDriftDiffusion DR D
-  obtain ⟨Mσ, hσ⟩ := hdiff_bdd
-  obtain ⟨Md, hd⟩ := hdrift_bdd
-  obtain ⟨Mx, hMx⟩ := hf_x_bdd
-  obtain ⟨Mxx, hMxx⟩ := hf_xx_bdd
-  obtain ⟨Mt, hMt⟩ := hf_t_bdd
-  have hdiff_bdd' : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M := ⟨Mσ, hσ⟩
-  have hdrift_bdd' : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M := ⟨Md, hd⟩
-  have hf_x_bdd' : ∃ M : ℝ, ∀ t x, |deriv (fun x => f t x) x| ≤ M := ⟨Mx, hMx⟩
-  have hf_xx_bdd' : ∃ M : ℝ, ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ M := ⟨Mxx, hMxx⟩
-  have hf_t_bdd' : ∃ M : ℝ, ∀ t x, |deriv (fun s => f s x) t| ≤ M := ⟨Mt, hMt⟩
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hdiff_bdd_core : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M := hdiff_bdd
+  have hdrift_bdd_core : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M := hdrift_bdd
+  have hf_x_bdd_core : ∃ M : ℝ, ∀ t x, |deriv (fun x => f t x) x| ≤ M := hf_x_bdd
+  have hf_xx_bdd_core : ∃ M : ℝ, ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ M := hf_xx_bdd
+  have hf_t_bdd_core : ∃ M : ℝ, ∀ t x, |deriv (fun s => f s x) t| ≤ M := hf_t_bdd
+  let Mσ : ℝ := hdiff_bdd_core.choose
+  have hσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ := hdiff_bdd_core.choose_spec
+  let Md : ℝ := hdrift_bdd_core.choose
+  have hd : ∀ t ω, |X.drift t ω| ≤ Md := hdrift_bdd_core.choose_spec
+  let Mx : ℝ := hf_x_bdd_core.choose
+  have hMx : ∀ t x, |deriv (fun x => f t x) x| ≤ Mx := hf_x_bdd_core.choose_spec
+  let Mxx : ℝ := hf_xx_bdd_core.choose
+  have hMxx : ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ Mxx := hf_xx_bdd_core.choose_spec
+  let Mt : ℝ := hf_t_bdd_core.choose
+  have hMt : ∀ t x, |deriv (fun s => f s x) t| ≤ Mt := hf_t_bdd_core.choose_spec
+  have hdiff_bdd' : ∃ M : ℝ, ∀ t ω, |Xp.diffusion t ω| ≤ M := by
+    simpa [Xp] using hdiff_bdd_core
+  have hdrift_bdd' : ∃ M : ℝ, ∀ t ω, |Xp.drift t ω| ≤ M := by
+    simpa [Xp] using hdrift_bdd_core
   have hX0 : Integrable (X.process 0) μ :=
     integrable_of_sq_integrable
       (((X.process_adapted 0).mono (F.le_ambient 0) le_rfl).aestronglyMeasurable)
@@ -69,17 +79,40 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
     exact itoRemainder_sq_integrable_core X C FC JM f hf_t hf_x hMx hMt hMxx hd hσ
       hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
   have hrem_int' : ∀ t', 0 ≤ t' →
-      Integrable (itoRemainder (X.toItoProcessOfSplit C DR D FC) f t') μ := by
+      Integrable (itoRemainder Xp f t') μ := by
     intro t' ht'
-    simpa [itoRemainder_eq_core] using hrem_int t' ht'
+    simpa [Xp, itoRemainder_eq_core] using hrem_int t' ht'
   have hrem_sq_int' : ∀ t', 0 ≤ t' →
-      Integrable (fun ω => (itoRemainder (X.toItoProcessOfSplit C DR D FC) f t' ω)^2) μ := by
+      Integrable (fun ω => (itoRemainder Xp f t' ω)^2) μ := by
     intro t' ht'
-    simpa [itoRemainder_eq_core] using hrem_sq_int t' ht'
-  simpa [itoRemainder_eq_core] using
-    (ito_formula_martingale (X := X.toItoProcessOfSplit C DR D FC) f hf_t hf_x hdiff_bdd'
-      hdrift_bdd' hf_x_bdd' hf_xx_bdd' hf_t_bdd' hf_t_cont hf'_cont hf''_cont
-      hrem_int' hrem_sq_int')
+    simpa [Xp, itoRemainder_eq_core] using hrem_sq_int t' ht'
+  intro s t hs hst A hA
+  by_cases hst_eq : s = t
+  · subst hst_eq
+    rfl
+  have hst_lt : s < t := lt_of_le_of_ne hst hst_eq
+  have ht_pos : 0 < t := lt_of_le_of_lt hs hst_lt
+  have hmain :
+      ∫ ω in A, itoRemainder Xp f t ω ∂μ = ∫ ω in A, itoRemainder Xp f s ω ∂μ := by
+    exact martingale_setIntegral_eq_of_L2_limit
+      (hrem_int' s hs)
+      (hrem_int' t ht_pos.le)
+      (fun n => si_increment_integrable Xp f hf_x hf_x_bdd_core t ht_pos.le n s hs)
+      (fun n => si_increment_integrable Xp f hf_x hf_x_bdd_core t ht_pos.le n t ht_pos.le)
+      (fun n => si_increment_diff_sq_integrable Xp f hf_x hf_x_bdd_core t ht_pos.le n s hs
+        (hrem_int' s hs) (hrem_sq_int' s hs))
+      (fun n => si_increment_diff_sq_integrable Xp f hf_x hf_x_bdd_core t ht_pos.le n t ht_pos.le
+        (hrem_int' t ht_pos.le) (hrem_sq_int' t ht_pos.le))
+      (si_increment_L2_convergence Xp f hf_t hf_x hdiff_bdd' hdrift_bdd' hf_x_bdd_core hf_xx_bdd_core
+        hf_t_bdd_core hf_t_cont hf'_cont hf''_cont t ht_pos s hs hst
+        (hrem_int' s hs) (hrem_sq_int' s hs))
+      (si_increment_L2_convergence Xp f hf_t hf_x hdiff_bdd' hdrift_bdd' hf_x_bdd_core hf_xx_bdd_core
+        hf_t_bdd_core hf_t_cont hf'_cont hf''_cont t ht_pos t ht_pos.le le_rfl
+        (hrem_int' t ht_pos.le) (hrem_sq_int' t ht_pos.le))
+      (F.le_ambient s _ hA)
+      (fun n => si_increment_martingale_property Xp f hf_x hf_x_bdd_core t ht_pos n
+        s t hs hst le_rfl A hA)
+  simpa [Xp, itoRemainder_eq_core] using hmain
 
 /-- Compatibility theorem: existing Itô formula proof works for
     split `core` assumptions

@@ -165,6 +165,10 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Rewrote `ito_formula_core` in `ItoFormulaCoreBridge.lean` as a direct
   core proof (using `itoRemainderCore` + `ito_formula_martingale_core`)
   instead of delegating to legacy `ito_formula`
+- Rewrote `ito_formula_martingale_core` in `ItoFormulaCoreBridge.lean`
+  as a direct L²-limit martingale transfer proof (using
+  `martingale_setIntegral_eq_of_L2_limit` and core-derived integrability),
+  removing direct delegation to legacy `ito_formula_martingale`
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
