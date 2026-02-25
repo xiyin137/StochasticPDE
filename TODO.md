@@ -130,6 +130,9 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Rewired core bridges (`ItoFormulaCoreBridge.lean`, `QVConvergence.lean`) to
   use `ItoProcessRegularity.ofSplit` + `toItoProcess`, removing local
   `ItoFormulaAssumptions` rebuilding boilerplate at call sites
+- Removed redundant compatibility bundle `ItoFormulaAssumptions` and its
+  roundtrip projections from `ItoProcessCore.lean` after full migration to
+  split bundles + regularity-first adapters
 - Added Phase 3 constructor helpers:
   `ItoProcessRegularity.ofSplit` and
   `ItoProcessCoefficientJointMeasurability.ofDriftDiffusion`
