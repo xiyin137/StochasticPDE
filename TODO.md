@@ -153,7 +153,10 @@ Introduced a compatibility-first split of Itô process assumptions:
    `stoch_integral_squared_orthogonal_core_ofRegularity`)
 - Added regularity-first remainder-integrability adapters in
   `RemainderIntegrability.lean`
-  (`itoRemainder_integrable_core_ofRegularity`,
+  (`stoch_integral_integrable_core_ofRegularity`,
+   `process_integrable_core_ofRegularity`,
+   `process_sq_integrable_core_ofRegularity`,
+   `itoRemainder_integrable_core_ofRegularity`,
    `itoRemainder_sq_integrable_core_ofRegularity`)
 - Rewired `ItoFormulaCoreBridge.lean` to use regularity-first remainder
   integrability adapters instead of passing split measurability hypotheses

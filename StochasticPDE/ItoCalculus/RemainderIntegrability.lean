@@ -951,6 +951,49 @@ theorem itoRemainder_sq_integrable_core {F : Filtration Ω ℝ}
           rw [sq_abs, sq_abs]
   linarith
 
+/-- Regularity-first adapter for `stoch_integral_integrable_core`. -/
+theorem stoch_integral_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (t : ℝ) (ht : 0 ≤ t) :
+    Integrable (X.stoch_integral t) μ := by
+  simpa using
+    (stoch_integral_integrable_core
+      (X := X)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
+      t ht)
+
+/-- Regularity-first adapter for `process_integrable_core`. -/
+theorem process_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (hX0 : Integrable (X.process 0) μ)
+    {Md : ℝ} (hd : ∀ t ω, |X.drift t ω| ≤ Md) (hMd : 0 ≤ Md)
+    (t : ℝ) (ht : 0 ≤ t) :
+    Integrable (X.process t) μ := by
+  simpa using
+    (process_integrable_core
+      (X := X)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
+      hX0 hd hMd t ht)
+
+/-- Regularity-first adapter for `process_sq_integrable_core`. -/
+theorem process_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (hX0_sq : Integrable (fun ω => (X.process 0 ω) ^ 2) μ)
+    {Md : ℝ} (hd : ∀ t ω, |X.drift t ω| ≤ Md) (hMd : 0 ≤ Md)
+    (t : ℝ) (ht : 0 ≤ t) :
+    Integrable (fun ω => (X.process t ω) ^ 2) μ := by
+  simpa using
+    (process_sq_integrable_core
+      (X := X)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
+      hX0_sq hd hMd t ht)
+
 /-- Regularity-first adapter for `itoRemainder_integrable_core`. -/
 theorem itoRemainder_integrable_core_ofRegularity {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
