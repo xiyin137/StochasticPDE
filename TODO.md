@@ -158,6 +158,10 @@ Introduced a compatibility-first split of Itô process assumptions:
    `drift_sq_sum_bound_core`, `qv_partition_sum_core`,
    `si_compensated_sq_L2_single_core`) as direct core proofs/proof bodies,
   removing direct legacy theorem-body delegation for these helpers
+- Added core-local wrappers for L4 increment bounds/measurability and
+  core capped-QV helper lemmas in `QVConvergence.lean`, so
+  `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
+  inside its theorem body
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)

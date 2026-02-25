@@ -1523,6 +1523,130 @@ theorem capped_discrete_qv_L2_convergence {F : Filtration Ω ℝ}
 
 /-! ## Core helper adapters -/
 
+/-- Core wrapper for L⁴-integrability of stochastic integral increments. -/
+private lemma stoch_integral_increment_L4_integrable_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
+    Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
+    intro t ω
+    change |X.diffusion t ω| ≤ Mσ
+    exact hMσ t ω
+  simpa [Xp] using stoch_integral_increment_L4_integrable_proof Xp hMσp s u hs hsu
+
+/-- Core wrapper for the L⁴ bound of stochastic integral increments. -/
+private lemma stoch_integral_increment_L4_bound_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
+    ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+      3 * Mσ ^ 4 * (u - s) ^ 2 := by
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
+    intro t ω
+    change |X.diffusion t ω| ≤ Mσ
+    exact hMσ t ω
+  simpa [Xp] using stoch_integral_increment_L4_bound_proof Xp hMσp s u hs hsu
+
+/-- Core wrapper for stochastic-integral measurability from split regularity bundles. -/
+private theorem stoch_integral_measurable_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (C : ItoProcessConstruction X)
+    (DR : ItoProcessDriftRegularity X)
+    (D : ItoProcessDiffusionRegularity X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (t : ℝ) (ht : 0 ≤ t) :
+    Measurable (X.stoch_integral t) := by
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  simpa [Xp] using Xp.stoch_integral_measurable t ht
+
+/-- Core version: QV(u) splits along capped partition times. -/
+private lemma capped_qv_partition_sum_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) (T u : ℝ) (hu : 0 ≤ u) (huT : u ≤ T) (n : ℕ) (ω : Ω)
+    (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 u) volume) :
+    X.quadraticVariation u ω =
+    ∑ i : Fin (n + 1),
+      ∫ s in Icc (min (↑(i : ℕ) * T / ↑(n + 1)) u)
+          (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u),
+        (X.diffusion s ω) ^ 2 ∂volume := by
+  unfold ItoProcessCore.quadraticVariation
+  have hT := le_trans hu huT
+  suffices h : ∀ k : ℕ, k ≤ n + 1 →
+      ∫ x in Icc 0 (min (↑k * T / ↑(n + 1)) u),
+        (X.diffusion x ω) ^ 2 ∂volume =
+      ∑ i ∈ Finset.range k,
+        ∫ x in Icc (min (↑i * T / ↑(n + 1)) u) (min ((↑i + 1) * T / ↑(n + 1)) u),
+          (X.diffusion x ω) ^ 2 ∂volume by
+    have := h (n + 1) le_rfl
+    rw [capped_final T u huT n] at this
+    rw [this, Finset.sum_range]
+  intro k hk
+  induction k with
+  | zero =>
+    simp only [CharP.cast_eq_zero, zero_mul, zero_div, min_eq_left hu,
+      Finset.range_zero, Finset.sum_empty]
+    rw [show Icc (0 : ℝ) 0 = {0} from Icc_self 0,
+      show (volume.restrict {(0 : ℝ)}) = 0 from by
+        rw [Measure.restrict_eq_zero]
+        exact Real.volume_singleton]
+    simp
+  | succ k ih =>
+    rw [Finset.sum_range_succ, ← ih (Nat.le_of_succ_le hk)]
+    have h_sub : Icc 0 (min ((↑k + 1) * T / ↑(n + 1)) u) ⊆ Icc 0 u :=
+      Icc_subset_Icc le_rfl (min_le_right _ _)
+    rw [show (↑(k + 1) : ℝ) = (↑k : ℝ) + 1 from by push_cast; ring]
+    exact setIntegral_Icc_split
+      (capped_nonneg T u hT hu n k)
+      (capped_mono T hT u n k)
+      (hf_int.mono_set h_sub)
+
+/-- Core version: a.e. decomposition of capped increments `ΔX = ΔD + ΔSI`. -/
+private theorem capped_increment_decomp_ae_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (DR : ItoProcessDriftRegularity X)
+    (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (_huT : u ≤ T) (n : ℕ) :
+    ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
+      X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+      X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω =
+      (∫ s in Icc (min (↑(i : ℕ) * T / ↑(n + 1)) u)
+          (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u),
+        X.drift s ω ∂volume) +
+      (X.stoch_integral (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
+       X.stoch_integral (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) := by
+  have h_all : ∀ᵐ ω ∂μ, ∀ i : Fin (n + 2),
+      X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω =
+        X.process 0 ω +
+        (∫ s in Icc 0 (min (↑(i : ℕ) * T / ↑(n + 1)) u), X.drift s ω ∂volume) +
+        X.stoch_integral (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω := by
+    rw [ae_all_iff]
+    intro i
+    exact X.integral_form _ (capped_nonneg T u hT.le hu n (i : ℕ))
+  filter_upwards [h_all] with ω hω
+  intro i
+  have hi := hω ⟨(i : ℕ), by omega⟩
+  have hi1 := hω ⟨(i : ℕ) + 1, by omega⟩
+  simp only [] at hi hi1
+  rw [show (↑((i : ℕ) + 1) : ℝ) = (↑(i : ℕ) : ℝ) + 1 from by push_cast; ring] at hi1
+  have h_nn := capped_nonneg T u hT.le hu n (i : ℕ)
+  have h_mono := capped_mono T hT.le u n (i : ℕ)
+  have h_int := DR.drift_time_integrable ω _ (le_trans h_nn h_mono)
+  have hsplit := setIntegral_Icc_split h_nn h_mono h_int
+  linarith
+
 /-- Core adapter for a.e. increment decomposition `ΔX = ΔD + ΔSI` on partitions. -/
 theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
@@ -1673,11 +1797,6 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
       ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
        ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
     8 * Mσ ^ 4 * (u - s) ^ 2 := by
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
-  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
-    intro t ω
-    change |X.diffusion t ω| ≤ Mσ
-    exact hMσ t ω
   set ΔSI := fun ω => X.stoch_integral u ω - X.stoch_integral s ω with hΔSI_def
   set σ_int := fun ω => ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume with hσ_int_def
   have hσ_bound : ∀ ω, σ_int ω ≤ Mσ ^ 2 * (u - s) := by
@@ -1716,7 +1835,8 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
           have : (ΔSI ω ^ 2) ^ 2 = ΔSI ω ^ 4 := by ring
           linarith
   have hL4 : Integrable (fun ω => ΔSI ω ^ 4) μ := by
-    simpa [ΔSI, Xp] using stoch_integral_increment_L4_integrable_proof Xp hMσp s u hs hsu
+    simpa [ΔSI] using
+      stoch_integral_increment_L4_integrable_core X C DR D FC hMσ s u hs hsu
   have h_ub_int : Integrable (fun ω => 2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2) μ :=
     (hL4.const_mul 2).add (integrable_const _)
   calc ∫ ω, (ΔSI ω ^ 2 - σ_int ω) ^ 2 ∂μ
@@ -1734,8 +1854,8 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
         ring
     _ ≤ 2 * (3 * Mσ ^ 4 * (u - s) ^ 2) + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
         gcongr
-        have hL4_bound := stoch_integral_increment_L4_bound_proof Xp hMσp s u hs hsu
-        simpa [ΔSI, Xp] using hL4_bound
+        simpa [ΔSI] using
+          stoch_integral_increment_L4_bound_core X C DR D FC hMσ s u hs hsu
     _ = 8 * Mσ ^ 4 * (u - s) ^ 2 := by ring
 
 set_option maxHeartbeats 400000 in
@@ -1758,7 +1878,6 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
      24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
   have hn_pos : (0 : ℝ) < ↑(n + 1) := by positivity
-  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
   -- Abbreviate capped partition times
   set sc : ℕ → ℝ := fun i => min (↑i * T / ↑(n + 1)) u
   -- Bridge: sc (k+1) = min ((↑k + 1) * T / ↑(n+1)) u (unmatched by `set`)
@@ -1783,11 +1902,11 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
         ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
           (X.diffusion s ω) ^ 2 ∂volume := by
     intro ω
-    simpa [sc, hsc_succ, ItoProcess.quadraticVariation_eq_core] using
-      (capped_qv_partition_sum Xp T u hu huT n ω
+    simpa [sc, hsc_succ] using
+      (capped_qv_partition_sum_core X T u hu huT n ω
         (D.diffusion_sq_time_integrable ω u hu))
   -- A.e. decomposition
-  have h_decomp := capped_increment_decomp_ae Xp T u hT hu huT n
+  have h_decomp := capped_increment_decomp_ae_core X DR T u hT hu huT n
   -- Define drift/SI increments
   set ΔD : Fin (n + 1) → Ω → ℝ := fun i ω =>
     ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)), X.drift s ω ∂volume
@@ -1850,9 +1969,11 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     exact ItoProcessCore.compensated_sq_sq_integrable_core X C DR D FC hMσ _ _ (hsc_nn _) (hsc_mono _)
   -- Strong measurability of ΔSI and ΔX
   have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
-    intro i; simp only [ΔSI]
-    exact (Xp.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable.sub
-      (Xp.stoch_integral_measurable _ (hsc_nn _)).stronglyMeasurable
+    intro i
+    simp only [ΔSI]
+    have hsm1 := stoch_integral_measurable_core X C DR D FC (sc ((i : ℕ) + 1)) (hsc_nn _)
+    have hsm0 := stoch_integral_measurable_core X C DR D FC (sc (i : ℕ)) (hsc_nn _)
+    exact hsm1.stronglyMeasurable.sub hsm0.stronglyMeasurable
   have hΔX_sm : ∀ i : Fin (n + 1), StronglyMeasurable (fun ω =>
       X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω) := by
     intro i
