@@ -140,11 +140,11 @@ This is an active research project. The codebase contains `sorry` placeholders f
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
 - `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
-- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds bridged without legacy theorem-body delegation
+- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV helper adapters migrated to direct core proof bodies (no one-line legacy theorem-body delegation in those adapters)
 
 ## Near-Term Roadmap
 
-- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface
+- Continue migrating bridge lemmas to the split `ItoProcessCore` + regularity-bundle interface (next: `ItoFormulaCoreBridge.lean`)
 - Reduce assumption-heavy legacy `ItoProcess` entry points while keeping `ito_formula` and `ito_formula_martingale` statement-compatible
 - Keep the Ito formula path sorry-free during migration and validate with full `lake build`
 

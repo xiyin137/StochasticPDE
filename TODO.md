@@ -153,6 +153,11 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.compensated_sq_setIntegral_zero` theorem body)
+- Rewrote QV core helper adapters in `ItoCalculus/QVConvergence.lean`
+  (`ito_process_increment_decomp_ae_core`, `drift_increment_bound_core`,
+   `drift_sq_sum_bound_core`, `qv_partition_sum_core`,
+   `si_compensated_sq_L2_single_core`) as direct core proofs/proof bodies,
+  removing direct legacy theorem-body delegation for these helpers
 - Removed unused `bdg_inequality` theorem stub from `StochasticIntegration.lean`
 
 ### ItoProcess Phase 3 (next)
@@ -162,10 +167,11 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 - [x] Add constructor helpers that derive `ItoProcessRegularity` from standard measurability/integrability hypotheses
 - [x] Port remaining bridge theorems to consume `ItoProcessCore` + split regularity bundles directly
 - [ ] Remove remaining direct legacy theorem-body delegation inside core adapters
-  (next target: isometry-layer core adapters)
+  (next target: `ItoFormulaCoreBridge.lean`; residual `toItoProcessOfSplit`
+  usage in QV capped bounds is now for measurability/L4 facts, not one-line theorem delegation)
 - [ ] Minimize residual derivable assumptions in legacy `ItoProcess` adapters
 - [ ] Keep `ito_formula` and `ito_formula_martingale` statement-compatible and fully sorry-free
-- [ ] Run full `lake build` after each migration batch to protect existing infrastructure
+- [x] Run full `lake build` after each migration batch to protect existing infrastructure
 
 ---
 

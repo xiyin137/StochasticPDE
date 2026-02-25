@@ -1539,9 +1539,35 @@ theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
         X.drift s ω ∂volume) +
       (X.stoch_integral ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
        X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
-  simpa using
-    (ito_process_increment_decomp_ae
-      (X := X.toItoProcessOfSplit C DR D FC) t ht n)
+  let _ := C
+  let _ := D
+  let _ := FC
+  have h_all_times : ∀ᵐ ω ∂μ, ∀ i : Fin (n + 2),
+      X.process (↑(i : ℕ) * t / ↑(n + 1)) ω =
+        X.process 0 ω +
+        (∫ s in Icc 0 (↑(i : ℕ) * t / ↑(n + 1)), X.drift s ω ∂volume) +
+        X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω := by
+    rw [ae_all_iff]
+    intro i
+    apply X.integral_form
+    exact partition_time_nonneg t ht.le n (i : ℕ)
+  filter_upwards [h_all_times] with ω hω
+  intro i
+  have hi := hω ⟨(i : ℕ), by omega⟩
+  have hi1 := hω ⟨(i : ℕ) + 1, by exact Nat.succ_lt_succ i.isLt⟩
+  set ti := (↑(i : ℕ) : ℝ) * t / ↑(n + 1) with hti_def
+  set ti1 := ((↑(i : ℕ) : ℝ) + 1) * t / ↑(n + 1) with hti1_def
+  have h_ti_nonneg : 0 ≤ ti := partition_time_nonneg t ht.le n (i : ℕ)
+  have h_ti_le_ti1 : ti ≤ ti1 := partition_time_mono t ht.le n (i : ℕ)
+  have h_int : IntegrableOn (fun s => X.drift s ω) (Icc 0 ti1) volume :=
+    DR.drift_time_integrable ω ti1 (le_trans h_ti_nonneg h_ti_le_ti1)
+  have hsplit := setIntegral_Icc_split h_ti_nonneg h_ti_le_ti1 h_int
+  have hcast : (↑((⟨(i : ℕ) + 1, Nat.succ_lt_succ i.isLt⟩ : Fin (n + 2)) : ℕ) : ℝ) =
+      (↑(i : ℕ) : ℝ) + 1 := by
+    push_cast
+    ring
+  rw [hcast] at hi1
+  linarith
 
 /-- Core adapter for drift increment bound. -/
 lemma drift_increment_bound_core {F : Filtration Ω ℝ}
@@ -1553,9 +1579,27 @@ lemma drift_increment_bound_core {F : Filtration Ω ℝ}
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
     |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
-  simpa using
-    (drift_increment_bound
-      (X := X.toItoProcessOfSplit C DR D FC) hMμ s u hsu ω)
+  let _ := C
+  let _ := DR
+  let _ := D
+  let _ := FC
+  by_cases hint : IntegrableOn (fun r => X.drift r ω) (Icc s u) volume
+  · calc |∫ r in Icc s u, X.drift r ω ∂volume|
+        ≤ ∫ r in Icc s u, |X.drift r ω| ∂volume := by
+          rw [← Real.norm_eq_abs]
+          exact norm_integral_le_integral_norm _
+      _ ≤ ∫ r in Icc s u, Mμ ∂volume := by
+          apply setIntegral_mono_on hint.norm
+          · exact integrableOn_const (by rw [Real.volume_Icc]; exact ENNReal.ofReal_ne_top)
+          · exact measurableSet_Icc
+          · intro r _
+            exact hMμ r ω
+      _ = Mμ * (u - s) := by
+          rw [setIntegral_const]
+          simp [Measure.real, Real.volume_Icc,
+            ENNReal.toReal_ofReal (sub_nonneg.mpr hsu), smul_eq_mul, mul_comm]
+  · rw [integral_undef hint, abs_zero]
+    exact mul_nonneg (le_trans (abs_nonneg _) (hMμ 0 ω)) (sub_nonneg.mpr hsu)
 
 /-- Core adapter for deterministic bound on squared drift increments. -/
 lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
@@ -1570,9 +1614,27 @@ lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
       (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
         X.drift s ω ∂volume) ^ 2 ≤
     Mμ ^ 2 * t ^ 2 / ↑(n + 1) := by
-  simpa using
-    (drift_sq_sum_bound
-      (X := X.toItoProcessOfSplit C DR D FC) hMμ t ht n ω)
+  have h_bound : ∀ i : Fin (n + 1),
+      (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
+        X.drift s ω ∂volume) ^ 2 ≤ Mμ ^ 2 * (t / ↑(n + 1)) ^ 2 := by
+    intro i
+    have hle := drift_increment_bound_core X C DR D FC hMμ
+      (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1))
+      (partition_time_mono t ht n (i : ℕ)) ω
+    calc (∫ s in Icc _ _, X.drift s ω ∂volume) ^ 2
+        ≤ |∫ s in Icc _ _, X.drift s ω ∂volume| ^ 2 := by
+          rw [sq_abs]
+      _ ≤ (Mμ * ((↑(i : ℕ) + 1) * t / ↑(n + 1) - ↑(i : ℕ) * t / ↑(n + 1))) ^ 2 := by
+          exact pow_le_pow_left₀ (abs_nonneg _) hle 2
+      _ = Mμ ^ 2 * (t / ↑(n + 1)) ^ 2 := by ring_nf
+  calc ∑ i : Fin (n + 1), _ ≤ ∑ i : Fin (n + 1), Mμ ^ 2 * (t / ↑(n + 1)) ^ 2 :=
+      Finset.sum_le_sum (fun i _ => h_bound i)
+    _ = ↑(n + 1) * (Mμ ^ 2 * (t / ↑(n + 1)) ^ 2) := by
+        rw [Finset.sum_const, Finset.card_fin]
+        simp [nsmul_eq_mul]
+    _ = Mμ ^ 2 * t ^ 2 / ↑(n + 1) := by
+        have hn : (0 : ℝ) < ↑(n + 1) := by positivity
+        field_simp
 
 /-- Core adapter for partition splitting of quadratic variation. -/
 lemma qv_partition_sum_core {F : Filtration Ω ℝ}
@@ -1587,9 +1649,15 @@ lemma qv_partition_sum_core {F : Filtration Ω ℝ}
     ∑ i : Fin (n + 1),
       ∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
         (X.diffusion s ω) ^ 2 ∂volume := by
-  simpa [ItoProcess.quadraticVariation_eq_core] using
-    (qv_partition_sum
-      (X := X.toItoProcessOfSplit C DR D FC) t ht n ω hf_int)
+  let _ := C
+  let _ := DR
+  let _ := D
+  let _ := FC
+  unfold ItoProcessCore.quadraticVariation
+  have h := integral_partition_sum_aux (fun s => (X.diffusion s ω) ^ 2) t ht n hf_int (n + 1) le_rfl
+  rw [show (↑(n + 1) : ℝ) * t / ↑(n + 1) = t from by field_simp] at h
+  rw [h]
+  rw [Finset.sum_range]
 
 /-- Core adapter for single compensated SI² increment L² bound. -/
 lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
@@ -1605,9 +1673,70 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
       ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
        ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
     8 * Mσ ^ 4 * (u - s) ^ 2 := by
-  simpa using
-    (si_compensated_sq_L2_single
-      (X := X.toItoProcessOfSplit C DR D FC) hMσ s u hs hsu)
+  let Xp : ItoProcess F μ := X.toItoProcessOfSplit C DR D FC
+  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
+    intro t ω
+    change |X.diffusion t ω| ≤ Mσ
+    exact hMσ t ω
+  set ΔSI := fun ω => X.stoch_integral u ω - X.stoch_integral s ω with hΔSI_def
+  set σ_int := fun ω => ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume with hσ_int_def
+  have hσ_bound : ∀ ω, σ_int ω ≤ Mσ ^ 2 * (u - s) := by
+    intro ω
+    have h_each : ∀ r, (X.diffusion r ω) ^ 2 ≤ Mσ ^ 2 := by
+      intro r
+      calc (X.diffusion r ω) ^ 2 = |X.diffusion r ω| ^ 2 := by rw [sq_abs]
+        _ ≤ Mσ ^ 2 := by
+          apply pow_le_pow_left₀ (abs_nonneg _) (hMσ r ω)
+    calc σ_int ω = ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume := rfl
+      _ ≤ ∫ r in Icc s u, Mσ ^ 2 ∂volume := by
+          apply integral_mono_of_nonneg
+          · exact ae_of_all _ fun r => sq_nonneg (X.diffusion r ω)
+          · exact integrableOn_const (by rw [Real.volume_Icc]; exact ENNReal.ofReal_ne_top)
+          · exact ae_of_all _ fun r => h_each r
+      _ = Mσ ^ 2 * (u - s) := by
+          rw [setIntegral_const]
+          simp [Measure.real, Real.volume_Icc,
+            ENNReal.toReal_ofReal (sub_nonneg.mpr hsu), smul_eq_mul, mul_comm]
+  have h_pw : ∀ ω, (ΔSI ω ^ 2 - σ_int ω) ^ 2 ≤
+      2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
+    intro ω
+    have h1 : (ΔSI ω ^ 2 - σ_int ω) ^ 2 ≤
+        2 * (ΔSI ω ^ 2) ^ 2 + 2 * (σ_int ω) ^ 2 := by
+      nlinarith [sq_nonneg (ΔSI ω ^ 2 + σ_int ω)]
+    have h2 : (σ_int ω) ^ 2 ≤ (Mσ ^ 2 * (u - s)) ^ 2 := by
+      apply sq_le_sq'
+      · have hσ_nonneg : 0 ≤ σ_int ω :=
+          setIntegral_nonneg measurableSet_Icc (fun r _ => sq_nonneg (X.diffusion r ω))
+        have : 0 ≤ Mσ ^ 2 * (u - s) := mul_nonneg (sq_nonneg _) (sub_nonneg.mpr hsu)
+        linarith
+      · exact hσ_bound ω
+    calc (ΔSI ω ^ 2 - σ_int ω) ^ 2
+        ≤ 2 * (ΔSI ω ^ 2) ^ 2 + 2 * (σ_int ω) ^ 2 := h1
+      _ ≤ 2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
+          have : (ΔSI ω ^ 2) ^ 2 = ΔSI ω ^ 4 := by ring
+          linarith
+  have hL4 : Integrable (fun ω => ΔSI ω ^ 4) μ := by
+    simpa [ΔSI, Xp] using stoch_integral_increment_L4_integrable_proof Xp hMσp s u hs hsu
+  have h_ub_int : Integrable (fun ω => 2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2) μ :=
+    (hL4.const_mul 2).add (integrable_const _)
+  calc ∫ ω, (ΔSI ω ^ 2 - σ_int ω) ^ 2 ∂μ
+      ≤ ∫ ω, (2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2) ∂μ := by
+        apply integral_mono_of_nonneg
+        · exact ae_of_all _ fun ω => sq_nonneg _
+        · exact h_ub_int
+        · exact ae_of_all _ h_pw
+    _ = 2 * ∫ ω, ΔSI ω ^ 4 ∂μ + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
+        rw [integral_add (hL4.const_mul 2) (integrable_const _),
+            integral_const_mul, integral_const, smul_eq_mul]
+        congr 1
+        rw [show μ.real Set.univ = 1 from by
+          simp [Measure.real, measure_univ]]
+        ring
+    _ ≤ 2 * (3 * Mσ ^ 4 * (u - s) ^ 2) + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
+        gcongr
+        have hL4_bound := stoch_integral_increment_L4_bound_proof Xp hMσp s u hs hsu
+        simpa [ΔSI, Xp] using hL4_bound
+    _ = 8 * Mσ ^ 4 * (u - s) ^ 2 := by ring
 
 set_option maxHeartbeats 400000 in
 /-- Core adapter for capped discrete QV L² bound. -/
