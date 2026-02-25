@@ -951,4 +951,58 @@ theorem itoRemainder_sq_integrable_core {F : Filtration Ω ℝ}
           rw [sq_abs, sq_abs]
   linarith
 
+/-- Regularity-first adapter for `itoRemainder_integrable_core`. -/
+theorem itoRemainder_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (f : ℝ → ℝ → ℝ)
+    (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
+    (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
+    {Mx : ℝ} (hMx : ∀ t x, |deriv (fun x => f t x) x| ≤ Mx)
+    {Mt : ℝ} (hMt : ∀ t x, |deriv (fun s => f s x) t| ≤ Mt)
+    {Mxx : ℝ} (hMxx : ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ Mxx)
+    {Md : ℝ} (hd : ∀ t ω, |X.drift t ω| ≤ Md)
+    {Mσ : ℝ} (hσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (hf_t_cont : Continuous (fun p : ℝ × ℝ => deriv (fun t => f t p.2) p.1))
+    (hf'_cont : Continuous (fun p : ℝ × ℝ => deriv (fun x => f p.1 x) p.2))
+    (hf''_cont : Continuous (fun p : ℝ × ℝ => deriv (deriv (fun x => f p.1 x)) p.2))
+    (hX0 : Integrable (X.process 0) μ)
+    (t' : ℝ) (ht' : 0 ≤ t') :
+    Integrable (itoRemainderCore X f t') μ := by
+  simpa using
+    (itoRemainder_integrable_core
+      (X := X)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
+      R.drift_jointly_measurable R.diffusion_jointly_measurable
+      f hf_t hf_x hMx hMt hMxx hd hσ
+      hf_t_cont hf'_cont hf''_cont hX0 t' ht')
+
+/-- Regularity-first adapter for `itoRemainder_sq_integrable_core`. -/
+theorem itoRemainder_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ)
+    (R : ItoProcessRegularity X)
+    (f : ℝ → ℝ → ℝ)
+    (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
+    (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
+    {Mx : ℝ} (hMx : ∀ t x, |deriv (fun x => f t x) x| ≤ Mx)
+    {Mt : ℝ} (hMt : ∀ t x, |deriv (fun s => f s x) t| ≤ Mt)
+    {Mxx : ℝ} (hMxx : ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ Mxx)
+    {Md : ℝ} (hd : ∀ t ω, |X.drift t ω| ≤ Md)
+    {Mσ : ℝ} (hσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (hf_t_cont : Continuous (fun p : ℝ × ℝ => deriv (fun t => f t p.2) p.1))
+    (hf'_cont : Continuous (fun p : ℝ × ℝ => deriv (fun x => f p.1 x) p.2))
+    (hf''_cont : Continuous (fun p : ℝ × ℝ => deriv (deriv (fun x => f p.1 x)) p.2))
+    (hX0_sq : Integrable (fun ω => (X.process 0 ω) ^ 2) μ)
+    (t' : ℝ) (ht' : 0 ≤ t') :
+    Integrable (fun ω => (itoRemainderCore X f t' ω) ^ 2) μ := by
+  simpa using
+    (itoRemainder_sq_integrable_core
+      (X := X)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
+      R.drift_jointly_measurable R.diffusion_jointly_measurable
+      f hf_t hf_x hMx hMt hMxx hd hσ
+      hf_t_cont hf'_cont hf''_cont hX0_sq t' ht')
+
 end SPDE

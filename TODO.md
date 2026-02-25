@@ -149,6 +149,13 @@ Introduced a compatibility-first split of Itô process assumptions:
   `ConditionalIsometry.lean`
   (`compensated_sq_setIntegral_zero_core_ofRegularity`,
    `stoch_integral_squared_orthogonal_core_ofRegularity`)
+- Added regularity-first remainder-integrability adapters in
+  `RemainderIntegrability.lean`
+  (`itoRemainder_integrable_core_ofRegularity`,
+   `itoRemainder_sq_integrable_core_ofRegularity`)
+- Rewired `ItoFormulaCoreBridge.lean` to use regularity-first remainder
+  integrability adapters instead of passing split measurability hypotheses
+  directly at call sites
 - Rewrote `ItoProcessCore.stoch_integral_squared_orthogonal_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.stoch_integral_squared_orthogonal` theorem body)
