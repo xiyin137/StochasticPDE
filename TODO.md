@@ -98,9 +98,11 @@ Derived property infrastructure (4 files):
 
 Removed `hrem_int` and `hrem_sq_int` hypotheses from `ito_formula`. These are now
 derived internally from the boundedness hypotheses (`hdiff_bdd`, `hdrift_bdd`, `hf_x_bdd`,
-`hf_xx_bdd`, `hf_t_bdd`) plus joint measurability (`h_proc_jm`, `h_drift_jm`) and initial
-condition integrability (`hX0_sq`). Uses `itoRemainder_integrable` and
+`hf_xx_bdd`, `hf_t_bdd`) and initial condition square-integrability (`hX0_sq`).
+Uses `itoRemainder_integrable` and
 `itoRemainder_sq_integrable` from `RemainderIntegrability.lean`.
+Added `ito_formula_martingale_of_bounds`, which derives the martingale theorem's
+`hrem_int`/`hrem_sq_int` hypotheses internally from the same boundedness package.
 
 ### ItoProcess Core/Regularity Split (2026-02-25)
 

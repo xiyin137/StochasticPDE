@@ -4047,6 +4047,44 @@ theorem ito_formula_martingale {F : Filtration Ω ℝ}
     (fun n => si_increment_martingale_property X f hf_x hf_x_bdd t ht_pos n
       s t hs hst le_rfl A hA)
 
+/-- The Itô remainder martingale property with integrability derived from
+    boundedness and square-integrable initial data. -/
+theorem ito_formula_martingale_of_bounds {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcess F μ)
+    (f : ℝ → ℝ → ℝ)
+    (hf_t : ∀ x, Differentiable ℝ (fun t => f t x))
+    (hf_x : ∀ t, ContDiff ℝ 2 (fun x => f t x))
+    (hdiff_bdd : ∃ M : ℝ, ∀ t ω, |X.diffusion t ω| ≤ M)
+    (hdrift_bdd : ∃ M : ℝ, ∀ t ω, |X.drift t ω| ≤ M)
+    (hf_x_bdd : ∃ M : ℝ, ∀ t x, |deriv (fun x => f t x) x| ≤ M)
+    (hf_xx_bdd : ∃ M : ℝ, ∀ t x, |deriv (deriv (fun x => f t x)) x| ≤ M)
+    (hf_t_bdd : ∃ M : ℝ, ∀ t x, |deriv (fun s => f s x) t| ≤ M)
+    (hf_t_cont : Continuous (fun p : ℝ × ℝ => deriv (fun t => f t p.2) p.1))
+    (hf'_cont : Continuous (fun p : ℝ × ℝ => deriv (fun x => f p.1 x) p.2))
+    (hf''_cont : Continuous (fun p : ℝ × ℝ => deriv (deriv (fun x => f p.1 x)) p.2))
+    (hX0_sq : Integrable (fun ω => (X.process 0 ω) ^ 2) μ) :
+    ∀ s t : ℝ, 0 ≤ s → s ≤ t →
+      ∀ A : Set Ω, @MeasurableSet Ω (F.σ_algebra s) A →
+      ∫ ω in A, itoRemainder X f t ω ∂μ = ∫ ω in A, itoRemainder X f s ω ∂μ := by
+  have hX0 : Integrable (X.process 0) μ :=
+    integrable_of_sq_integrable
+      ((X.process_adapted 0).mono (F.le_ambient 0) le_rfl).aestronglyMeasurable hX0_sq
+  have hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainder X f t') μ :=
+    fun t' ht' => itoRemainder_integrable X f hf_t hf_x
+      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
+      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
+      hf_t_cont hf'_cont hf''_cont hX0 t' ht'
+  have hrem_sq_int : ∀ t', 0 ≤ t' →
+      Integrable (fun ω => (itoRemainder X f t' ω)^2) μ :=
+    fun t' ht' => itoRemainder_sq_integrable X f hf_t hf_x
+      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
+      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
+      hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
+  exact ito_formula_martingale X f hf_t hf_x hdiff_bdd hdrift_bdd
+    hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont
+    hrem_int hrem_sq_int
+
 /-! ## Itô's Formula (full theorem)
 
 Combines the martingale property (`ito_formula_martingale`) with the trivial
@@ -4102,21 +4140,6 @@ theorem ito_formula {F : Filtration Ω ℝ}
            (1/2) * deriv (deriv (fun x => f s x)) (X.process s ω) * (X.diffusion s ω)^2)
           ∂volume) +
         stoch_int t ω) := by
-  -- Derive remainder integrability from boundedness hypotheses
-  have hX0 : Integrable (X.process 0) μ :=
-    integrable_of_sq_integrable
-      ((X.process_adapted 0).mono (F.le_ambient 0) le_rfl).aestronglyMeasurable hX0_sq
-  have hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainder X f t') μ :=
-    fun t' ht' => itoRemainder_integrable X f hf_t hf_x
-      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
-      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
-      hf_t_cont hf'_cont hf''_cont hX0 t' ht'
-  have hrem_sq_int : ∀ t', 0 ≤ t' →
-      Integrable (fun ω => (itoRemainder X f t' ω)^2) μ :=
-    fun t' ht' => itoRemainder_sq_integrable X f hf_t hf_x
-      hf_x_bdd.choose_spec hf_t_bdd.choose_spec hf_xx_bdd.choose_spec
-      hdrift_bdd.choose_spec hdiff_bdd.choose_spec
-      hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
   -- The stochastic integral is the Itô remainder
   refine ⟨itoRemainder X f, ?_, ?_, ?_⟩
   · -- (i) Initial condition: itoRemainder at t=0 is 0
@@ -4127,9 +4150,8 @@ theorem ito_formula {F : Filtration Ω ℝ}
     rw [hmeas_zero, integral_zero_measure]
     ring
   · -- (ii) Martingale property: from ito_formula_martingale
-    exact ito_formula_martingale X f hf_t hf_x hdiff_bdd
-      hdrift_bdd hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont
-      hrem_int hrem_sq_int
+    exact ito_formula_martingale_of_bounds X f hf_t hf_x hdiff_bdd
+      hdrift_bdd hf_x_bdd hf_xx_bdd hf_t_bdd hf_t_cont hf'_cont hf''_cont hX0_sq
   · -- (iii) Itô's formula: by definition of itoRemainder
     intro t ht
     filter_upwards with ω

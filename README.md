@@ -30,6 +30,7 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 ### Key Proven Theorems
 
 - **Ito formula**: `f(t, X_t) = f(0, X_0) + int_0^t [∂_t f + ∂_x f · μ + ½ ∂²_x f · σ²] ds + M_t` (**fully proven, 0 sorrys**)
+- **Ito remainder martingale (derived hypotheses)**: `ito_formula_martingale_of_bounds` derives remainder integrability from boundedness + `X_0 ∈ L²`
 - **Ito isometry**: `E[(int H dW)^2] = E[int H^2 ds]` (simple processes + L^2 extension)
 - **Bilinear Ito isometry**: `E[(int H1 dW)(int H2 dW)] = E[int H1*H2 ds]`
 - **Ito integral is a martingale** (set-integral characterization)
