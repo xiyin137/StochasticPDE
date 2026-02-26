@@ -27,6 +27,8 @@ Self-contained module (37+ files, depends only on Mathlib) providing a complete 
 | `ItoCalculus/AdaptedLimit.lean` | Measurability of L^2 limits under usual conditions |
 | `ItoCalculus/RemainderIntegrability.lean` | Ito remainder integrability derived from boundedness (0 sorrys) |
 
+Detailed theorem/definition audit: [`ItoCalculus/ItoFormulaSpecification.md`](StochasticPDE/ItoCalculus/ItoFormulaSpecification.md)
+
 ### Key Proven Theorems
 
 - **Ito formula**: `f(t, X_t) = f(0, X_0) + int_0^t [∂_t f + ∂_x f · μ + ½ ∂²_x f · σ²] ds + M_t` (**fully proven, 0 sorrys**)
