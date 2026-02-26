@@ -170,6 +170,11 @@ Introduced a compatibility-first split of Itô process assumptions:
   and the local `Δ₁⁴` integrability bound is derived from core
   compensated-square square-integrability plus deterministic diffusion
   interval bounds
+- Tightened the core orthogonality theorem interface by dropping `DR`
+  from `ItoProcessCore.stoch_integral_squared_orthogonal_core` and
+  replacing it with explicit local assumptions for square-integrability
+  of the two compensated increments; the regularity wrapper now supplies
+  those assumptions from `compensated_sq_sq_integrable_core_ofRegularity`
 - Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.compensated_sq_setIntegral_zero` theorem body)

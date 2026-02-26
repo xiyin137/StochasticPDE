@@ -2250,12 +2250,17 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s₁ t₁ s₂ t₂ : ℝ)
-    (hs₁ : 0 ≤ s₁) (hst₁ : s₁ ≤ t₁) (ht₁s₂ : t₁ ≤ s₂) (hst₂ : s₂ ≤ t₂) :
+    (hs₁ : 0 ≤ s₁) (hst₁ : s₁ ≤ t₁) (ht₁s₂ : t₁ ≤ s₂) (hst₂ : s₂ ≤ t₂)
+    (hZ₁_sq_int : Integrable (fun ω =>
+      ((X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 -
+       ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ)
+    (hZ₂_sq_int : Integrable (fun ω =>
+      ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
+       ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ) :
     ∫ ω, ((X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 -
            ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) *
           ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
@@ -2272,9 +2277,10 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
   have hQ₁_int : Integrable Q₁ μ := by
     simpa [Q₁] using X.diffusion_sq_interval_integrable_core D s₁ t₁ hs₁ hst₁
   have hZ₁_sq_int : Integrable (fun ω => Z₁ ω ^ 2) μ := by
-    simpa [Z₁, Q₁] using X.compensated_sq_sq_integrable_core C DR D FC hMσ s₁ t₁ hs₁ hst₁
+    simpa [Z₁, Q₁] using hZ₁_sq_int
   have hZ₂_int := X.compensated_sq_integrable_core C D FC s₂ t₂ hs₂ hst₂
-  have hZ₂_sq_int := X.compensated_sq_sq_integrable_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
+  have hZ₂_sq_int : Integrable (fun ω => Z₂ ω ^ 2) μ := by
+    simpa [Z₂] using hZ₂_sq_int
   have hQ₁_bdd : ∀ ω, |Q₁ ω| ≤ Mσ ^ 2 * (t₁ - s₁) := by
     intro ω
     simpa [Q₁] using X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hst₁ ω
@@ -2437,8 +2443,12 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity
            ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
   simpa using
     (X.stoch_integral_squared_orthogonal_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      (hZ₁_sq_int := X.compensated_sq_sq_integrable_core_ofRegularity
+        (R := R) hMσ s₁ t₁ hs₁ hst₁)
+      (hZ₂_sq_int := X.compensated_sq_sq_integrable_core_ofRegularity
+        (R := R) hMσ s₂ t₂ (le_trans (le_trans hs₁ hst₁) ht₁s₂) hst₂)
       hMσ s₁ t₁ s₂ t₂ hs₁ hst₁ ht₁s₂ hst₂)
 
 end SPDE
