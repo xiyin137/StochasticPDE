@@ -267,6 +267,11 @@ Introduced a compatibility-first split of Itô process assumptions:
   as a direct L²-limit martingale transfer proof (using
   `martingale_setIntegral_eq_of_L2_limit` and core-derived integrability),
   removing direct delegation to legacy `ito_formula_martingale`
+- Tightened `ito_formula_martingale_core` internals to derive remainder
+  integrability/square-integrability directly via
+  `itoRemainder_integrable_core` / `itoRemainder_sq_integrable_core`
+  (explicit split measurability inputs), rather than via
+  regularity-only remainder wrapper lemmas
 - Normalized local legacy reconstruction in `ItoFormulaCoreBridge.lean`
   and QV wrappers to `ItoProcessRegularity.ofSplit` + `toItoProcess`
   (no remaining `toItoProcessOfSplit` usage in those files)

@@ -71,12 +71,14 @@ theorem ito_formula_martingale_core {F : Filtration Ω ℝ}
       hX0_sq
   have hrem_int : ∀ t', 0 ≤ t' → Integrable (itoRemainderCore X f t') μ := by
     intro t' ht'
-    exact itoRemainder_integrable_core_ofRegularity X R
+    exact itoRemainder_integrable_core (X := X) (C := C) (FC := FC)
+      DR.drift_jointly_measurable D.diffusion_jointly_measurable
       f hf_t hf_x hMx hMt hMxx hd hσ
       hf_t_cont hf'_cont hf''_cont hX0 t' ht'
   have hrem_sq_int : ∀ t', 0 ≤ t' → Integrable (fun ω => (itoRemainderCore X f t' ω)^2) μ := by
     intro t' ht'
-    exact itoRemainder_sq_integrable_core_ofRegularity X R
+    exact itoRemainder_sq_integrable_core (X := X) (C := C) (FC := FC)
+      DR.drift_jointly_measurable D.diffusion_jointly_measurable
       f hf_t hf_x hMx hMt hMxx hd hσ
       hf_t_cont hf'_cont hf''_cont hX0_sq t' ht'
   have hrem_int' : ∀ t', 0 ≤ t' →
