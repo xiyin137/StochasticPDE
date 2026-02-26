@@ -6,6 +6,7 @@ Authors: ModularPhysics Contributors
 import StochasticPDE.ItoCalculus.StochasticIntegration
 import StochasticPDE.ItoCalculus.ItoProcessCore
 import StochasticPDE.ItoCalculus.QuarticBound
+import StochasticPDE.ItoCalculus.RemainderIntegrability
 import Mathlib.MeasureTheory.Function.ConditionalExpectation.PullOut
 
 /-!
@@ -483,69 +484,56 @@ theorem ItoProcessCore.stoch_integral_isometry_core {F : Filtration Ω ℝ}
 /-- Core adapter for interval-integrability of `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_interval_integrable_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
   have ht : 0 ≤ t := le_trans hs hst
-  have heq : (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) =
-      (fun ω => ∫ u in Icc 0 t, (Xp.diffusion u ω) ^ 2 ∂volume) -
-      (fun ω => ∫ u in Icc 0 s, (Xp.diffusion u ω) ^ 2 ∂volume) := by
+  have heq : (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) =
+      (fun ω => ∫ u in Icc 0 t, (X.diffusion u ω) ^ 2 ∂volume) -
+      (fun ω => ∫ u in Icc 0 s, (X.diffusion u ω) ^ 2 ∂volume) := by
     ext ω; simp only [Pi.sub_apply]
-    linarith [setIntegral_Icc_split' hs hst (Xp.diffusion_sq_time_integrable ω t ht)]
-  change Integrable (fun ω => ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume) μ
+    linarith [setIntegral_Icc_split' hs hst (D.diffusion_sq_time_integrable ω t ht)]
   rw [heq]
-  exact (Xp.diffusion_sq_integral_integrable t ht).sub
-    (Xp.diffusion_sq_integral_integrable s hs)
+  exact (D.diffusion_sq_integral_integrable t ht).sub
+    (D.diffusion_sq_integral_integrable s hs)
 
 /-- Core adapter for square-integrability of stochastic integral increments. -/
 lemma ItoProcessCore.si_increment_sq_integrable_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
-  have hcore : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2) μ := by
-    have ht : 0 ≤ t := le_trans hs hst
-    have ha := Xp.stoch_integral_sq_integrable t ht
-    have hb := Xp.stoch_integral_sq_integrable s hs
-    have hasm : AEStronglyMeasurable
-        (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 2) μ :=
-      ((Xp.stoch_integral_aestronglyMeasurable t ht).sub
-        (Xp.stoch_integral_aestronglyMeasurable s hs)).pow 2
-    exact ((ha.const_mul 2).add (hb.const_mul 2)).mono' hasm
-      (ae_of_all _ fun ω => by
-        simp only [Real.norm_eq_abs, Pi.add_apply]
-        have h1 := sq_abs (Xp.stoch_integral t ω)
-        have h2 := sq_abs (Xp.stoch_integral s ω)
-        have h3 := sq_nonneg (Xp.stoch_integral t ω + Xp.stoch_integral s ω)
-        rw [abs_of_nonneg (sq_nonneg _)]
-        nlinarith)
-  simpa [Xp] using hcore
+  have ht : 0 ≤ t := le_trans hs hst
+  have ha := stoch_integral_sq_integrable_core (X := X) C FC t ht
+  have hb := stoch_integral_sq_integrable_core (X := X) C FC s hs
+  have hasm : AEStronglyMeasurable
+      (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ :=
+    ((stoch_integral_aestronglyMeasurable_core (X := X) C FC t ht).sub
+      (stoch_integral_aestronglyMeasurable_core (X := X) C FC s hs)).pow 2
+  exact ((ha.const_mul 2).add (hb.const_mul 2)).mono' hasm
+    (ae_of_all _ fun ω => by
+      simp only [Real.norm_eq_abs, Pi.add_apply]
+      have h1 := sq_abs (X.stoch_integral t ω)
+      have h2 := sq_abs (X.stoch_integral s ω)
+      have h3 := sq_nonneg (X.stoch_integral t ω + X.stoch_integral s ω)
+      rw [abs_of_nonneg (sq_nonneg _)]
+      nlinarith)
 
 /-- Core adapter for integrability of compensated squared increments. -/
 lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
     Integrable (fun ω =>
       (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
-  exact (X.si_increment_sq_integrable_core C DR D FC s t hs hst).sub
-    (X.diffusion_sq_interval_integrable_core C DR D FC s t hs hst)
+  exact (X.si_increment_sq_integrable_core C FC s t hs hst).sub
+    (X.diffusion_sq_interval_integrable_core D s t hs hst)
 
 /-- Core adapter for the deterministic bound on `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
@@ -591,7 +579,7 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
   have hasm : AEStronglyMeasurable
       (fun ω => ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ :=
-    (X.compensated_sq_integrable_core C DR D FC s t hs hst).aestronglyMeasurable.pow 2
+    (X.compensated_sq_integrable_core C D FC s t hs hst).aestronglyMeasurable.pow 2
   have hdom : Integrable
       (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4 + 2 * C0 ^ 2) μ := by
     have h1 : Integrable (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ := by
@@ -633,8 +621,7 @@ lemma ItoProcessCore.diffusion_sq_interval_integrable_core_ofRegularity {F : Fil
     Integrable (fun ω => ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
   simpa using
     (X.diffusion_sq_interval_integrable_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      (D := R.toDiffusionRegularity)
       s t hs hst)
 
 /-- Regularity-first adapter for square-integrability of stochastic integral increments. -/
@@ -646,8 +633,7 @@ lemma ItoProcessCore.si_increment_sq_integrable_core_ofRegularity {F : Filtratio
     Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) μ := by
   simpa using
     (X.si_increment_sq_integrable_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      (C := R.toConstruction) (FC := R.toFiltrationCompatibility)
       s t hs hst)
 
 /-- Regularity-first adapter for integrability of compensated squared increments. -/
@@ -661,7 +647,7 @@ lemma ItoProcessCore.compensated_sq_integrable_core_ofRegularity {F : Filtration
       ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) μ := by
   simpa using
     (X.compensated_sq_integrable_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       s t hs hst)
 

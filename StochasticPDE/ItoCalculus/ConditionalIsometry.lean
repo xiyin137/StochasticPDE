@@ -1831,9 +1831,9 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
   have hs₂ : 0 ≤ s₂ := le_trans (le_trans hs₁ hst₁) ht₁s₂
   have ht₁ : 0 ≤ t₁ := le_trans hs₁ hst₁
   -- Integrability
-  have hΔ₁_sq_int := X.si_increment_sq_integrable_core C DR D FC s₁ t₁ hs₁ hst₁
-  have hQ₁_int := X.diffusion_sq_interval_integrable_core C DR D FC s₁ t₁ hs₁ hst₁
-  have hZ₂_int := X.compensated_sq_integrable_core C DR D FC s₂ t₂ hs₂ hst₂
+  have hΔ₁_sq_int := X.si_increment_sq_integrable_core C FC s₁ t₁ hs₁ hst₁
+  have hQ₁_int := X.diffusion_sq_interval_integrable_core D s₁ t₁ hs₁ hst₁
+  have hZ₂_int := X.compensated_sq_integrable_core C D FC s₂ t₂ hs₂ hst₂
   have hZ₂_sq_int := X.compensated_sq_sq_integrable_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
   have hΔ₁_L4 := stoch_integral_increment_L4_integrable_proof Xp hMσ s₁ t₁ hs₁ hst₁
   have hQ₁_bdd := X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hst₁

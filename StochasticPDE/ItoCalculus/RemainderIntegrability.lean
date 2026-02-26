@@ -523,7 +523,7 @@ private theorem stochasticIntegral_at_Ft_measurable_core
   · simp only [dif_neg hi]; exact measurable_const
 
 /-- Core-version a.e.-strong measurability for `stoch_integral`. -/
-private theorem stoch_integral_aestronglyMeasurable_core {F : Filtration Ω ℝ}
+theorem stoch_integral_aestronglyMeasurable_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) (C : ItoProcessConstruction X)
     (FC : ItoProcessFiltrationCompatibility X)
     (t : ℝ) (ht : 0 ≤ t) :
@@ -535,7 +535,7 @@ private theorem stoch_integral_aestronglyMeasurable_core {F : Filtration Ω ℝ}
     (hae t ht)
 
 /-- Core-version square-integrability for `stoch_integral`. -/
-private theorem stoch_integral_sq_integrable_core {F : Filtration Ω ℝ}
+theorem stoch_integral_sq_integrable_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ) (C : ItoProcessConstruction X)
     (FC : ItoProcessFiltrationCompatibility X)

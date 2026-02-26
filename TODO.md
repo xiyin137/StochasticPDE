@@ -204,6 +204,16 @@ Introduced a compatibility-first split of Itô process assumptions:
   `diffusion_sq_integral_bound` (removed unused `0 ≤ s`) and
   updated all local call sites (`IsometryTheorems`,
   `ConditionalIsometry`, `WeightedQVBound`)
+- Exposed core SI measurability/L² helper theorems in
+  `RemainderIntegrability.lean`
+  (`stoch_integral_aestronglyMeasurable_core`,
+   `stoch_integral_sq_integrable_core`) for cross-file reuse
+- Reduced core isometry integrability adapter assumptions in
+  `IsometryTheorems.lean`:
+  `si_increment_sq_integrable_core` now uses `C + FC`,
+  `diffusion_sq_interval_integrable_core` now uses `D`,
+  and `compensated_sq_integrable_core` now uses `C + D + FC`
+  (with updated call sites in `ConditionalIsometry.lean`)
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
