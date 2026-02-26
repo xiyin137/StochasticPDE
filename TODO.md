@@ -193,6 +193,10 @@ Introduced a compatibility-first split of Itô process assumptions:
   `capped_discrete_qv_L2_convergence_core`, and `ito_formula_core`
   to route split bundles through a local
   `R := ItoProcessRegularity.ofSplit C DR D FC` projection
+- Simplified `ItoProcessCore.diffusion_sq_integral_bound_core`
+  to a direct assumption-light bound (removed split-bundle arguments),
+  and updated dependent uses in `IsometryTheorems.lean` and
+  `ConditionalIsometry.lean`
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process

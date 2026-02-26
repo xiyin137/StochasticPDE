@@ -550,27 +550,20 @@ lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
 /-- Core adapter for the deterministic bound on `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
-  change |∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s)
-  rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (Xp.diffusion u ω)))]
-  calc ∫ u in Icc s t, (Xp.diffusion u ω) ^ 2 ∂volume
+  rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (X.diffusion u ω)))]
+  calc ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume
       ≤ ∫ u in Icc s t, Mσ ^ 2 ∂volume := by
         apply integral_mono_of_nonneg
         · exact ae_of_all _ fun _ => sq_nonneg _
         · exact integrable_const _
         · exact ae_of_all _ fun u => by
-            calc (Xp.diffusion u ω) ^ 2 = |Xp.diffusion u ω| ^ 2 := by rw [sq_abs]
+            calc (X.diffusion u ω) ^ 2 = |X.diffusion u ω| ^ 2 := by rw [sq_abs]
               _ ≤ Mσ ^ 2 := by
-                simpa [Xp] using (pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
+                simpa using (pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
     _ = Mσ ^ 2 * (t - s) := by
         rw [setIntegral_const, smul_eq_mul, Real.volume_real_Icc_of_le hst, mul_comm]
 
@@ -593,7 +586,7 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     simpa [Xp] using hMσ
   have hΔ4 : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 4) μ :=
     stoch_integral_increment_L4_integrable_proof Xp hMσp s t hs hst
-  have hQ_bdd := X.diffusion_sq_integral_bound_core C DR D FC hMσ s t hs hst
+  have hQ_bdd := X.diffusion_sq_integral_bound_core hMσ s t hs hst
   set C0 := Mσ ^ 2 * (t - s)
   have hasm : AEStronglyMeasurable
       (fun ω => ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
@@ -675,15 +668,13 @@ lemma ItoProcessCore.compensated_sq_integrable_core_ofRegularity {F : Filtration
 /-- Regularity-first adapter for the deterministic bound on `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_integral_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
+    (_R : ItoProcessRegularity X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
   simpa using
     (X.diffusion_sq_integral_bound_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       hMσ s t hs hst ω)
 
 /-- Regularity-first adapter for square-integrability of compensated increments. -/
