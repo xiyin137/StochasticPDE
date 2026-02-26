@@ -1836,7 +1836,7 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
   have hZ₂_int := X.compensated_sq_integrable_core C DR D FC s₂ t₂ hs₂ hst₂
   have hZ₂_sq_int := X.compensated_sq_sq_integrable_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
   have hΔ₁_L4 := stoch_integral_increment_L4_integrable_proof Xp hMσ s₁ t₁ hs₁ hst₁
-  have hQ₁_bdd := X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hs₁ hst₁
+  have hQ₁_bdd := X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hst₁
   -- Δ₁²·Z₂ integrable (AM-GM: |ab| ≤ a² + b², Δ₁⁴ and Z₂² integrable)
   have hΔ₁_sq_Z₂_int : Integrable (fun ω =>
       (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω) μ := by

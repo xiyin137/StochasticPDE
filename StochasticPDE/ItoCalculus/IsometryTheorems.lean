@@ -551,7 +551,7 @@ lemma ItoProcessCore.compensated_sq_integrable_core {F : Filtration Ω ℝ}
 lemma ItoProcessCore.diffusion_sq_integral_bound_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
-    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (s t : ℝ) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
   rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (X.diffusion u ω)))]
@@ -586,7 +586,7 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     simpa [Xp] using hMσ
   have hΔ4 : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 4) μ :=
     stoch_integral_increment_L4_integrable_proof Xp hMσp s t hs hst
-  have hQ_bdd := X.diffusion_sq_integral_bound_core hMσ s t hs hst
+  have hQ_bdd := X.diffusion_sq_integral_bound_core hMσ s t hst
   set C0 := Mσ ^ 2 * (t - s)
   have hasm : AEStronglyMeasurable
       (fun ω => ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
@@ -670,12 +670,12 @@ lemma ItoProcessCore.diffusion_sq_integral_bound_core_ofRegularity {F : Filtrati
     (X : ItoProcessCore F μ)
     (_R : ItoProcessRegularity X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
-    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (s t : ℝ) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
   simpa using
     (X.diffusion_sq_integral_bound_core
-      hMσ s t hs hst ω)
+      hMσ s t hst ω)
 
 /-- Regularity-first adapter for square-integrability of compensated increments. -/
 lemma ItoProcessCore.compensated_sq_sq_integrable_core_ofRegularity {F : Filtration Ω ℝ}

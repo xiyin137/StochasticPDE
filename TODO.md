@@ -197,6 +197,9 @@ Introduced a compatibility-first split of Itô process assumptions:
   to a direct assumption-light bound (removed split-bundle arguments),
   and updated dependent uses in `IsometryTheorems.lean` and
   `ConditionalIsometry.lean`
+- Further tightened `ItoProcessCore.diffusion_sq_integral_bound_core`
+  by dropping the unused nonnegativity hypothesis `0 ≤ s`
+  (retaining only interval order `s ≤ t`)
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
