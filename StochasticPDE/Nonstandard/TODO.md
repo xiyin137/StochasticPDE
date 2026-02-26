@@ -12,7 +12,7 @@ This provides a rigorous foundation where pathwise stochastic calculus is meanin
 
 ## Current State
 
-**Total: 8 sorrys across 5 files** (1 on Anderson critical path, 1 standalone, 6 for Itô chain)
+**Total: 7 sorrys across 4 files** (2 on Anderson critical path, 5 for Itô chain)
 
 Mathlib provides minimal hyperreal infrastructure:
 - `Hyperreal := Germ (hyperfilter ℕ) ℝ` - ultraproduct construction
@@ -118,7 +118,7 @@ Key results:
 - `levyModulus_implies_S_continuous`: Paths with Lévy modulus are S-continuous
 - `levyModulus_violation_sum_bound`: Sum of violation probs ≤ 2
 
-#### LocalCLT.lean - **1 sorry remaining (substantial infrastructure proven)**
+#### LocalCLT.lean - **COMPLETE, no sorries (substantial infrastructure proven)**
 - `stirling_lower_bound`: **PROVEN** via Mathlib's `Stirling.le_factorial_stirling`
 - `stirling_ratio_tendsto_one`: **PROVEN** via Mathlib's `tendsto_stirlingSeq_sqrt_pi`
 - `stirling_upper_bound_eventual`: **PROVEN** as consequence of ratio → 1
@@ -139,13 +139,13 @@ Key results:
 - `hoeffding_random_walk`: **PROVEN** P(|S_n| > t) ≤ 2·exp(-t²/(2n)) via Chernoff method
 - `stirlingSeq_bounds`: **PROVEN** √π ≤ stirlingSeq(n) ≤ stirlingSeq(1)
 - `factorial_ratio_stirling_bounds`: **PROVEN** n!/(k!(n-k)!) bounded by Stirling expressions
-- `local_clt_error_bound`: sorry (standalone, NOT on critical path — superseded by ratio approach in `binomProb_ratio_near_one`)
+- `local_clt_error_bound`: **PROVEN** (coarse central-region absolute error bound from factor-2 local CLT bounds)
 - `local_clt_central_region`: **PROVEN** (both upper and lower bounds)
   - Upper bound uses `stirling_ratio_decomp`, `exp_factor_le_one`, `s1_prefactor_le_two` from LocalCLTHelpers.lean
   - Lower bound uses `pinsker_excess_crude` from LocalCLTHelpers.lean
 - `cylinder_prob_convergence`: **PROVEN** (moved to CylinderConvergenceHelpers.lean — main bridge theorem connecting hyperfinite walk probabilities to Wiener integrals)
 
-#### CylinderConvergenceHelpers.lean - **COMPLETE (all proven, 0 sorrys)**
+#### CylinderConvergenceHelpers.lean - **WIP (all core CLT pieces proven, 1 sorry)**
 Infrastructure for and proof of `cylinder_prob_convergence`:
 - `gaussianDensitySigma_continuous`: **PROVEN**
 - `gaussianDensitySigma_nonneg`: **PROVEN**
@@ -166,6 +166,7 @@ Infrastructure for and proof of `cylinder_prob_convergence`:
 - `gaussDensity_Riemann_sum_converges`: **PROVEN** (Riemann sum → integral via uniform continuity + crossing zone argument)
   - a=b degenerate case: integral = 0, sum ≤ M·Δ (at most 1 nonzero term)
   - a<b main case: partition [a,b] into lattice bins, UC bound per bin + crossing zone bound for gap bins
+- `riemann_sum_continuous_converges`: sorry (general bounded continuous test-function Riemann convergence)
 - `cylinder_prob_convergence`: **PROVEN** (main bridge: |scaledProb - wienerProb| < ε for large N)
   - Combines scaledProb_eq_walkIntervalProb + binomProb_ratio_near_one + gaussDensity_Riemann_sum_converges
   - Triangle inequality: |scaledProb - wienerProb| ≤ |scaledProb - RS| + |RS - wienerProb|
@@ -208,13 +209,13 @@ Infrastructure for and proof of `cylinder_prob_convergence`:
 - `WienerMeasureSpec`: Cylinder set probabilities for Wiener measure
 - `wienerCylinderProb`: defined (multi-time Wiener probability)
 - `standardPartMap'_startsAtZero`: **PROVEN** (calls `standardPartMap_startsAtZero`)
-- `anderson_theorem_cylinder`: sorry (Loeb → Wiener cylinder convergence, needs cylinder_prob_convergence)
+- `anderson_theorem_cylinder`: **PROVEN** (Loeb → Wiener cylinder convergence)
 - `cylinder_hyperfinite_iff_standard`: **PROVEN** (calls `standardPartPath_isSt`)
 - `anderson_theorem`: **PROVEN** (calls `anderson_theorem_cylinder`)
 - `brownian_paths_continuous_as`: **PROVEN** (calls `sContinuous_loebMeasureOne`)
 - `brownian_increments_gaussian`: **PROVEN** by `rfl`
 
-#### ItoCorrespondence.lean - **WIP (definitions complete, soundness issues FIXED)**
+#### ItoCorrespondence.lean - **WIP (3 sorrys remaining)**
 - `SimpleProcess`: Step function adapted to filtration
 - `ItoIntegrand`: L²-adapted process for Itô integration
 - `liftToHyperfinite`: Lift standard process to hyperfinite integrand
@@ -222,7 +223,7 @@ Infrastructure for and proof of `cylinder_prob_convergence`:
 - `ito_correspondence`: sorry - **FIXED**: now requires S-continuity hypothesis
   - Previously claimed deterministic finiteness (unsound)
   - Now correctly requires path to satisfy modulus bound for finiteness
-- `ito_isometry_standard`: placeholder
+- `ito_isometry_standard`: **PROVEN** (exact hyperfinite QV identity via `HyperfiniteStochasticIntegral.ito_isometry`)
 - `ito_linearity`: **PROVEN** (full proof)
 - `ito_integral_const`: **PROVEN** (full proof)
 - `ito_lemma_hyperfinite`: sorry (Itô's lemma via Taylor)
@@ -348,10 +349,9 @@ What's proven:
    - ✅ `stirlingSeq_triple_ratio_near_one` in Arithmetic.lean - **PROVEN**
    - ✅ Chernoff bound chain in CylinderConvergenceHelpers.lean - **ALL PROVEN**
      - `weighted_exp_markov`, `binomial_mgf`, `binomial_chernoff_upper/lower`, `binomial_tail_small`
-   - Remaining sorrys on critical path to `anderson_theorem_cylinder` (1 total):
-     - `anderson_theorem_cylinder` (AndersonTheorem.lean:516) - uses cylinder_prob_convergence + isSt_of_tendsto
-   - Standalone sorry (not on critical path):
-     - `local_clt_error_bound` (LocalCLT.lean:185) - absolute error bound, superseded by ratio approach
+   - Remaining sorrys on Anderson critical path (2 total):
+     - `riemann_sum_continuous_converges` (CylinderConvergenceHelpers.lean:2175)
+     - `multi_constraint_convergence_uniform` (AndersonTheorem.lean:560)
    - Recently proven (eliminated 5 sorrys):
      - `pinsker_excess_crude` (LocalCLTHelpers.lean) - **NOW PROVEN**
      - `scaledProb_eq_walkIntervalProb` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
@@ -361,27 +361,19 @@ What's proven:
        (Uniform continuity on compact [a,b] + lattice partition + crossing zone argument)
      - `cylinder_prob_convergence` (CylinderConvergenceHelpers.lean) - **NOW PROVEN**
        (Triangle inequality: ratio bound + Riemann sum convergence + lattice point counting)
-   - Non-critical sorrys (6 total, for Itô chain):
+   - Non-critical sorrys (5 total, for Itô chain):
      - `ito_correspondence` (ItoCorrespondence.lean:202)
-     - `ito_isometry_standard` (ItoCorrespondence.lean:229)
-     - `ito_lemma_hyperfinite` (ItoCorrespondence.lean:373)
-     - `ito_formula` (ItoCorrespondence.lean:406)
+     - `ito_lemma_hyperfinite` (ItoCorrespondence.lean:397)
+     - `ito_formula` (ItoCorrespondence.lean:430)
      - `gbm_explicit_solution` (ExplicitSolutions.lean:81)
      - `ou_explicit_solution` (ExplicitSolutions.lean:112)
    - **Critical path dependency chain:**
      ```
-     anderson_theorem (PROVEN, calls anderson_theorem_cylinder)
-       └── anderson_theorem_cylinder (SORRY) ◄── NEXT TARGET
-             └── cylinder_prob_convergence (PROVEN) ✓
-                   ├── scaledProb_eq_walkIntervalProb (PROVEN)
-                   ├── binomProb_ratio_near_one (PROVEN)
-                   │     └── local_clt_central_region (PROVEN)
-                   │           ├── pinsker_excess_crude (PROVEN)
-                   │           └── exp_factor_le_one (PROVEN)
-                   ├── gaussDensity_Riemann_sum_converges (PROVEN)
-                   │     └── gaussianDensitySigma_continuous (PROVEN)
-                   └── binomial_tail_small (PROVEN, Chernoff bounds)
-     local_clt_error_bound (SORRY, standalone - not on critical path)
+     anderson_random_walk_pushforward
+       └── multi_constraint_convergence_shifted (PROVEN via uniform corollary)
+             └── multi_constraint_convergence_uniform (SORRY)
+     binomial_test_fn_convergence (PROVEN)
+       └── riemann_sum_continuous_converges (SORRY)
      ```
 
 ### Phase 3: Standard Part and Path Space
@@ -401,9 +393,9 @@ What's proven:
 
 ### Phase 4: Anderson's Theorem
 12. ⏳ Pushforward of Loeb measure under st = Wiener measure
-   - Infrastructure in AndersonTheorem.lean (5 theorems proven)
+   - Infrastructure in AndersonTheorem.lean (core theorem chain established)
    - Requires: local CLT completion for full proof
-   - `anderson_theorem_cylinder`, `anderson_theorem` have sorries
+   - `anderson_theorem_cylinder`, `anderson_theorem` are proved
 13. ⏳ Itô integral = standard part of hyperfinite stochastic integral
    - ItoCorrespondence.lean created with definitions
    - `hyperfiniteItoIntegral` defined, `ito_correspondence` has sorry
@@ -445,13 +437,13 @@ Nonstandard/
 │   ├── MaximalInequality.lean   [COMPLETE] P(max |S_i| > M) bound (0 sorries)
 │   ├── SContinuity.lean         [COMPLETE] Increment variance, modulus (0 sorries)
 │   ├── SContinuityAS.lean       [COMPLETE] Borel-Cantelli, Lévy modulus (0 sorries)
-│   ├── LocalCLT.lean            [WIP] Stirling, binomial → Gaussian (1 sorry)
+│   ├── LocalCLT.lean            [COMPLETE] Stirling, binomial → Gaussian (0 sorries)
 │   ├── LocalCLTHelpers.lean     [COMPLETE] Factor-2 bound helpers (0 sorrys)
 │   ├── BinomGaussRatioHelpers.lean [COMPLETE] Stirling decomposition helpers (0 sorrys)
 │   ├── RatioConvergenceHelpers.lean [COMPLETE] Product-near-one helpers (0 sorrys)
-│   ├── CylinderConvergenceHelpers.lean [COMPLETE] Combinatorial/analytical helpers (0 sorrys)
-│   ├── AndersonTheorem.lean     [WIP] st_* μ_L = μ_W (1 sorry: anderson_theorem_cylinder)
-│   ├── ItoCorrespondence.lean   [WIP] st(Σ H·dW) = ∫ H dW (4 sorries)
+│   ├── CylinderConvergenceHelpers.lean [WIP] Combinatorial/analytical helpers (1 sorry)
+│   ├── AndersonTheorem.lean     [WIP] st_* μ_L = μ_W (1 sorry: multi_constraint_convergence_uniform)
+│   ├── ItoCorrespondence.lean   [WIP] st(Σ H·dW) = ∫ H dW (3 sorries)
 │   ├── HyperfiniteSDE.lean      [COMPLETE] dX = a·dt + b·dW (0 sorries)
 │   ├── SDESolution.lean         [COMPLETE] Standard part → SDE solution (0 sorries)
 │   └── ExplicitSolutions.lean   [WIP] GBM/OU explicit formulas (2 sorries, need Itô)

@@ -208,25 +208,49 @@ theorem ito_correspondence (W : HyperfiniteWalk) (_hN : Foundation.Hypernat.Infi
     Σ(Hₖ · ΔWₖ)² = Σ Hₖ² · dt (exactly!)
 
     Taking standard parts and expectations preserves this. -/
-theorem ito_isometry_standard (H : ℝ → ℝ) (hH_cont : Continuous H)
-    (hH_bdd : ∃ M, ∀ x, |H x| ≤ M) (t : ℝ) (ht : 0 < t) :
+theorem ito_isometry_standard (H : ℝ → ℝ) (_hH_cont : Continuous H)
+    (_hH_bdd : ∃ M, ∀ x, |H x| ≤ M) (t : ℝ) (ht : 0 < t) :
     -- For any hyperfinite walk W with infinite N:
     -- st(Σₖ (Hₖ · ΔWₖ)²) = st(Σₖ Hₖ² · dt)
     -- This equality is exact in the hyperfinite setting (from ito_isometry)
     -- and preserved under standard parts
-    ∀ (W : HyperfiniteWalk) (hN : Foundation.Hypernat.Infinite W.numSteps)
-      (htT : t ≤ W.totalTime),
+    ∀ (W : HyperfiniteWalk) (_hN : Foundation.Hypernat.Infinite W.numSteps)
+      (_htT : t ≤ W.totalTime),
     let K := W.stepIndex t (le_of_lt ht)
     let integrand := fun k => H (k / (W.numSteps.toSeq 0 : ℝ))
-    let stoch_integral_sq := (∑ k ∈ Finset.range (K.toSeq 0),
-      integrand k * W.coins.flipSign k * W.dx)^2
+    let stoch_integral_qv := ∑ k ∈ Finset.range (K.toSeq 0),
+      ((integrand k : ℝ*) * ((W.coins.flips k : ℝ*) * W.dx))^2
     let variance_sum := ∑ k ∈ Finset.range (K.toSeq 0),
-      (integrand k)^2 * W.dt
+      ((integrand k : ℝ*)^2) * W.dt
     -- The quadratic variation of the integral equals the variance sum (exactly)
-    Infinitesimal (st stoch_integral_sq - st variance_sum) := by
-  -- Proof uses HyperfiniteStochasticIntegral.ito_isometry
-  -- which shows Σ(H·ΔW)² = Σ H²·dt exactly in the hyperfinite setting
-  sorry
+    Infinitesimal (st stoch_integral_qv - st variance_sum) := by
+  intro W hN _htT
+  dsimp
+  set K : Foundation.Hypernat := W.stepIndex t (le_of_lt ht)
+  set integrand : ℕ → ℝ := fun k => H (k / (W.numSteps.toSeq 0 : ℝ))
+  set stoch_integral_qv : ℝ* := ∑ k ∈ Finset.range (K.toSeq 0),
+    ((integrand k : ℝ*) * ((W.coins.flips k : ℝ*) * W.dx))^2
+  set variance_sum : ℝ* := ∑ k ∈ Finset.range (K.toSeq 0), ((integrand k : ℝ*)^2) * W.dt
+  let I : SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral := {
+    walk := W
+    numSteps_infinite := hN
+    integrand := fun k => (integrand k : ℝ*)
+  }
+  have hIso := SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral.ito_isometry I
+    (K.toSeq 0)
+  have hqv_eq : stoch_integral_qv = variance_sum := by
+    simpa [stoch_integral_qv, variance_sum, I, K, integrand,
+      SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral.quadraticVariation,
+      SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral.increment,
+      SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral.dx,
+      SPDE.Nonstandard.StochasticIntegral.HyperfiniteStochasticIntegral.dt] using hIso
+  have hst_eq : st stoch_integral_qv = st variance_sum := congrArg st hqv_eq
+  have hst_eq_hr : ((st stoch_integral_qv : ℝ*) = (st variance_sum : ℝ*)) := by
+    exact_mod_cast hst_eq
+  have hzero_hr :
+      ((st stoch_integral_qv : ℝ*) - (st variance_sum : ℝ*)) = 0 :=
+    sub_eq_zero.mpr hst_eq_hr
+  simpa [hzero_hr] using (infinitesimal_zero : Infinitesimal (0 : ℝ*))
 
 /-! ## Properties of the Itô Integral
 

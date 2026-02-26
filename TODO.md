@@ -300,12 +300,12 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 
 ---
 
-## Current Sorry Count (as of 2026-02-25)
+## Current Sorry Count (as of 2026-02-26)
 
 | File | Sorrys | Key Items |
 |------|--------|-----------|
 | **ItoCalculus/StochasticIntegration.lean** | **7** | quadratic_variation, sde_existence, sde_uniqueness_law, stratonovich, semimartingale_integral, girsanov, martingale_representation |
-| **ItoCalculus/BrownianMotion.lean** | **5** | time_inversion, eval_unit_is_brownian, Q-Wiener continuous_paths, Q-Wiener regularity_from_trace, levy_characterization |
+| **ItoCalculus/BrownianMotion.lean** | **5** | time_inversion, eval_unit_is_brownian, continuous_paths, regularity_from_trace, levy_characterization |
 | **SPDE.lean** | **5** | Generator/semigroup infrastructure |
 | **ItoCalculus/Basic.lean** | **1** | is_martingale_of_bounded (needs uniform integrability) |
 | **RegularityStructures.lean** | **1** | Abstract approach (complementary to folder) |
@@ -314,39 +314,36 @@ Goal: continue removing assumption-heavy entry points while preserving theorem u
 | **ItoCalculus/** (all other files) | **0** | Fully proven |
 | **EKMS/** | **16** | Hyperbolicity, InvariantMeasure, TwoSidedMinimizers, OneSidedMinimizers, Basic |
 | **Examples/** | **15** | YangMills2D, Phi4, KPZ |
-| **Nonstandard/Anderson/AndersonTheorem.lean** | **2** | multi_constraint_convergence_uniform, hT₁ |
+| **Nonstandard/Anderson/AndersonTheorem.lean** | **1** | multi_constraint_convergence_uniform |
 | **Nonstandard/Anderson/CylinderConvergenceHelpers.lean** | **1** | riemann_sum_continuous_converges |
 | **Nonstandard/Anderson/ExplicitSolutions.lean** | **2** | gbm_explicit_solution, ou_explicit_solution |
-| **Nonstandard/Anderson/ItoCorrespondence.lean** | **4** | ito_correspondence, ito_isometry_hyperfinite, ito_lemma_hyperfinite, ito_correspondence_integral_finiteness |
-| **Nonstandard/Anderson/LocalCLT.lean** | **1** | local_clt_error_bound |
+| **Nonstandard/Anderson/ItoCorrespondence.lean** | **3** | ito_correspondence, ito_lemma_hyperfinite, ito_formula |
+| **Nonstandard/Anderson/LocalCLT.lean** | **0** | central-region local-CLT error bound proven |
 | **RegularityStructures/** | **41** | See RegularityStructures/TODO.md |
 
-**Total: ~108 sorrys** (26 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 10 Nonstandard)
+**Total: ~105 sorrys** (26 SPDE core + 41 RegularityStructures + 16 EKMS + 15 Examples + 7 Nonstandard)
 **Itô formula critical path: 0 sorrys — FULLY PROVEN** ✓
-**Anderson theorem critical path: 3 sorrys** (see below)
+**Anderson theorem critical path: 2 sorrys** (see below)
 
 ---
 
-## Anderson's Theorem — Critical Path (as of 2026-02-22)
+## Anderson's Theorem — Critical Path (as of 2026-02-26)
 
 **Goal:** `anderson_random_walk_pushforward` — pushforward of Loeb measure under standard part = Wiener measure, proved via cylinder set convergence.
 
-**3 sorrys on critical path.**
+**2 sorrys on critical path.**
 
 ### Dependency chain:
 ```
 anderson_random_walk_pushforward
-  → multi_constraint_convergence_shifted (induction on n)
-    base case (n=0): PROVED ✓
-    inductive step (n+1 = m+1):
-      → hT₁: |∑ C(k,j)/2^k * W_m(x_j) - ∫ gauss * W_m| → 0     [SORRY]
-         → binomial_test_fn_convergence (CylinderConvergenceHelpers)  [PROVED ✓]
-            → riemann_sum_continuous_converges                         [SORRY]
-      → hT₂: sumForm - T₁ → 0                                       [PROVED ✓]
-         → multi_constraint_convergence_uniform (for n = m)            [SORRY]
+  → multi_constraint_convergence_shifted
+    (now proved as a corollary of uniform convergence)
+  → multi_constraint_convergence_uniform                              [SORRY]
+  → binomial_test_fn_convergence (CylinderConvergenceHelpers)         [PROVED ✓]
+     → riemann_sum_continuous_converges                               [SORRY]
 ```
 
-### Blocking sorrys (3):
+### Blocking sorrys (2):
 
 1. **`riemann_sum_continuous_converges`** (CylinderConvergenceHelpers.lean:2175)
    - Riemann sum convergence for continuous bounded functions on lattice mesh
@@ -354,15 +351,9 @@ anderson_random_walk_pushforward
    - Standard analysis: uniform continuity on compact sets → mesh → 0
    - **Difficulty: medium** (infrastructure lemma, no deep math)
 
-2. **`hT₁`** (AndersonTheorem.lean:846)
-   - Connects `binomial_test_fn_convergence` to the specific goal
-   - Test function is `W_m = wienerNestedIntegral` (continuous, bounded by [0,1])
-   - Main subtlety: coordinate alignment (k₁ = ⌊t₁*N⌋ - ⌊p*N⌋ vs ⌊dt*N⌋)
-   - **Difficulty: medium** (bookkeeping, `binomial_test_fn_convergence` does the heavy lifting)
-
-3. **`multi_constraint_convergence_uniform`** (AndersonTheorem.lean:560)
+2. **`multi_constraint_convergence_uniform`** (AndersonTheorem.lean:560)
    - Uniform-in-prevPos version: ∀ prevPos, |count/2^M - W_n(prevPos)| < ε
-   - Needed by hT₂ proof (for suffix constraints after conditioning on x₁)
+   - `multi_constraint_convergence_shifted` now reduces directly to this theorem
    - Proof: by induction on n, leveraging equicontinuity of wienerNestedIntegral
    - **Difficulty: hard** (combines induction + uniform convergence + equicontinuity)
 
@@ -383,10 +374,9 @@ anderson_random_walk_pushforward
 | Nonstandard Foundation (all) | Foundation/ | PROVED ✓ (0 sorrys) |
 | Loeb measure + Wiener measure | LoebMeasure/ | PROVED ✓ (0 sorrys) |
 
-### Not on Anderson critical path (7 sorrys):
+### Not on Anderson critical path (5 sorrys):
 - `ExplicitSolutions.lean` (2): GBM, OU explicit solutions
-- `ItoCorrespondence.lean` (4): hyperfinite Itô correspondence
-- `LocalCLT.lean` (1): local_clt_error_bound (Berry-Esseen style)
+- `ItoCorrespondence.lean` (3): hyperfinite Itô correspondence
 
 ---
 
@@ -586,11 +576,11 @@ so E[σ²(u,·)·Z₂] = 0 by conditional isometry. Fubini swaps the ω and u in
 7. `martingale_representation` (line 2148) — Martingale representation theorem
 
 ### ItoCalculus/BrownianMotion.lean (5 sorrys)
-1. `time_inversion` (line 595) — t*W(1/t) is BM
-2. `eval_unit_is_brownian` (line 648) — Cylindrical Wiener unit evaluation
-3. `continuous_paths` (line 744) — Q-Wiener continuous paths
-4. `regularity_from_trace` (line 749) — Q-Wiener regularity
-5. `levy_characterization` (line 782) — Levy characterization
+1. `time_inversion` (line ~595) — t*W(1/t) is BM
+2. `eval_unit_is_brownian` (line ~648) — Cylindrical Wiener unit evaluation
+3. `continuous_paths` (line ~744) — Q-Wiener continuous paths
+4. `regularity_from_trace` (line ~749) — Q-Wiener regularity
+5. `levy_characterization` (line ~782) — Lévy characterization
 
 ### Helpers/InnerIntegralIntegrability.lean (5 sorrys — NOT on ito_formula critical path)
 1. `inner_sq_integral_integrable_of_sub_interval` (line 82) — ∫₀ᵗ f² integrable from ∫₀ᵀ f² integrable

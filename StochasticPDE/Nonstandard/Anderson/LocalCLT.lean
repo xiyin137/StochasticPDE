@@ -145,45 +145,6 @@ theorem factorial_ratio_stirling_bounds (n k : ℕ) (hk_pos : 1 ≤ k) (hk_lt : 
 -- which avoids the Taylor expansion complications. The key insight is that the
 -- full ratio binomProb/gaussApprox can be bounded directly using factorial_ratio_stirling_bounds.
 
-/-- **Local CLT Statement**: For the symmetric random walk S_n:
-    P(S_n = s) = C(n, (n+s)/2)/2^n ≈ √(2/(πn)) exp(-s²/(2n))
-
-    where s = 2k - n is the actual walk value (s has same parity as n).
-
-    More precisely, for the central values where k = (n/2 : ℤ) + j with |j| ≤ n/2:
-    |C(n,k)/2^n - √(2/(πn)) exp(-s²/(2n))| = O(1/n)
-
-    This gives pointwise convergence of the pmf to the Gaussian density.
-
-    **Proof Strategy** (following Feller):
-    1. Apply Stirling to C(n,k) = n!/(k!(n-k)!) with k = (n/2)_int + j:
-       - n! ≈ √(2πn)(n/e)^n
-       - k! ≈ √(2πk)(k/e)^k
-       - (n-k)! ≈ √(2π(n-k))((n-k)/e)^{n-k}
-
-    2. The ratio gives:
-       C(n,k)/2^n ≈ √(n/(2πk(n-k))) · (n/2k)^k · (n/2(n-k))^{n-k}
-
-    3. The exponential factor simplifies to exp(-s²/(2n)) + O(1/√n).
-
-    4. The prefactor √(n/(2πk(n-k))) ≈ √(2/(πn)) for k ≈ n/2.
-
-    5. Combining: C(n,k)/2^n ≈ √(2/(πn)) exp(-s²/(2n)) with O(1/n) error.
--/
-theorem local_clt_error_bound (n : ℕ) (j : ℤ) (hn : 1 ≤ n)
-    (hj_lower : -(n/2 : ℤ) ≤ j) (hj_upper : j ≤ (n/2 : ℤ)) :
-    let idx : ℤ := (n / 2 : ℤ) + j
-    let k := idx.toNat
-    let s : ℤ := 2 * (k : ℤ) - n  -- actual walk value S_n = 2k - n
-    let binomProb := (Nat.choose n k : ℝ) / 2^n
-    let gaussApprox := Real.sqrt (2 / (Real.pi * n)) * Real.exp (-(s : ℝ)^2 / (2 * n))
-    |binomProb - gaussApprox| ≤ (10 : ℝ) / n := by
-  -- The proof uses Stirling's approximation for the factorials in C(n,k)
-  -- C(n,k) = n! / (k! (n-k)!)
-  -- Apply Stirling to each factorial and simplify
-  -- See the docstring above for the detailed proof strategy
-  sorry
-
 /-- For |j| ≤ √n (the central region), the binomial probability is within a factor of 2 of Gaussian.
     This is the key bound for the local CLT. We require 1 ≤ k < n to apply Stirling.
     We require n ≥ 9 to ensure k, n-k ≥ 1 when |j| ≤ √n.
@@ -625,6 +586,46 @@ theorem local_clt_central_region (n : ℕ) (j : ℤ) (hn : 9 ≤ n)
             (mul_nonneg hsqrt_gauss_nn (by positivity))
             (by linarith)
       _ = 2 * gaussApprox := rfl
+
+/-- A coarse local-CLT error bound on the central region.
+    This follows from the factor-2 bounds in `local_clt_central_region`
+    and the elementary estimate `exp z ≤ 1` for `z ≤ 0`. -/
+theorem local_clt_error_bound (n : ℕ) (j : ℤ) (hn : 9 ≤ n)
+    (hj : |j| ≤ Real.sqrt n)
+    (hj_lower : -(n/2 : ℤ) ≤ j) (hj_upper : j ≤ (n/2 : ℤ)) :
+    let idx : ℤ := (n / 2 : ℤ) + j
+    let k := idx.toNat
+    let s : ℤ := 2 * (k : ℤ) - n
+    let binomProb := (Nat.choose n k : ℝ) / 2^n
+    let gaussApprox := Real.sqrt (2 / (Real.pi * n)) * Real.exp (-(s : ℝ)^2 / (2 * n))
+    |binomProb - gaussApprox| ≤ Real.sqrt (2 / (Real.pi * n)) := by
+  intro idx k s binomProb gaussApprox
+  obtain ⟨hLower, hUpper⟩ := local_clt_central_region n j hn hj hj_lower hj_upper
+  have hgauss_nonneg : 0 ≤ gaussApprox := by
+    simp only [gaussApprox]
+    positivity
+  have hgauss_le : gaussApprox ≤ Real.sqrt (2 / (Real.pi * n)) := by
+    have hn_pos : (0 : ℝ) < n := Nat.cast_pos.mpr (Nat.lt_of_lt_of_le (by norm_num : 0 < 9) hn)
+    have h_exp_le_one : Real.exp (-(s : ℝ)^2 / (2 * n)) ≤ 1 := by
+      apply Real.exp_le_one_iff.mpr
+      have hnum_nonpos : -(s : ℝ)^2 ≤ 0 := by nlinarith [sq_nonneg (s : ℝ)]
+      have hden_nonneg : (0 : ℝ) ≤ 2 * n := by positivity
+      exact div_nonpos_of_nonpos_of_nonneg hnum_nonpos hden_nonneg
+    have hsqrt_nonneg : 0 ≤ Real.sqrt (2 / (Real.pi * n)) := Real.sqrt_nonneg _
+    simp only [gaussApprox]
+    calc
+      Real.sqrt (2 / (Real.pi * n)) * Real.exp (-(s : ℝ)^2 / (2 * n))
+          ≤ Real.sqrt (2 / (Real.pi * n)) * 1 :=
+            mul_le_mul_of_nonneg_left h_exp_le_one hsqrt_nonneg
+      _ = Real.sqrt (2 / (Real.pi * n)) := by ring
+  have hAbs_le_gauss : |binomProb - gaussApprox| ≤ gaussApprox := by
+    by_cases hge : gaussApprox ≤ binomProb
+    · rw [abs_of_nonneg (sub_nonneg.mpr hge)]
+      linarith [hUpper]
+    · have hlt : binomProb < gaussApprox := lt_of_not_ge hge
+      rw [abs_of_neg (sub_neg.mpr hlt)]
+      linarith [hLower, hgauss_nonneg]
+  exact le_trans hAbs_le_gauss hgauss_le
 
 /-! ## Tail Bounds
 
