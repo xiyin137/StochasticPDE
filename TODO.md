@@ -188,6 +188,11 @@ Introduced a compatibility-first split of Itô process assumptions:
   `si_compensated_sq_L2_single_core`)
   to regularity-first signatures and rewired
   `capped_ito_qv_L2_bound_core` to call them through the local `R` bundle
+- Normalized remaining split-call sites in
+  `ito_process_discrete_qv_L2_convergence_core`,
+  `capped_discrete_qv_L2_convergence_core`, and `ito_formula_core`
+  to route split bundles through a local
+  `R := ItoProcessRegularity.ofSplit C DR D FC` projection
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process

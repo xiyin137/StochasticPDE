@@ -2309,10 +2309,16 @@ theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
          X.quadraticVariation t ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
+  have R : ItoProcessRegularity X :=
+    ItoProcessRegularity.ofSplit C DR D FC
   set Cst := 3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 + 24 * Mσ ^ 4 * t ^ 2
   apply squeeze_zero
   · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
-  · intro n; exact ito_qv_L2_bound_core X C DR D FC hMμ hMσ t ht n
+  · intro n
+    exact ito_qv_L2_bound_core X
+      R.toConstruction R.toDriftRegularity
+      R.toDiffusionRegularity R.toFiltrationCompatibility
+      hMμ hMσ t ht n
   · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
         (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
       ext n; rw [Nat.cast_succ]; ring
@@ -2337,10 +2343,16 @@ theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
          X.quadraticVariation u ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
+  have R : ItoProcessRegularity X :=
+    ItoProcessRegularity.ofSplit C DR D FC
   set Cst := 3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 + 24 * Mσ ^ 4 * T ^ 2
   apply squeeze_zero
   · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
-  · intro n; exact capped_ito_qv_L2_bound_core X C DR D FC hMμ hMσ T u hT hu huT n
+  · intro n
+    exact capped_ito_qv_L2_bound_core X
+      R.toConstruction R.toDriftRegularity
+      R.toDiffusionRegularity R.toFiltrationCompatibility
+      hMμ hMσ T u hT hu huT n
   · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
         (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
       ext n; rw [Nat.cast_succ]; ring
