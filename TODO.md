@@ -181,6 +181,13 @@ Introduced a compatibility-first split of Itô process assumptions:
   regularity-first core adapters for SI isometry, compensated-integrability,
   and orthogonality (`*_core_ofRegularity`) via a local
   `ItoProcessRegularity.ofSplit` bundle
+- Converted remaining QV local helper wrappers
+  (`stoch_integral_increment_L4_integrable_core`,
+  `stoch_integral_increment_L4_bound_core`,
+  `stoch_integral_measurable_core`,
+  `si_compensated_sq_L2_single_core`)
+  to regularity-first signatures and rewired
+  `capped_ito_qv_L2_bound_core` to call them through the local `R` bundle
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
