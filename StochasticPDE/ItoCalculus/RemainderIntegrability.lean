@@ -488,7 +488,7 @@ theorem itoRemainder_sq_integrable {F : Filtration Ω ℝ}
 /-! ## Core adapters -/
 
 /-- Helper: core stochastic integral at time `t` is `F_t`-measurable. -/
-private theorem stochasticIntegral_at_Ft_measurable_core
+theorem stochasticIntegral_at_Ft_measurable_core
     {F : Filtration Ω ℝ}
     (H : SimpleProcess F) (W : BrownianMotion Ω μ)
     (hBM_F : ∀ t, @Measurable Ω ℝ (F.σ_algebra t) _ (W.process t))
@@ -533,6 +533,45 @@ theorem stoch_integral_aestronglyMeasurable_core {F : Filtration Ω ℝ}
     (fun n => ((stochasticIntegral_at_Ft_measurable_core (approx n) X.BM
       FC.BM_adapted_to_F (h_adapted n) t).mono (F.le_ambient t) le_rfl).aestronglyMeasurable)
     (hae t ht)
+
+/-- Core-version `F_t`-adaptedness for `stoch_integral`. -/
+theorem stoch_integral_adapted_core {F : Filtration Ω ℝ}
+    [IsProbabilityMeasure μ]
+    (X : ItoProcessCore F μ) (C : ItoProcessConstruction X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (t : ℝ) (ht : 0 ≤ t) :
+    @Measurable Ω ℝ (F.σ_algebra t) _ (X.stoch_integral t) := by
+  obtain ⟨approx, h_adapted, _, _, _, _, _, hae⟩ := C.stoch_integral_is_L2_limit
+  have hSI_Ft : ∀ n, @Measurable Ω ℝ (F.σ_algebra t) _
+      (SimpleProcess.stochasticIntegral_at (approx n) X.BM t) :=
+    fun n => stochasticIntegral_at_Ft_measurable_core (approx n) X.BM
+      FC.BM_adapted_to_F (h_adapted n) t
+  have hae_t := hae t ht
+  set A : Set Ω := {ω | Filter.Tendsto
+    (fun n => SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω)
+    Filter.atTop (nhds (X.stoch_integral t ω))} with hA_def
+  have hA_compl_null : μ Aᶜ = 0 := by rwa [ae_iff] at hae_t
+  have hAc_meas : @MeasurableSet Ω (F.σ_algebra t) Aᶜ :=
+    FC.usual_conditions.2 t Aᶜ hA_compl_null
+  have hA_meas : @MeasurableSet Ω (F.σ_algebra t) A := compl_compl A ▸ hAc_meas.compl
+  set g : ℕ → Ω → ℝ := fun n => A.indicator
+    (SimpleProcess.stochasticIntegral_at (approx n) X.BM t)
+  set h : Ω → ℝ := A.indicator (X.stoch_integral t)
+  have hg_Ft : ∀ n, @Measurable Ω ℝ (F.σ_algebra t) _ (g n) :=
+    fun n => (hSI_Ft n).indicator hA_meas
+  have hg_tendsto : ∀ ω, Filter.Tendsto (fun n => g n ω) Filter.atTop (nhds (h ω)) := by
+    intro ω
+    by_cases hω : ω ∈ A
+    · simp only [g, h, Set.indicator_of_mem hω]; exact hω
+    · simp only [g, h, Set.indicator_of_notMem hω]; exact tendsto_const_nhds
+  have hh_Ft : @Measurable Ω ℝ (F.σ_algebra t) _ h :=
+    @measurable_of_tendsto_metrizable Ω ℝ (F.σ_algebra t) _ _ _ _
+      g h hg_Ft (tendsto_pi_nhds.mpr hg_tendsto)
+  have hh_ae : X.stoch_integral t =ᵐ[μ] h := by
+    have hA_ae : A ∈ ae μ := compl_compl A ▸ compl_mem_ae_iff.mpr hA_compl_null
+    filter_upwards [hA_ae] with ω hω
+    exact (Set.indicator_of_mem hω _).symm
+  exact Filtration.measurable_of_ae_eq FC.usual_conditions hh_Ft hh_ae
 
 /-- Core-version square-integrability for `stoch_integral`. -/
 theorem stoch_integral_sq_integrable_core {F : Filtration Ω ℝ}

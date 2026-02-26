@@ -220,6 +220,17 @@ Introduced a compatibility-first split of Itô process assumptions:
    `drift_increment_bound_core_ofRegularity`,
    `drift_sq_sum_bound_core_ofRegularity`,
    `qv_partition_sum_core_ofRegularity`)
+- Added core adaptedness infrastructure in
+  `RemainderIntegrability.lean`:
+  exposed `stochasticIntegral_at_Ft_measurable_core` and added
+  `stoch_integral_adapted_core` (derived from L2-limit data + usual conditions)
+- Added direct core SI lemmas in `IsometryTheorems.lean`:
+  `stoch_integral_isometry_base_core`,
+  `stoch_integral_martingale_core`,
+  `stoch_integral_cross_term_core`
+- Tightened `ItoProcessCore.stoch_integral_isometry_core` to
+  assumptions `C + D + FC` (removed `DR`) by switching from
+  legacy reconstruction to direct core base/cross/martingale SI proofs
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
