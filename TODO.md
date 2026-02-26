@@ -214,6 +214,12 @@ Introduced a compatibility-first split of Itô process assumptions:
   `diffusion_sq_interval_integrable_core` now uses `D`,
   and `compensated_sq_integrable_core` now uses `C + D + FC`
   (with updated call sites in `ConditionalIsometry.lean`)
+- Removed residual unused regularity parameters from
+  regularity-first wrappers that do not consume regularity hypotheses
+  (`ItoProcessCore.diffusion_sq_integral_bound_core_ofRegularity`,
+   `drift_increment_bound_core_ofRegularity`,
+   `drift_sq_sum_bound_core_ofRegularity`,
+   `qv_partition_sum_core_ofRegularity`)
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process

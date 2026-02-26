@@ -654,7 +654,6 @@ lemma ItoProcessCore.compensated_sq_integrable_core_ofRegularity {F : Filtration
 /-- Regularity-first adapter for the deterministic bound on `∫_s^t σ²`. -/
 lemma ItoProcessCore.diffusion_sq_integral_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (_R : ItoProcessRegularity X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s t : ℝ) (hst : s ≤ t)
     (ω : Ω) :

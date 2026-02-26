@@ -2380,7 +2380,6 @@ theorem ito_process_increment_decomp_ae_core_ofRegularity {F : Filtration Ω ℝ
 /-- Regularity-first adapter for drift increment bound. -/
 lemma drift_increment_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (_R : ItoProcessRegularity X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
     |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
@@ -2391,7 +2390,6 @@ lemma drift_increment_bound_core_ofRegularity {F : Filtration Ω ℝ}
 /-- Regularity-first adapter for deterministic bound on squared drift increments. -/
 lemma drift_sq_sum_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (_R : ItoProcessRegularity X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω) :
     ∑ i : Fin (n + 1),
@@ -2405,7 +2403,6 @@ lemma drift_sq_sum_bound_core_ofRegularity {F : Filtration Ω ℝ}
 /-- Regularity-first adapter for partition splitting of quadratic variation. -/
 lemma qv_partition_sum_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (_R : ItoProcessRegularity X)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω)
     (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 t) volume) :
     X.quadraticVariation t ω =
