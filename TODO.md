@@ -179,6 +179,10 @@ Introduced a compatibility-first split of Itô process assumptions:
   dropping `DR` from its interface as well: it now consumes an explicit
   local `Δ⁴` integrability premise, with the regularity wrapper deriving
   that premise from `stoch_integral_increment_L4_integrable_proof`
+- Tightened QV decomposition helpers by dropping the `DR` bundle from
+  `capped_increment_decomp_ae_core` and
+  `ito_process_increment_decomp_ae_core`; both now consume only the
+  explicit drift-time-integrability premise they actually use
 - Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.compensated_sq_setIntegral_zero` theorem body)

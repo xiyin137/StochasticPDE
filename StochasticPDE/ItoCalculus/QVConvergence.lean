@@ -1608,7 +1608,8 @@ private lemma capped_qv_partition_sum_core {F : Filtration Ω ℝ}
 private theorem capped_increment_decomp_ae_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
-    (DR : ItoProcessDriftRegularity X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (_huT : u ≤ T) (n : ℕ) :
     ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
       X.process (min ((↑(i : ℕ) + 1) * T / ↑(n + 1)) u) ω -
@@ -1634,7 +1635,7 @@ private theorem capped_increment_decomp_ae_core {F : Filtration Ω ℝ}
   rw [show (↑((i : ℕ) + 1) : ℝ) = (↑(i : ℕ) : ℝ) + 1 from by push_cast; ring] at hi1
   have h_nn := capped_nonneg T u hT.le hu n (i : ℕ)
   have h_mono := capped_mono T hT.le u n (i : ℕ)
-  have h_int := DR.drift_time_integrable ω _ (le_trans h_nn h_mono)
+  have h_int := h_drift_time_integrable ω _ (le_trans h_nn h_mono)
   have hsplit := setIntegral_Icc_split h_nn h_mono h_int
   linarith
 
@@ -1642,7 +1643,8 @@ private theorem capped_increment_decomp_ae_core {F : Filtration Ω ℝ}
 theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
-    (DR : ItoProcessDriftRegularity X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     (t : ℝ) (ht : 0 < t) (n : ℕ) :
     ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
       X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
@@ -1669,7 +1671,7 @@ theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
   have h_ti_nonneg : 0 ≤ ti := partition_time_nonneg t ht.le n (i : ℕ)
   have h_ti_le_ti1 : ti ≤ ti1 := partition_time_mono t ht.le n (i : ℕ)
   have h_int : IntegrableOn (fun s => X.drift s ω) (Icc 0 ti1) volume :=
-    DR.drift_time_integrable ω ti1 (le_trans h_ti_nonneg h_ti_le_ti1)
+    h_drift_time_integrable ω ti1 (le_trans h_ti_nonneg h_ti_le_ti1)
   have hsplit := setIntegral_Icc_split h_ti_nonneg h_ti_le_ti1 h_int
   have hcast : (↑((⟨(i : ℕ) + 1, Nat.succ_lt_succ i.isLt⟩ : Fin (n + 2)) : ℕ) : ℝ) =
       (↑(i : ℕ) : ℝ) + 1 := by
@@ -1870,7 +1872,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
       (capped_qv_partition_sum_core X T u hu huT n ω
         (D.diffusion_sq_time_integrable ω u hu))
   -- A.e. decomposition
-  have h_decomp := capped_increment_decomp_ae_core X DR T u hT hu huT n
+  have h_decomp := capped_increment_decomp_ae_core X DR.drift_time_integrable T u hT hu huT n
   -- Define drift/SI increments
   set ΔD : Fin (n + 1) → Ω → ℝ := fun i ω =>
     ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)), X.drift s ω ∂volume
@@ -2374,7 +2376,7 @@ theorem ito_process_increment_decomp_ae_core_ofRegularity {F : Filtration Ω ℝ
        X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
   simpa using
     (ito_process_increment_decomp_ae_core (X := X)
-      (DR := R.toDriftRegularity)
+      (h_drift_time_integrable := R.toDriftRegularity.drift_time_integrable)
       t ht n)
 
 /-- Regularity-first adapter for drift increment bound. -/
