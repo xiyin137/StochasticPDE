@@ -1695,7 +1695,7 @@ theorem ItoProcess.stoch_integral_squared_orthogonal {F : Filtration Ω ℝ}
   have hZ₂_int := compensated_sq_integrable' X s₂ t₂ hs₂ hst₂
   have hZ₂_sq_int := compensated_sq_sq_integrable' X hMσ s₂ t₂ hs₂ hst₂
   have hΔ₁_L4 := stoch_integral_increment_L4_integrable_proof X hMσ s₁ t₁ hs₁ hst₁
-  have hQ₁_bdd := diffusion_sq_integral_bound X hMσ s₁ t₁ hs₁ hst₁
+  have hQ₁_bdd := diffusion_sq_integral_bound X hMσ s₁ t₁ hst₁
   -- Δ₁²·Z₂ integrable (AM-GM: |ab| ≤ a² + b², Δ₁⁴ and Z₂² integrable)
   have hΔ₁_sq_Z₂_int : Integrable (fun ω =>
       (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω) μ := by

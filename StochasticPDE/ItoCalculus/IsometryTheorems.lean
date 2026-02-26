@@ -353,7 +353,7 @@ lemma compensated_sq_integrable' {F : Filtration Ω ℝ}
 lemma diffusion_sq_integral_bound {F : Filtration Ω ℝ}
     (X : ItoProcess F μ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
-    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (s t : ℝ) (hst : s ≤ t)
     (ω : Ω) :
     |∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume| ≤ Mσ ^ 2 * (t - s) := by
   rw [abs_of_nonneg (integral_nonneg_of_ae (ae_of_all _ fun u => sq_nonneg (X.diffusion u ω)))]
@@ -379,7 +379,7 @@ lemma compensated_sq_sq_integrable' {F : Filtration Ω ℝ}
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
   -- (a-b)² ≤ 2a² + 2b², so Z² ≤ 2·Δ⁴ + 2·Q²
   have hΔ4 := stoch_integral_increment_L4_integrable_proof X hMσ s t hs hst
-  have hQ_bdd := diffusion_sq_integral_bound X hMσ s t hs hst
+  have hQ_bdd := diffusion_sq_integral_bound X hMσ s t hst
   set C := Mσ ^ 2 * (t - s)
   -- AEStronglyMeasurable
   have hasm : AEStronglyMeasurable

@@ -59,7 +59,7 @@ theorem ItoProcess.weighted_compensated_orthogonal {F : Filtration Ω ℝ}
   have hZ₂_int := compensated_sq_integrable' X s₂ t₂ hs₂ hst₂
   have hZ₂_sq_int := compensated_sq_sq_integrable' X hMσ s₂ t₂ hs₂ hst₂
   have hΔ₁_L4 := stoch_integral_increment_L4_integrable_proof X hMσ s₁ t₁ hs₁ hst₁
-  have hQ₁_bdd := diffusion_sq_integral_bound X hMσ s₁ t₁ hs₁ hst₁
+  have hQ₁_bdd := diffusion_sq_integral_bound X hMσ s₁ t₁ hst₁
   -- φ₁, φ₂ are ambient-measurable
   have hφ₁_m := hφ₁_meas.mono (F.le_ambient s₂) le_rfl
   have hφ₂_m := hφ₂_meas.mono (F.le_ambient s₂) le_rfl
@@ -648,7 +648,7 @@ theorem weighted_capped_qv_L2_bound {F : Filtration Ω ℝ}
                         (integrable_const _)
                       intro ω; dsimp only
                       exact le_trans (le_abs_self _)
-                        (diffusion_sq_integral_bound X hMσ _ _ (hsc_nn _) (hsc_mono _) ω)
+                        (diffusion_sq_integral_bound X hMσ _ _ (hsc_mono _) ω)
                   _ = Mσ ^ 2 * (sc (↑i + 1) - sc ↑i) := by
                       rw [integral_const, smul_eq_mul,
                         show μ.real Set.univ = 1 from by

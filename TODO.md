@@ -200,6 +200,10 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Further tightened `ItoProcessCore.diffusion_sq_integral_bound_core`
   by dropping the unused nonnegativity hypothesis `0 ≤ s`
   (retaining only interval order `s ≤ t`)
+- Mirrored the same assumption-tightening in the legacy helper
+  `diffusion_sq_integral_bound` (removed unused `0 ≤ s`) and
+  updated all local call sites (`IsometryTheorems`,
+  `ConditionalIsometry`, `WeightedQVBound`)
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
