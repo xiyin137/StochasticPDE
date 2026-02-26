@@ -175,6 +175,10 @@ Introduced a compatibility-first split of Itô process assumptions:
   replacing it with explicit local assumptions for square-integrability
   of the two compensated increments; the regularity wrapper now supplies
   those assumptions from `compensated_sq_sq_integrable_core_ofRegularity`
+- Tightened `ItoProcessCore.compensated_sq_sq_integrable_core` by
+  dropping `DR` from its interface as well: it now consumes an explicit
+  local `Δ⁴` integrability premise, with the regularity wrapper deriving
+  that premise from `stoch_integral_increment_L4_integrable_proof`
 - Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.compensated_sq_setIntegral_zero` theorem body)

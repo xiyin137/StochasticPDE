@@ -663,20 +663,15 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
     (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t) :
+    Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ →
     Integrable (fun ω =>
       ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
-  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
-    simpa [Xp] using hMσ
-  have hΔ4 : Integrable (fun ω => (Xp.stoch_integral t ω - Xp.stoch_integral s ω) ^ 4) μ :=
-    stoch_integral_increment_L4_integrable_proof Xp hMσp s t hs hst
+  intro hΔ4
   have hQ_bdd := X.diffusion_sq_integral_bound_core hMσ s t hst
   set C0 := Mσ ^ 2 * (t - s)
   have hasm : AEStronglyMeasurable
@@ -685,8 +680,8 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core {F : Filtration Ω ℝ}
     (X.compensated_sq_integrable_core C D FC s t hs hst).aestronglyMeasurable.pow 2
   have hdom : Integrable
       (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4 + 2 * C0 ^ 2) μ := by
-    have h1 : Integrable (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ := by
-      simpa [Xp] using hΔ4.const_mul 2
+    have h1 : Integrable (fun ω => 2 * (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ :=
+      hΔ4.const_mul 2
     have h2 : Integrable (fun _ : Ω => 2 * C0 ^ 2) μ := integrable_const _
     exact h1.add h2
   exact hdom.mono' hasm (ae_of_all _ fun ω => by
@@ -775,10 +770,17 @@ lemma ItoProcessCore.compensated_sq_sq_integrable_core_ofRegularity {F : Filtrat
     Integrable (fun ω =>
       ((X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 -
        ∫ u in Icc s t, (X.diffusion u ω) ^ 2 ∂volume) ^ 2) μ := by
+  let Xp : ItoProcess F μ := X.toItoProcess R
+  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
+    intro t' ω
+    change |X.diffusion t' ω| ≤ Mσ
+    exact hMσ t' ω
+  have hΔ4 : Integrable (fun ω => (X.stoch_integral t ω - X.stoch_integral s ω) ^ 4) μ := by
+    simpa [Xp] using stoch_integral_increment_L4_integrable_proof Xp hMσp s t hs hst
   simpa using
     (X.compensated_sq_sq_integrable_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
-      hMσ s t hs hst)
+      hMσ s t hs hst hΔ4)
 
 end SPDE
