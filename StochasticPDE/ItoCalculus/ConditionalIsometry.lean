@@ -2260,20 +2260,54 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
            ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) *
           ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
            ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
   -- Convenience abbreviations and basic facts
+  set Q₁ := fun ω => ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume
+  set Z₁ := fun ω => (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 - Q₁ ω
   set Z₂ := fun ω => (X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
     ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume
   have hs₂ : 0 ≤ s₂ := le_trans (le_trans hs₁ hst₁) ht₁s₂
   have ht₁ : 0 ≤ t₁ := le_trans hs₁ hst₁
   -- Integrability
   have hΔ₁_sq_int := X.si_increment_sq_integrable_core C FC s₁ t₁ hs₁ hst₁
-  have hQ₁_int := X.diffusion_sq_interval_integrable_core D s₁ t₁ hs₁ hst₁
+  have hQ₁_int : Integrable Q₁ μ := by
+    simpa [Q₁] using X.diffusion_sq_interval_integrable_core D s₁ t₁ hs₁ hst₁
+  have hZ₁_sq_int : Integrable (fun ω => Z₁ ω ^ 2) μ := by
+    simpa [Z₁, Q₁] using X.compensated_sq_sq_integrable_core C DR D FC hMσ s₁ t₁ hs₁ hst₁
   have hZ₂_int := X.compensated_sq_integrable_core C D FC s₂ t₂ hs₂ hst₂
   have hZ₂_sq_int := X.compensated_sq_sq_integrable_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
-  have hΔ₁_L4 := stoch_integral_increment_L4_integrable_proof Xp hMσ s₁ t₁ hs₁ hst₁
-  have hQ₁_bdd := X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hst₁
+  have hQ₁_bdd : ∀ ω, |Q₁ ω| ≤ Mσ ^ 2 * (t₁ - s₁) := by
+    intro ω
+    simpa [Q₁] using X.diffusion_sq_integral_bound_core hMσ s₁ t₁ hst₁ ω
+  have hQ₁_sq_int : Integrable (fun ω => (Q₁ ω) ^ 2) μ := by
+    set C₁ := Mσ ^ 2 * (t₁ - s₁)
+    exact (integrable_const (C₁ ^ 2)).mono'
+      (hQ₁_int.aestronglyMeasurable.pow 2)
+      (ae_of_all _ fun ω => by
+        rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+        have hQ₁_le : |Q₁ ω| ≤ C₁ := by simpa [C₁] using hQ₁_bdd ω
+        calc (Q₁ ω) ^ 2 = |Q₁ ω| ^ 2 := (sq_abs _).symm
+          _ ≤ C₁ ^ 2 := pow_le_pow_left₀ (abs_nonneg _) hQ₁_le 2)
+  have hΔ₁_L4 : Integrable (fun ω =>
+      (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 4) μ := by
+    have hdom : Integrable (fun ω => 2 * Z₁ ω ^ 2 + 2 * (Q₁ ω) ^ 2) μ :=
+      (hZ₁_sq_int.const_mul 2).add (hQ₁_sq_int.const_mul 2)
+    have hΔ₁_int : Integrable (fun ω =>
+        X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) μ :=
+      (stoch_integral_integrable_core (X := X) C FC t₁ ht₁).sub
+        (stoch_integral_integrable_core (X := X) C FC s₁ hs₁)
+    have hΔ₁_L4_asm : AEStronglyMeasurable
+        (fun ω => (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 4) μ :=
+      hΔ₁_int.aestronglyMeasurable.pow 4
+    exact hdom.mono'
+      hΔ₁_L4_asm
+      (ae_of_all _ fun ω => by
+        have h4eq : (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 4 =
+            ((X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2) ^ 2 := by ring
+        rw [Real.norm_eq_abs, h4eq, abs_of_nonneg (sq_nonneg _)]
+        have hΔ₂ : (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 = Z₁ ω + Q₁ ω := by
+          simp [Z₁]
+        rw [hΔ₂]
+        nlinarith [sq_nonneg (Z₁ ω - Q₁ ω)])
   -- Δ₁²·Z₂ integrable (AM-GM: |ab| ≤ a² + b², Δ₁⁴ and Z₂² integrable)
   have hΔ₁_sq_Z₂_int : Integrable (fun ω =>
       (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω) μ := by
@@ -2291,8 +2325,7 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
         nlinarith [sq_nonneg ((X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 - |Z₂ ω|),
           sq_abs (Z₂ ω)])
   -- Q₁·Z₂ integrable (Q₁ bounded, Z₂ integrable)
-  have hQ₁_Z₂_int : Integrable (fun ω =>
-      (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω) μ := by
+  have hQ₁_Z₂_int : Integrable (fun ω => Q₁ ω * Z₂ ω) μ := by
     set C₁ := Mσ ^ 2 * (t₁ - s₁)
     exact (hZ₂_int.norm.const_mul C₁).mono'
       (hQ₁_int.aestronglyMeasurable.mul hZ₂_int.aestronglyMeasurable)
@@ -2306,14 +2339,16 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
       ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
        ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)) =
       (fun ω => (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω -
-        (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω) := by
-    ext ω; ring
+        Q₁ ω * Z₂ ω) := by
+    ext ω
+    simp [Q₁, Z₂]
+    ring
   rw [hdecomp, integral_sub hΔ₁_sq_Z₂_int hQ₁_Z₂_int]
   -- Step 2: E[Δ₁²·Z₂] = 0 by martingale orthogonality + conditional isometry
   have h_part1 : ∫ ω, (X.stoch_integral t₁ ω - X.stoch_integral s₁ ω) ^ 2 * Z₂ ω ∂μ = 0 := by
     apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s₂)
-    · exact ((Xp.stoch_integral_adapted t₁ ht₁).sub
-          ((Xp.stoch_integral_adapted s₁ hs₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
+    · exact ((stoch_integral_adapted_core (X := X) C FC t₁ ht₁).sub
+          ((stoch_integral_adapted_core (X := X) C FC s₁ hs₁).mono (F.mono s₁ t₁ hst₁) le_rfl)).pow_const 2
           |>.mono (F.mono t₁ s₂ ht₁s₂) le_rfl
     · exact hZ₂_int
     · exact hΔ₁_sq_Z₂_int

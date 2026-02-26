@@ -164,6 +164,12 @@ Introduced a compatibility-first split of Itô process assumptions:
 - Rewrote `ItoProcessCore.stoch_integral_squared_orthogonal_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.stoch_integral_squared_orthogonal` theorem body)
+- Removed local legacy reconstruction from
+  `ItoProcessCore.stoch_integral_squared_orthogonal_core` theorem body:
+  the `Δ₁²` measurability leg now uses `stoch_integral_adapted_core`,
+  and the local `Δ₁⁴` integrability bound is derived from core
+  compensated-square square-integrability plus deterministic diffusion
+  interval bounds
 - Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
   as a direct core proof (removed direct delegation to legacy
   `ItoProcess.compensated_sq_setIntegral_zero` theorem body)
