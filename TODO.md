@@ -193,25 +193,21 @@ Introduced a compatibility-first split of Itô process assumptions:
   removing direct legacy theorem-body delegation for these helpers
 - Reduced assumption load in QV helper interfaces by removing redundant
   split-bundle parameters from:
-  `ito_process_increment_decomp_ae_core` (keeps only drift regularity),
+  `ito_process_increment_decomp_ae_core`
+  (now explicit drift-time-integrability premise only),
   `drift_increment_bound_core`, `drift_sq_sum_bound_core`,
   and `qv_partition_sum_core`
-- Rewired key internal steps in `capped_ito_qv_L2_bound_core` to use
-  regularity-first core adapters for SI isometry, compensated-integrability,
-  and orthogonality (`*_core_ofRegularity`) via a local
-  `ItoProcessRegularity.ofSplit` bundle
-- Converted remaining QV local helper wrappers
-  (`stoch_integral_increment_L4_integrable_core`,
-  `stoch_integral_increment_L4_bound_core`,
-  `stoch_integral_measurable_core`,
-  `si_compensated_sq_L2_single_core`)
-  to regularity-first signatures and rewired
-  `capped_ito_qv_L2_bound_core` to call them through the local `R` bundle
-- Normalized remaining split-call sites in
-  `ito_process_discrete_qv_L2_convergence_core`,
-  `capped_discrete_qv_L2_convergence_core`, and `ito_formula_core`
-  to route split bundles through a local
-  `R := ItoProcessRegularity.ofSplit C DR D FC` projection
+- Tightened `si_compensated_sq_L2_single_core` by removing `R` from its
+  interface; it now consumes explicit local SI-increment L⁴ assumptions
+  (integrability + bound), with the regularity wrapper discharging both
+- Tightened the core QV L² theorem chain by removing `DR` from:
+  `capped_ito_qv_L2_bound_core`, `ito_qv_L2_bound_core`,
+  `ito_process_discrete_qv_L2_convergence_core`, and
+  `capped_discrete_qv_L2_convergence_core`; these now consume explicit
+  drift-time-integrability + SI-increment L⁴ premises
+- Rewired `capped_ito_qv_L2_bound_core` internals to use split-core
+  adapters directly (`C`, `D`, `FC`) for SI isometry,
+  compensated-integrability, and orthogonality (no local `R` projection)
 - Simplified `ItoProcessCore.diffusion_sq_integral_bound_core`
   to a direct assumption-light bound (removed split-bundle arguments),
   and updated dependent uses in `IsometryTheorems.lean` and

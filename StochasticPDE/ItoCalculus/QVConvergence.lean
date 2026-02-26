@@ -1554,16 +1554,6 @@ private lemma stoch_integral_increment_L4_bound_core {F : Filtration Ω ℝ}
     exact hMσ t ω
   simpa [Xp] using stoch_integral_increment_L4_bound_proof Xp hMσp s u hs hsu
 
-/-- Core wrapper for stochastic-integral measurability from split regularity bundles. -/
-private theorem stoch_integral_measurable_core {F : Filtration Ω ℝ}
-    [IsProbabilityMeasure μ]
-    (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
-    (t : ℝ) (ht : 0 ≤ t) :
-    Measurable (X.stoch_integral t) := by
-  let Xp : ItoProcess F μ := X.toItoProcess R
-  simpa [Xp] using Xp.stoch_integral_measurable t ht
-
 /-- Core version: QV(u) splits along capped partition times. -/
 private lemma capped_qv_partition_sum_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ) (T u : ℝ) (hu : 0 ≤ u) (huT : u ≤ T) (n : ℕ) (ω : Ω)
@@ -1754,9 +1744,13 @@ lemma qv_partition_sum_core {F : Filtration Ω ℝ}
 lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
-    (s u : ℝ) (hs : 0 ≤ s) (hsu : s ≤ u) :
+    (s u : ℝ) (_hs : 0 ≤ s) (hsu : s ≤ u)
+    (h_si_L4_integrable : Integrable
+      (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ)
+    (h_si_L4_bound :
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2) :
     ∫ ω,
       ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
        ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
@@ -1799,8 +1793,7 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
           have : (ΔSI ω ^ 2) ^ 2 = ΔSI ω ^ 4 := by ring
           linarith
   have hL4 : Integrable (fun ω => ΔSI ω ^ 4) μ := by
-    simpa [ΔSI] using
-      stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+    simpa [ΔSI] using h_si_L4_integrable
   have h_ub_int : Integrable (fun ω => 2 * ΔSI ω ^ 4 + 2 * (Mσ ^ 2 * (u - s)) ^ 2) μ :=
     (hL4.const_mul 2).add (integrable_const _)
   calc ∫ ω, (ΔSI ω ^ 2 - σ_int ω) ^ 2 ∂μ
@@ -1817,9 +1810,9 @@ lemma si_compensated_sq_L2_single_core {F : Filtration Ω ℝ}
           simp [Measure.real, measure_univ]]
         ring
     _ ≤ 2 * (3 * Mσ ^ 4 * (u - s) ^ 2) + 2 * (Mσ ^ 2 * (u - s)) ^ 2 := by
-        gcongr
-        simpa [ΔSI] using
-          stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
+        have hL4b : ∫ ω, ΔSI ω ^ 4 ∂μ ≤ 3 * Mσ ^ 4 * (u - s) ^ 2 := by
+          simpa [ΔSI] using h_si_L4_bound
+        linarith
     _ = 8 * Mσ ^ 4 * (u - s) ^ 2 := by ring
 
 set_option maxHeartbeats 400000 in
@@ -1828,11 +1821,17 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ)
+    (h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2)
     (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) (n : ℕ) :
     ∫ ω,
       (∑ i : Fin (n + 1),
@@ -1842,8 +1841,6 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
      24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
   have hn_pos : (0 : ℝ) < ↑(n + 1) := by positivity
-  have R : ItoProcessRegularity X :=
-    ItoProcessRegularity.ofSplit C DR D FC
   -- Abbreviate capped partition times
   set sc : ℕ → ℝ := fun i => min (↑i * T / ↑(n + 1)) u
   -- Bridge: sc (k+1) = min ((↑k + 1) * T / ↑(n+1)) u (unmatched by `set`)
@@ -1872,7 +1869,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
       (capped_qv_partition_sum_core X T u hu huT n ω
         (D.diffusion_sq_time_integrable ω u hu))
   -- A.e. decomposition
-  have h_decomp := capped_increment_decomp_ae_core X DR.drift_time_integrable T u hT hu huT n
+  have h_decomp := capped_increment_decomp_ae_core X h_drift_time_integrable T u hT hu huT n
   -- Define drift/SI increments
   set ΔD : Fin (n + 1) → Ω → ℝ := fun i ω =>
     ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)), X.drift s ω ∂volume
@@ -1925,22 +1922,26 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
   have hΔSI_sq_int : ∀ i : Fin (n + 1),
       Integrable (fun ω => (ΔSI i ω) ^ 2) μ := by
     intro i; simp only [ΔSI]
-    exact ItoProcessCore.si_increment_sq_integrable_core_ofRegularity
-      X R _ _ (hsc_nn _) (hsc_mono _)
+    exact X.si_increment_sq_integrable_core C FC _ _ (hsc_nn _) (hsc_mono _)
   -- Integrability: compensated Z² (from L⁴ domination)
   have hZ_sq_int : ∀ i : Fin (n + 1),
       Integrable (fun ω => ((ΔSI i ω) ^ 2 -
         ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
           (X.diffusion s ω) ^ 2 ∂volume) ^ 2) μ := by
-    intro i; simp only [ΔSI]
-    exact ItoProcessCore.compensated_sq_sq_integrable_core_ofRegularity
-      X R hMσ _ _ (hsc_nn _) (hsc_mono _)
+    intro i
+    simpa [ΔSI] using
+      (X.compensated_sq_sq_integrable_core C D FC hMσ _ _ (hsc_nn _) (hsc_mono _)
+        (h_si_L4_integrable _ _ (hsc_nn _) (hsc_mono _)))
   -- Strong measurability of ΔSI and ΔX
   have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
     intro i
     simp only [ΔSI]
-    have hsm1 := stoch_integral_measurable_core X R (sc ((i : ℕ) + 1)) (hsc_nn _)
-    have hsm0 := stoch_integral_measurable_core X R (sc (i : ℕ)) (hsc_nn _)
+    have hsm1 :=
+      (stoch_integral_adapted_core (X := X) C FC (sc ((i : ℕ) + 1)) (hsc_nn _)).mono
+        (F.le_ambient _) le_rfl
+    have hsm0 :=
+      (stoch_integral_adapted_core (X := X) C FC (sc (i : ℕ)) (hsc_nn _)).mono
+        (F.le_ambient _) le_rfl
     exact hsm1.stronglyMeasurable.sub hsm0.stronglyMeasurable
   have hΔX_sm : ∀ i : Fin (n + 1), StronglyMeasurable (fun ω =>
       X.process (sc ((i : ℕ) + 1)) ω - X.process (sc (i : ℕ)) ω) := by
@@ -1960,9 +1961,9 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
           Integrable (fun ω => (ΔSI k ω) ^ 2 -
             ∫ s in Icc (sc (k : ℕ)) (sc ((k : ℕ) + 1)),
               (X.diffusion s ω) ^ 2 ∂volume) μ := by
-        intro k; simp only [ΔSI]
-        exact ItoProcessCore.compensated_sq_integrable_core_ofRegularity
-          X R _ _ (hsc_nn _) (hsc_mono _)
+        intro k
+        simpa [ΔSI] using
+          (X.compensated_sq_integrable_core C D FC _ _ (hsc_nn _) (hsc_mono _))
       apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
         ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
       filter_upwards with ω
@@ -2132,8 +2133,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
                 ∑ i : Fin (n + 1), Mσ ^ 2 * (T / ↑(n + 1)) := by
               gcongr with i
               simp only [ΔSI]
-              rw [ItoProcessCore.stoch_integral_isometry_core_ofRegularity
-                X R _ _ (hsc_nn _) (hsc_mono _)]
+              rw [X.stoch_integral_isometry_core C D FC _ _ (hsc_nn _) (hsc_mono _)]
               calc ∫ ω, ∫ r in Icc _ _, (X.diffusion r ω) ^ 2 ∂volume ∂μ
                   ≤ ∫ ω, (Mσ ^ 2 * (T / ↑(n + 1))) ∂μ := by
                     apply integral_mono_of_nonneg
@@ -2168,9 +2168,9 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
         have hZZ_int : ∀ i j : Fin (n + 1), Integrable (fun ω => Z i ω * Z j ω) μ := by
           intro i j
           have hZk_int : ∀ k : Fin (n + 1), Integrable (Z k) μ := by
-            intro k; simp only [Z, ΔSI]
-            exact ItoProcessCore.compensated_sq_integrable_core_ofRegularity
-              X R _ _ (hsc_nn _) (hsc_mono _)
+            intro k
+            simpa [Z, ΔSI] using
+              (X.compensated_sq_integrable_core C D FC _ _ (hsc_nn _) (hsc_mono _))
           apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
             ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
           filter_upwards with ω
@@ -2191,14 +2191,22 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
           intro i j hij
           rcases Nat.lt_or_gt_of_ne (Fin.val_ne_of_ne hij) with h | h
           · simp only [Z, ΔSI]
-            exact ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity X R hMσ _ _ _ _
+            exact X.stoch_integral_squared_orthogonal_core
+              (C := C) (D := D) (FC := FC)
+              (hZ₁_sq_int := by simpa [Z, ΔSI] using hZ_sq_int i)
+              (hZ₂_sq_int := by simpa [Z, ΔSI] using hZ_sq_int j)
+              hMσ _ _ _ _
               (hsc_nn _) (hsc_mono _)
               (by exact_mod_cast capped_disjoint T hT.le u n i j h)
               (hsc_mono _)
           · rw [show (fun ω => Z i ω * Z j ω) = (fun ω => Z j ω * Z i ω) from by
                 ext ω; ring]
             simp only [Z, ΔSI]
-            exact ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity X R hMσ _ _ _ _
+            exact X.stoch_integral_squared_orthogonal_core
+              (C := C) (D := D) (FC := FC)
+              (hZ₁_sq_int := by simpa [Z, ΔSI] using hZ_sq_int j)
+              (hZ₂_sq_int := by simpa [Z, ΔSI] using hZ_sq_int i)
+              hMσ _ _ _ _
               (hsc_nn _) (hsc_mono _)
               (by exact_mod_cast capped_disjoint T hT.le u n j i h)
               (hsc_mono _)
@@ -2211,7 +2219,9 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
               apply Finset.sum_le_sum; intro i _; simp only [Z, ΔSI]
               calc ∫ ω, _ ^ 2 ∂μ
                   ≤ 8 * Mσ ^ 4 * (sc ((i : ℕ) + 1) - sc (i : ℕ)) ^ 2 :=
-                    si_compensated_sq_L2_single_core X R hMσ _ _ (hsc_nn _) (hsc_mono _)
+                    si_compensated_sq_L2_single_core X hMσ _ _ (hsc_nn _) (hsc_mono _)
+                      (h_si_L4_integrable _ _ (hsc_nn _) (hsc_mono _))
+                      (h_si_L4_bound _ _ (hsc_nn _) (hsc_mono _))
                 _ ≤ 8 * Mσ ^ 4 * (T / ↑(n + 1)) ^ 2 := by
                     gcongr
                     · exact sub_nonneg.mpr (hsc_mono _)
@@ -2240,11 +2250,17 @@ theorem ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ)
+    (h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2)
     (t : ℝ) (ht : 0 < t) (n : ℕ) :
     ∫ ω,
       (∑ i : Fin (n + 1),
@@ -2253,7 +2269,9 @@ theorem ito_qv_L2_bound_core {F : Filtration Ω ℝ}
        X.quadraticVariation t ω) ^ 2 ∂μ ≤
     (3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 +
      24 * Mσ ^ 4 * t ^ 2) / ↑(n + 1) := by
-  have h_cap := capped_ito_qv_L2_bound_core (X := X) C DR D FC hMμ hMσ t t ht ht.le le_rfl n
+  have h_cap := capped_ito_qv_L2_bound_core (X := X)
+    C D FC h_drift_time_integrable hMμ hMσ h_si_L4_integrable h_si_L4_bound
+    t t ht ht.le le_rfl n
   have hrew :
       (fun ω =>
         (∑ i : Fin (n + 1),
@@ -2298,11 +2316,17 @@ theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ)
+    (h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2)
     (t : ℝ) (ht : 0 < t) :
     Filter.Tendsto
       (fun n => ∫ ω,
@@ -2311,16 +2335,13 @@ theorem ito_process_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
          X.quadraticVariation t ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
-  have R : ItoProcessRegularity X :=
-    ItoProcessRegularity.ofSplit C DR D FC
   set Cst := 3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 + 24 * Mσ ^ 4 * t ^ 2
   apply squeeze_zero
   · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
   · intro n
     exact ito_qv_L2_bound_core X
-      R.toConstruction R.toDriftRegularity
-      R.toDiffusionRegularity R.toFiltrationCompatibility
-      hMμ hMσ t ht n
+      C D FC h_drift_time_integrable hMμ hMσ h_si_L4_integrable h_si_L4_bound
+      t ht n
   · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
         (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
       ext n; rw [Nat.cast_succ]; ring
@@ -2332,11 +2353,17 @@ theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
+    (h_drift_time_integrable : ∀ ω (t : ℝ), 0 ≤ t →
+      IntegrableOn (fun s => X.drift s ω) (Icc 0 t) volume)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ)
+    (h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2)
     (T u : ℝ) (hT : 0 < T) (hu : 0 ≤ u) (huT : u ≤ T) :
     Filter.Tendsto
       (fun n => ∫ ω,
@@ -2345,16 +2372,13 @@ theorem capped_discrete_qv_L2_convergence_core {F : Filtration Ω ℝ}
            X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
          X.quadraticVariation u ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
-  have R : ItoProcessRegularity X :=
-    ItoProcessRegularity.ofSplit C DR D FC
   set Cst := 3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 + 24 * Mσ ^ 4 * T ^ 2
   apply squeeze_zero
   · intro n; exact integral_nonneg (fun ω => sq_nonneg _)
   · intro n
     exact capped_ito_qv_L2_bound_core X
-      R.toConstruction R.toDriftRegularity
-      R.toDiffusionRegularity R.toFiltrationCompatibility
-      hMμ hMσ T u hT hu huT n
+      C D FC h_drift_time_integrable hMμ hMσ h_si_L4_integrable h_si_L4_bound
+      T u hT hu huT n
   · have h : (fun n : ℕ => Cst / (↑(n + 1) : ℝ)) =
         (fun n : ℕ => Cst * (1 / ((↑n : ℝ) + 1))) := by
       ext n; rw [Nat.cast_succ]; ring
@@ -2426,10 +2450,16 @@ lemma si_compensated_sq_L2_single_core_ofRegularity {F : Filtration Ω ℝ}
       ((X.stoch_integral u ω - X.stoch_integral s ω) ^ 2 -
        ∫ r in Icc s u, (X.diffusion r ω) ^ 2 ∂volume) ^ 2 ∂μ ≤
     8 * Mσ ^ 4 * (u - s) ^ 2 := by
+  have h_si_L4_integrable :
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+    simpa using stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+  have h_si_L4_bound :
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2 := by
+    simpa using stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
   simpa using
     (si_compensated_sq_L2_single_core (X := X)
-      (R := R)
-      hMσ s u hs hsu)
+      hMσ s u hs hsu h_si_L4_integrable h_si_L4_bound)
 
 /-- Regularity-first adapter for capped discrete QV L² bound. -/
 theorem capped_ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
@@ -2446,11 +2476,21 @@ theorem capped_ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
        X.quadraticVariation u ω) ^ 2 ∂μ ≤
     (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
      24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
+  have h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+  have h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2 := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
   simpa using
     (capped_ito_qv_L2_bound_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
-      hMμ hMσ T u hT hu huT n)
+      (h_drift_time_integrable := R.toDriftRegularity.drift_time_integrable)
+      hMμ hMσ h_si_L4_integrable h_si_L4_bound T u hT hu huT n)
 
 /-- Regularity-first adapter for endpoint discrete QV L² bound. -/
 theorem ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
@@ -2467,11 +2507,21 @@ theorem ito_qv_L2_bound_core_ofRegularity {F : Filtration Ω ℝ}
        X.quadraticVariation t ω) ^ 2 ∂μ ≤
     (3 * Mμ ^ 4 * t ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * t ^ 3 +
      24 * Mσ ^ 4 * t ^ 2) / ↑(n + 1) := by
+  have h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+  have h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2 := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
   simpa using
     (ito_qv_L2_bound_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
-      hMμ hMσ t ht n)
+      (h_drift_time_integrable := R.toDriftRegularity.drift_time_integrable)
+      hMμ hMσ h_si_L4_integrable h_si_L4_bound t ht n)
 
 /-- Regularity-first adapter for discrete QV convergence in L². -/
 theorem ito_process_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration Ω ℝ}
@@ -2488,11 +2538,21 @@ theorem ito_process_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration
            X.process (↑(i : ℕ) * t / ↑(n + 1)) ω) ^ 2 -
          X.quadraticVariation t ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
+  have h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+  have h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2 := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
   simpa using
     (ito_process_discrete_qv_L2_convergence_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
-      hMμ hMσ t ht)
+      (h_drift_time_integrable := R.toDriftRegularity.drift_time_integrable)
+      hMμ hMσ h_si_L4_integrable h_si_L4_bound t ht)
 
 /-- Regularity-first adapter for capped discrete QV convergence in L². -/
 theorem capped_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration Ω ℝ}
@@ -2509,10 +2569,20 @@ theorem capped_discrete_qv_L2_convergence_core_ofRegularity {F : Filtration Ω �
            X.process (min (↑(i : ℕ) * T / ↑(n + 1)) u) ω) ^ 2 -
          X.quadraticVariation u ω) ^ 2 ∂μ)
       Filter.atTop (nhds 0) := by
+  have h_si_L4_integrable : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      Integrable (fun ω => (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4) μ := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_integrable_core X R hMσ s u hs hsu
+  have h_si_L4_bound : ∀ s u : ℝ, 0 ≤ s → s ≤ u →
+      ∫ ω, (X.stoch_integral u ω - X.stoch_integral s ω) ^ 4 ∂μ ≤
+        3 * Mσ ^ 4 * (u - s) ^ 2 := by
+    intro s u hs hsu
+    simpa using stoch_integral_increment_L4_bound_core X R hMσ s u hs hsu
   simpa using
     (capped_discrete_qv_L2_convergence_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
-      hMμ hMσ T u hT hu huT)
+      (h_drift_time_integrable := R.toDriftRegularity.drift_time_integrable)
+      hMμ hMσ h_si_L4_integrable h_si_L4_bound T u hT hu huT)
 
 end SPDE
