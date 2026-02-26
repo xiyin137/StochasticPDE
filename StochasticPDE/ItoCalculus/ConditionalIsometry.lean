@@ -363,6 +363,344 @@ private theorem sq_L1_tendsto_of_L2 {F : Filtration Ω ℝ}
     h_upper
     h_upper_tends
 
+/-- Core L¹ convergence of the compensated square:
+    `∫ |SI_n(t)² - SI(t)²| → 0` from core L² convergence SI_n → SI. -/
+private theorem sq_L1_tendsto_of_L2_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) [IsProbabilityMeasure μ]
+    (C : ItoProcessConstruction X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (approx : ℕ → SimpleProcess F)
+    (hadapted : ∀ n, ∀ i : Fin (approx n).n,
+      @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i))
+    (hbdd : ∀ n, ∀ i : Fin (approx n).n, ∃ C : ℝ, ∀ ω, |(approx n).values i ω| ≤ C)
+    (hnn : ∀ n, ∀ i : Fin (approx n).n, 0 ≤ (approx n).times i)
+    (t : ℝ) (ht : 0 ≤ t)
+    (hL2 : Tendsto (fun n => ∫ ω, (SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω -
+                                     X.stoch_integral t ω)^2 ∂μ)
+      atTop (nhds 0)) :
+    Tendsto (fun n => ∫ ω,
+      ‖(SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω)^2 -
+       (X.stoch_integral t ω)^2‖ ∂μ)
+      atTop (nhds 0) := by
+  set a := fun n ω => SimpleProcess.stochasticIntegral_at (approx n) X.BM t ω
+  set b := fun ω => X.stoch_integral t ω
+  set ε := fun n => ∫ ω, (a n ω - b ω) ^ 2 ∂μ
+  set C0 := ∫ ω, (b ω) ^ 2 ∂μ
+  have hb_sq : Integrable (fun ω => (b ω) ^ 2) μ :=
+    stoch_integral_sq_integrable_core (X := X) C FC t ht
+  have hb_int : Integrable b μ :=
+    stoch_integral_integrable_core (X := X) C FC t ht
+  have ha_int : ∀ n, Integrable (a n) μ := fun n =>
+    SimpleProcess.stochasticIntegral_at_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t ht
+  have hdiff_sq : ∀ n, Integrable (fun ω => (a n ω - b ω) ^ 2) μ := fun n =>
+    SimpleProcess.stochasticIntegral_at_sub_sq_integrable _ X.BM
+      (hadapted n) (hbdd n) (hnn n) b hb_int hb_sq t ht
+  have h_pw : ∀ n ω, ‖(a n ω) ^ 2 - (b ω) ^ 2‖ ≤
+      (a n ω - b ω) ^ 2 + 2 * (|a n ω - b ω| * |b ω|) := by
+    intro n ω
+    rw [Real.norm_eq_abs]
+    have : (a n ω) ^ 2 - (b ω) ^ 2 = (a n ω - b ω) * (a n ω + b ω) := by ring
+    rw [this, abs_mul]
+    have h1 : |a n ω + b ω| ≤ |a n ω - b ω| + 2 * |b ω| := by
+      calc |a n ω + b ω| = |(a n ω - b ω) + 2 * b ω| := by ring_nf
+        _ ≤ |a n ω - b ω| + |2 * b ω| := abs_add_le _ _
+        _ = |a n ω - b ω| + 2 * |b ω| := by rw [abs_mul, abs_of_pos (by norm_num : (2:ℝ) > 0)]
+    calc |a n ω - b ω| * |a n ω + b ω|
+        ≤ |a n ω - b ω| * (|a n ω - b ω| + 2 * |b ω|) := by gcongr
+      _ = |a n ω - b ω| ^ 2 + 2 * (|a n ω - b ω| * |b ω|) := by
+          rw [show |a n ω - b ω| ^ 2 = |a n ω - b ω| * |a n ω - b ω| from sq _]; ring
+      _ = (a n ω - b ω) ^ 2 + 2 * (|a n ω - b ω| * |b ω|) := by rw [sq_abs]
+  have h_upper : ∀ n, ∫ ω, ‖(a n ω) ^ 2 - (b ω) ^ 2‖ ∂μ ≤
+      ε n + 2 * Real.sqrt (ε n) * Real.sqrt C0 := by
+    intro n
+    have h_abs_prod : Integrable (fun ω => |a n ω - b ω| * |b ω|) μ :=
+      ((hdiff_sq n).add hb_sq).mono'
+        (AEStronglyMeasurable.mul
+          (((ha_int n).sub hb_int).aestronglyMeasurable.norm.congr
+            (ae_of_all _ fun ω => Real.norm_eq_abs _))
+          (hb_int.aestronglyMeasurable.norm.congr
+            (ae_of_all _ fun ω => Real.norm_eq_abs _)))
+        (ae_of_all _ fun ω => by
+          simp only [Pi.add_apply, Real.norm_eq_abs, abs_mul, abs_abs]
+          nlinarith [sq_abs (a n ω - b ω), sq_abs (b ω),
+            sq_nonneg (|a n ω - b ω| - |b ω|)])
+    have h_int_bound : ∫ ω, ‖(a n ω) ^ 2 - (b ω) ^ 2‖ ∂μ ≤
+        ε n + 2 * ∫ ω, |a n ω - b ω| * |b ω| ∂μ := by
+      calc ∫ ω, ‖(a n ω) ^ 2 - (b ω) ^ 2‖ ∂μ
+          ≤ ∫ ω, ((a n ω - b ω) ^ 2 + 2 * (|a n ω - b ω| * |b ω|)) ∂μ :=
+            integral_mono_of_nonneg (ae_of_all _ fun ω => norm_nonneg _)
+              ((hdiff_sq n).add (h_abs_prod.const_mul 2))
+              (ae_of_all _ (h_pw n))
+        _ = ε n + 2 * ∫ ω, |a n ω - b ω| * |b ω| ∂μ := by
+            rw [integral_add (hdiff_sq n) (h_abs_prod.const_mul 2),
+              integral_const_mul]
+    have h_cs : ∫ ω, |a n ω - b ω| * |b ω| ∂μ ≤
+        Real.sqrt (ε n) * Real.sqrt C0 := by
+      have h_nn : 0 ≤ ∫ ω, |a n ω - b ω| * |b ω| ∂μ :=
+        integral_nonneg fun ω => mul_nonneg (abs_nonneg _) (abs_nonneg _)
+      suffices hsq : (∫ ω, |a n ω - b ω| * |b ω| ∂μ) ^ 2 ≤ ε n * C0 by
+        rw [← Real.sqrt_sq h_nn, ← Real.sqrt_mul (integral_nonneg fun ω => sq_nonneg _)]
+        exact Real.sqrt_le_sqrt hsq
+      have habs_sq : ∀ x : ℝ, |x| ^ 2 = x ^ 2 := fun x => sq_abs x
+      calc (∫ ω, |a n ω - b ω| * |b ω| ∂μ) ^ 2
+          ≤ (∫ ω, (|a n ω - b ω|) ^ 2 ∂μ) * (∫ ω, (|b ω|) ^ 2 ∂μ) :=
+            integral_cauchy_schwarz_sq
+              ((hdiff_sq n).congr (ae_of_all _ fun ω => (habs_sq _).symm))
+              (hb_sq.congr (ae_of_all _ fun ω => (habs_sq _).symm))
+              h_abs_prod
+        _ = ε n * C0 := by
+            congr 1 <;> exact integral_congr_ae (ae_of_all _ fun ω => habs_sq _)
+    linarith
+  have h_upper_tends : Tendsto (fun n => ε n + 2 * Real.sqrt (ε n) * Real.sqrt C0)
+      atTop (nhds 0) := by
+    have h_sqrt_ε : Tendsto (fun n => Real.sqrt (ε n)) atTop (nhds 0) := by
+      have := (Real.continuous_sqrt.tendsto 0).comp hL2
+      rwa [Function.comp_def, Real.sqrt_zero] at this
+    have : (0 : ℝ) = 0 + 2 * 0 * Real.sqrt C0 := by ring
+    rw [this]
+    exact hL2.add ((h_sqrt_ε.const_mul 2).mul_const _)
+  exact squeeze_zero
+    (fun n => integral_nonneg fun ω => norm_nonneg _)
+    h_upper
+    h_upper_tends
+
+/-- L¹ convergence of the diffusion integral:
+    ∫ |∫₀ᵗ Hₙ² - ∫₀ᵗ σ²| → 0 from integrand L² convergence.
+
+    Strategy: |∫ Hₙ² - ∫ σ²| ≤ ∫ |Hₙ²-σ²| ≤ ∫(Hₙ-σ)² + 2Mσ·∫|Hₙ-σ|
+    ≤ δₙ(ω) + 2Mσ√t·√δₙ(ω) where δₙ = ∫(Hₙ-σ)².
+    Then E[δₙ] → 0 and E[√δₙ] ≤ √E[δₙ] → 0 by Jensen. -/
+private theorem diffusion_integral_L1_tendsto_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) [IsProbabilityMeasure μ]
+    (D : ItoProcessDiffusionRegularity X)
+    (approx : ℕ → SimpleProcess F)
+    (hbdd : ∀ n, ∀ i : Fin (approx n).n, ∃ C : ℝ, ∀ ω, |(approx n).values i ω| ≤ C)
+    {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
+    (t : ℝ) (ht : 0 ≤ t)
+    (hL2_int : Tendsto
+      (fun n => ∫ ω, (∫ s in Icc 0 t,
+        (SimpleProcess.valueAtTime (approx n) s ω - X.diffusion s ω) ^ 2 ∂volume) ∂μ)
+      atTop (nhds 0)) :
+    Tendsto (fun n => ∫ ω,
+      ‖(∫ s in Icc 0 t, (SimpleProcess.valueAtTime (approx n) s ω)^2 ∂volume) -
+       (∫ s in Icc 0 t, (X.diffusion s ω)^2 ∂volume)‖ ∂μ)
+      atTop (nhds 0) := by
+  set H := fun n s ω => SimpleProcess.valueAtTime (approx n) s ω
+  set σ := fun s ω => X.diffusion s ω
+  set δ := fun n ω => ∫ s in Icc 0 t, (H n s ω - σ s ω) ^ 2 ∂volume
+  set ε := fun n => ∫ ω, δ n ω ∂μ
+  haveI : Nonempty Ω := nonempty_of_isProbabilityMeasure μ
+  have hMσ_nn : 0 ≤ Mσ := le_trans (abs_nonneg _) (hMσ 0 (Classical.arbitrary Ω))
+  have h_pw : ∀ n ω,
+      ‖(∫ s in Icc 0 t, (H n s ω)^2 ∂volume) -
+       (∫ s in Icc 0 t, (σ s ω)^2 ∂volume)‖ ≤
+      δ n ω + 2 * Mσ * Real.sqrt t * Real.sqrt (δ n ω) := by
+    intro n ω
+    have hσ_meas : Measurable (fun s => σ s ω) :=
+      D.diffusion_jointly_measurable.comp (measurable_id.prodMk measurable_const)
+    have hH_meas : Measurable (fun s => H n s ω) :=
+      (SimpleProcess.valueAtTime_jointly_measurable (approx n)).comp
+        (measurable_id.prodMk measurable_const)
+    haveI h_fin : IsFiniteMeasure (volume.restrict (Icc (0:ℝ) t)) :=
+      ⟨by rw [Measure.restrict_apply_univ]; exact measure_Icc_lt_top⟩
+    obtain ⟨MH, hMH_nn, hMH⟩ : ∃ M : ℝ, 0 ≤ M ∧ ∀ s, |H n s ω| ≤ M := by
+      refine ⟨(∑ j : Fin (approx n).n, |(approx n).values j ω|) + 1,
+        add_nonneg (Finset.sum_nonneg fun j _ => abs_nonneg _) one_pos.le, fun s => ?_⟩
+      show |SimpleProcess.valueAtTime (approx n) s ω| ≤ _
+      unfold SimpleProcess.valueAtTime; split
+      · next h =>
+        exact le_trans (Finset.single_le_sum (fun j _ => abs_nonneg ((approx n).values j ω))
+          (Finset.mem_univ h.choose)) (le_add_of_nonneg_right one_pos.le)
+      · simp; exact add_nonneg (Finset.sum_nonneg fun j _ => abs_nonneg _) one_pos.le
+    have hH_sq_int : IntegrableOn (fun s => (H n s ω)^2) (Icc 0 t) volume :=
+      (integrable_const (MH^2)).mono'
+        ((hH_meas.pow_const 2).stronglyMeasurable.aestronglyMeasurable)
+        (ae_of_all _ fun s => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+          calc (H n s ω)^2 = |H n s ω|^2 := (sq_abs _).symm
+            _ ≤ MH^2 := pow_le_pow_left₀ (abs_nonneg _) (hMH s) 2)
+    have hσ_sq_int : IntegrableOn (fun s => (σ s ω)^2) (Icc 0 t) volume :=
+      D.diffusion_sq_time_integrable ω t ht
+    have hd_sq_int : IntegrableOn (fun s => (H n s ω - σ s ω)^2) (Icc 0 t) volume :=
+      (integrable_const ((MH + Mσ)^2)).mono'
+        (((hH_meas.sub hσ_meas).pow_const 2).stronglyMeasurable.aestronglyMeasurable)
+        (ae_of_all _ fun s => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+          calc (H n s ω - σ s ω)^2 = |H n s ω - σ s ω|^2 := (sq_abs _).symm
+            _ ≤ (MH + Mσ)^2 := by
+                apply pow_le_pow_left₀ (abs_nonneg _)
+                calc |H n s ω - σ s ω|
+                    ≤ |H n s ω| + |σ s ω| := by
+                      rw [show H n s ω - σ s ω = H n s ω + (-(σ s ω)) from sub_eq_add_neg _ _]
+                      exact (abs_add_le _ _).trans (by rw [abs_neg])
+                  _ ≤ MH + Mσ := add_le_add (hMH s) (hMσ s ω))
+    have hd_abs_int : IntegrableOn (fun s => |H n s ω - σ s ω|) (Icc 0 t) volume :=
+      (integrable_const (MH + Mσ)).mono'
+        ((hH_meas.sub hσ_meas).stronglyMeasurable.aestronglyMeasurable.norm)
+        (ae_of_all _ fun s => by
+          rw [Real.norm_eq_abs, abs_abs]
+          calc |H n s ω - σ s ω|
+              ≤ |H n s ω| + |σ s ω| := by
+                rw [show H n s ω - σ s ω = H n s ω + (-(σ s ω)) from sub_eq_add_neg _ _]
+                exact (abs_add_le _ _).trans (by rw [abs_neg])
+            _ ≤ MH + Mσ := add_le_add (hMH s) (hMσ s ω))
+    have h_step1 : ‖(∫ s in Icc 0 t, (H n s ω)^2 ∂volume) -
+        (∫ s in Icc 0 t, (σ s ω)^2 ∂volume)‖ ≤
+        ∫ s in Icc 0 t, ‖(H n s ω)^2 - (σ s ω)^2‖ ∂volume := by
+      rw [← integral_sub hH_sq_int hσ_sq_int]
+      exact norm_integral_le_integral_norm _
+    have h_step2 : ∫ s in Icc 0 t, ‖(H n s ω)^2 - (σ s ω)^2‖ ∂volume ≤
+        δ n ω + 2 * Mσ * ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume := by
+      calc ∫ s in Icc 0 t, ‖(H n s ω)^2 - (σ s ω)^2‖ ∂volume
+          ≤ ∫ s in Icc 0 t, ((H n s ω - σ s ω)^2 +
+            2 * Mσ * |H n s ω - σ s ω|) ∂volume := by
+              apply integral_mono_of_nonneg
+                (ae_of_all _ fun s => norm_nonneg _)
+                (hd_sq_int.add (hd_abs_int.const_mul (2 * Mσ)))
+                (ae_of_all _ fun s => by
+                  simp only [Pi.add_apply]
+                  rw [Real.norm_eq_abs]
+                  have h_factor : (H n s ω)^2 - (σ s ω)^2 =
+                      (H n s ω - σ s ω) * (H n s ω + σ s ω) := by ring
+                  rw [h_factor, abs_mul]
+                  have h_bound_sum : |H n s ω + σ s ω| ≤
+                      |H n s ω - σ s ω| + 2 * Mσ := by
+                    calc |H n s ω + σ s ω|
+                        = |(H n s ω - σ s ω) + 2 * σ s ω| := by ring_nf
+                      _ ≤ |H n s ω - σ s ω| + |2 * σ s ω| := abs_add_le _ _
+                      _ = |H n s ω - σ s ω| + 2 * |σ s ω| := by
+                          rw [abs_mul, abs_of_pos (by norm_num : (2:ℝ) > 0)]
+                      _ ≤ |H n s ω - σ s ω| + 2 * Mσ := by linarith [hMσ s ω]
+                  calc |H n s ω - σ s ω| * |H n s ω + σ s ω|
+                      ≤ |H n s ω - σ s ω| * (|H n s ω - σ s ω| + 2 * Mσ) :=
+                        mul_le_mul_of_nonneg_left h_bound_sum (abs_nonneg _)
+                    _ = |H n s ω - σ s ω| ^ 2 + 2 * Mσ * |H n s ω - σ s ω| := by ring
+                    _ = (H n s ω - σ s ω) ^ 2 + 2 * Mσ * |H n s ω - σ s ω| := by
+                        rw [sq_abs])
+        _ = δ n ω + 2 * Mσ * ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume := by
+            rw [integral_add hd_sq_int (hd_abs_int.const_mul _), integral_const_mul]
+    have h_step3 : ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume ≤
+        Real.sqrt t * Real.sqrt (δ n ω) := by
+      have h_nn : 0 ≤ ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume :=
+        integral_nonneg_of_ae (ae_of_all _ fun s => abs_nonneg _)
+      suffices hsq : (∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume) ^ 2 ≤
+          t * δ n ω by
+        calc ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume
+            = Real.sqrt ((∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume) ^ 2) :=
+              (Real.sqrt_sq h_nn).symm
+          _ ≤ Real.sqrt (t * δ n ω) := Real.sqrt_le_sqrt hsq
+          _ = Real.sqrt t * Real.sqrt (δ n ω) := Real.sqrt_mul ht _
+      have h_one_sq : ∫ s in Icc 0 t, (1:ℝ)^2 ∂volume = t := by
+        simp [one_pow, integral_const]; linarith
+      have hcs := @integral_cauchy_schwarz_sq _ _ (volume.restrict (Icc (0:ℝ) t))
+        (fun s => |H n s ω - σ s ω|) (fun _ => (1:ℝ))
+        (hd_sq_int.congr (ae_of_all _ fun s => (sq_abs _).symm))
+        (integrable_const _)
+        (hd_abs_int.congr (ae_of_all _ fun s => (mul_one _).symm))
+      have hmul : ∫ s in Icc 0 t, |H n s ω - σ s ω| * (1:ℝ) ∂volume =
+          ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume :=
+        integral_congr_ae (ae_of_all _ fun s => mul_one _)
+      have habs_sq : ∫ s in Icc 0 t, |H n s ω - σ s ω| ^ 2 ∂volume = δ n ω :=
+        integral_congr_ae (ae_of_all _ fun s => sq_abs _)
+      rw [hmul, habs_sq, h_one_sq] at hcs
+      linarith
+    have h_mul : 2 * Mσ * ∫ s in Icc 0 t, |H n s ω - σ s ω| ∂volume ≤
+        2 * Mσ * (Real.sqrt t * Real.sqrt (δ n ω)) :=
+      mul_le_mul_of_nonneg_left h_step3 (by positivity)
+    linarith
+  have h_upper : ∀ n, ∫ ω,
+      ‖(∫ s in Icc 0 t, (H n s ω)^2 ∂volume) -
+       (∫ s in Icc 0 t, (σ s ω)^2 ∂volume)‖ ∂μ ≤
+      ε n + 2 * Mσ * Real.sqrt t * Real.sqrt (ε n) := by
+    intro n
+    obtain ⟨CH, hCH_nn, hCH⟩ :=
+      SimpleProcess.valueAtTime_uniform_bounded (approx n) (hbdd n)
+    have hδ_nn : ∀ ω, 0 ≤ δ n ω := fun ω => integral_nonneg fun s => sq_nonneg _
+    haveI h_fin_icc : IsFiniteMeasure (volume.restrict (Icc (0:ℝ) t)) :=
+      ⟨by rw [Measure.restrict_apply_univ]; exact measure_Icc_lt_top⟩
+    have hδ_bound : ∀ ω, δ n ω ≤ (CH + Mσ) ^ 2 * t := by
+      intro ω
+      calc δ n ω
+          ≤ ∫ s in Icc 0 t, (CH + Mσ) ^ 2 ∂volume := by
+            apply integral_mono_of_nonneg (ae_of_all _ fun s => sq_nonneg _)
+              (integrable_const _)
+              (ae_of_all _ fun s => by
+                calc (H n s ω - σ s ω) ^ 2 = |H n s ω - σ s ω| ^ 2 := (sq_abs _).symm
+                  _ ≤ (CH + Mσ) ^ 2 := by
+                      apply pow_le_pow_left₀ (abs_nonneg _)
+                      exact (abs_sub _ _).trans (add_le_add (hCH s ω) (hMσ s ω)))
+        _ = (CH + Mσ) ^ 2 * t := by
+            rw [integral_const, smul_eq_mul, mul_comm]
+            congr 1
+            rw [Measure.real, Measure.restrict_apply_univ, Real.volume_Icc,
+              ENNReal.toReal_ofReal (by linarith : (0:ℝ) ≤ t - 0), sub_zero]
+    have hd_sq_sm : StronglyMeasurable
+        (fun p : Ω × ℝ => (H n p.2 p.1 - σ p.2 p.1) ^ 2) :=
+      (((SimpleProcess.valueAtTime_jointly_measurable (approx n)).comp
+          measurable_swap).sub
+        (D.diffusion_jointly_measurable.comp measurable_swap)).pow_const 2
+      |>.stronglyMeasurable
+    have hδ_sm : StronglyMeasurable (δ n) :=
+      hd_sq_sm.integral_prod_right' (ν := volume.restrict (Icc (0:ℝ) t))
+    have hδ_int : Integrable (δ n) μ :=
+      (integrable_const ((CH + Mσ) ^ 2 * t)).mono' hδ_sm.aestronglyMeasurable
+        (ae_of_all _ fun ω => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (hδ_nn ω)]; exact hδ_bound ω)
+    have hsqrtδ_sm : StronglyMeasurable (fun ω => Real.sqrt (δ n ω)) :=
+      Real.continuous_sqrt.comp_stronglyMeasurable hδ_sm
+    have hsqrtδ_int : Integrable (fun ω => Real.sqrt (δ n ω)) μ :=
+      (integrable_const ((CH + Mσ) * Real.sqrt t)).mono' hsqrtδ_sm.aestronglyMeasurable
+        (ae_of_all _ fun ω => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg _)]
+          calc Real.sqrt (δ n ω) ≤ Real.sqrt ((CH + Mσ) ^ 2 * t) :=
+                Real.sqrt_le_sqrt (hδ_bound ω)
+            _ = (CH + Mσ) * Real.sqrt t := by
+                rw [Real.sqrt_mul (sq_nonneg _), Real.sqrt_sq (by positivity)])
+    have h_int_bound : ∫ ω, ‖(∫ s in Icc 0 t, (H n s ω)^2 ∂volume) -
+        (∫ s in Icc 0 t, (σ s ω)^2 ∂volume)‖ ∂μ ≤
+        ε n + 2 * Mσ * Real.sqrt t * ∫ ω, Real.sqrt (δ n ω) ∂μ := by
+      calc ∫ ω, ‖(∫ s in Icc 0 t, (H n s ω)^2 ∂volume) -
+              (∫ s in Icc 0 t, (σ s ω)^2 ∂volume)‖ ∂μ
+          ≤ ∫ ω, (δ n ω + 2 * Mσ * Real.sqrt t * Real.sqrt (δ n ω)) ∂μ :=
+            integral_mono_of_nonneg (ae_of_all _ fun ω => norm_nonneg _)
+              (hδ_int.add (hsqrtδ_int.const_mul (2 * Mσ * Real.sqrt t)))
+              (ae_of_all _ fun ω => h_pw n ω)
+        _ = ε n + 2 * Mσ * Real.sqrt t * ∫ ω, Real.sqrt (δ n ω) ∂μ := by
+            rw [integral_add hδ_int (hsqrtδ_int.const_mul _), integral_const_mul]
+    have h_jensen : ∫ ω, Real.sqrt (δ n ω) ∂μ ≤ Real.sqrt (ε n) := by
+      have h_nn_int : 0 ≤ ∫ ω, Real.sqrt (δ n ω) ∂μ :=
+        integral_nonneg fun ω => Real.sqrt_nonneg _
+      suffices hsq : (∫ ω, Real.sqrt (δ n ω) ∂μ) ^ 2 ≤ ε n by
+        calc ∫ ω, Real.sqrt (δ n ω) ∂μ
+            = Real.sqrt ((∫ ω, Real.sqrt (δ n ω) ∂μ) ^ 2) :=
+              (Real.sqrt_sq h_nn_int).symm
+          _ ≤ Real.sqrt (ε n) := Real.sqrt_le_sqrt hsq
+      have h_sq_sqrt_eq : ∀ ω, Real.sqrt (δ n ω) ^ 2 = δ n ω :=
+        fun ω => Real.sq_sqrt (hδ_nn ω)
+      have hcs := sq_integral_abs_le_integral_sq hsqrtδ_int
+        (hδ_int.congr (ae_of_all _ fun ω => (h_sq_sqrt_eq ω).symm))
+      have h_abs_sqrt : ∫ ω, |Real.sqrt (δ n ω)| ∂μ = ∫ ω, Real.sqrt (δ n ω) ∂μ :=
+        integral_congr_ae (ae_of_all _ fun ω => abs_of_nonneg (Real.sqrt_nonneg _))
+      have h_sq_eq : ∫ ω, Real.sqrt (δ n ω) ^ 2 ∂μ = ε n :=
+        integral_congr_ae (ae_of_all _ fun ω => h_sq_sqrt_eq ω)
+      rw [h_abs_sqrt, h_sq_eq] at hcs; exact hcs
+    have h_mul : 2 * Mσ * Real.sqrt t * ∫ ω, Real.sqrt (δ n ω) ∂μ ≤
+        2 * Mσ * Real.sqrt t * Real.sqrt (ε n) :=
+      mul_le_mul_of_nonneg_left h_jensen (by positivity)
+    linarith
+  have h_upper_tends : Tendsto (fun n => ε n + 2 * Mσ * Real.sqrt t * Real.sqrt (ε n))
+      atTop (nhds 0) := by
+    have h_sqrt_ε : Tendsto (fun n => Real.sqrt (ε n)) atTop (nhds 0) := by
+      have := (Real.continuous_sqrt.tendsto 0).comp hL2_int
+      rwa [Function.comp_def, Real.sqrt_zero] at this
+    have : (0 : ℝ) = 0 + 2 * Mσ * Real.sqrt t * 0 := by ring
+    rw [this]
+    exact hL2_int.add (h_sqrt_ε.const_mul _)
+  exact squeeze_zero
+    (fun n => integral_nonneg fun ω => norm_nonneg _)
+    h_upper
+    h_upper_tends
+
 /-- L¹ convergence of the diffusion integral:
     ∫ |∫₀ᵗ Hₙ² - ∫₀ᵗ σ²| → 0 from integrand L² convergence.
 
@@ -1609,7 +1947,6 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
     (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
     (D : ItoProcessDiffusionRegularity X)
     (FC : ItoProcessFiltrationCompatibility X)
     {Mσ : ℝ} (hMσ : ∀ t ω, |X.diffusion t ω| ≤ Mσ)
@@ -1617,74 +1954,68 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
     (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s₂) A) :
     ∫ ω in A, ((X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 -
                ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
-  let R : ItoProcessRegularity X := ItoProcessRegularity.ofSplit C DR D FC
-  let Xp : ItoProcess F μ := X.toItoProcess R
-  have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
-    simpa [Xp] using hMσ
   have h_sq_diff :
-      ∫ ω in A, (Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2 ∂μ =
-      ∫ ω in A, (Xp.stoch_integral t₂ ω) ^ 2 ∂μ -
-      ∫ ω in A, (Xp.stoch_integral s₂ ω) ^ 2 ∂μ := by
-    simpa [Xp] using X.setIntegral_sq_increment_eq_diff_core C FC s₂ t₂ hs₂ hst₂ A hA
+      ∫ ω in A, (X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2 ∂μ =
+      ∫ ω in A, (X.stoch_integral t₂ ω) ^ 2 ∂μ -
+      ∫ ω in A, (X.stoch_integral s₂ ω) ^ 2 ∂μ := by
+    exact X.setIntegral_sq_increment_eq_diff_core C FC s₂ t₂ hs₂ hst₂ A hA
   have ht₂ := le_trans hs₂ hst₂
-  have hSI_t₂_sq_int : Integrable (fun ω => (Xp.stoch_integral t₂ ω) ^ 2) μ := by
-    simpa [Xp] using (stoch_integral_sq_integrable_core (X := X) C FC t₂ ht₂)
-  have hSI_s₂_sq_int : Integrable (fun ω => (Xp.stoch_integral s₂ ω) ^ 2) μ := by
-    simpa [Xp] using (stoch_integral_sq_integrable_core (X := X) C FC s₂ hs₂)
-  have hQ_s₂t₂_int : Integrable (fun ω => ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) μ := by
-    simpa [Xp] using (X.diffusion_sq_interval_integrable_core D s₂ t₂ hs₂ hst₂)
-  change ∫ ω in A, ((Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2 -
-               ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ = 0
-  suffices h : ∫ ω in A, (Xp.stoch_integral t₂ ω) ^ 2 ∂μ -
-      ∫ ω in A, (Xp.stoch_integral s₂ ω) ^ 2 ∂μ =
-      ∫ ω in A, (∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ by
+  have hSI_t₂_sq_int : Integrable (fun ω => (X.stoch_integral t₂ ω) ^ 2) μ :=
+    stoch_integral_sq_integrable_core (X := X) C FC t₂ ht₂
+  have hSI_s₂_sq_int : Integrable (fun ω => (X.stoch_integral s₂ ω) ^ 2) μ :=
+    stoch_integral_sq_integrable_core (X := X) C FC s₂ hs₂
+  have hQ_s₂t₂_int : Integrable (fun ω => ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) μ :=
+    X.diffusion_sq_interval_integrable_core D s₂ t₂ hs₂ hst₂
+  suffices h : ∫ ω in A, (X.stoch_integral t₂ ω) ^ 2 ∂μ -
+      ∫ ω in A, (X.stoch_integral s₂ ω) ^ 2 ∂μ =
+      ∫ ω in A, (∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ by
     have hsi_core : Integrable
-        (fun ω => (Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2) μ := by
-      simpa [Xp] using (X.si_increment_sq_integrable_core C FC s₂ t₂ hs₂ hst₂)
+        (fun ω => (X.stoch_integral t₂ ω - X.stoch_integral s₂ ω) ^ 2) μ :=
+      X.si_increment_sq_integrable_core C FC s₂ t₂ hs₂ hst₂
     rw [integral_sub hsi_core.integrableOn hQ_s₂t₂_int.integrableOn, h_sq_diff]
     linarith
-  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int, _⟩ := Xp.stoch_integral_is_L2_limit
+  obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int, _⟩ := C.stoch_integral_is_L2_limit
   have hadapted : ∀ n, ∀ i : Fin (approx n).n,
-      @Measurable Ω ℝ (Xp.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=
-    fun n i => (hadapted_F n i).mono (Xp.F_le_BM_F _) le_rfl
-  have hA' : @MeasurableSet Ω (Xp.BM.F.σ_algebra s₂) A := Xp.F_le_BM_F s₂ A hA
+      @Measurable Ω ℝ (X.BM.F.σ_algebra ((approx n).times i)) _ ((approx n).values i) :=
+    fun n i => (hadapted_F n i).mono (FC.F_le_BM_F _) le_rfl
+  have hA' : @MeasurableSet Ω (X.BM.F.σ_algebra s₂) A := FC.F_le_BM_F s₂ A hA
   have h_simple_id : ∀ n,
-      ∫ ω in A, ((approx n).stochasticIntegral_at Xp.BM t₂ ω) ^ 2 ∂μ -
-      ∫ ω in A, ((approx n).stochasticIntegral_at Xp.BM s₂ ω) ^ 2 ∂μ =
+      ∫ ω in A, ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2 ∂μ -
+      ∫ ω in A, ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2 ∂μ =
       ∫ ω in A, (∫ u in Icc s₂ t₂,
         (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) ∂μ := by
     intro n
-    have h0 := simple_compensated_sq_setIntegral_zero (approx n) Xp.BM
+    have h0 := simple_compensated_sq_setIntegral_zero (approx n) X.BM
       (hadapted n) (hbdd n) (hnn n) s₂ t₂ hs₂ hst₂ A hA'
     have hSIn_t₂_sq : Integrable (fun ω =>
-        ((approx n).stochasticIntegral_at Xp.BM t₂ ω) ^ 2) μ :=
-      simple_stochasticIntegral_at_sq_integrable _ Xp.BM
+        ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2) μ :=
+      simple_stochasticIntegral_at_sq_integrable _ X.BM
         (hadapted n) (hbdd n) (hnn n) t₂ ht₂
     have hSIn_s₂_sq : Integrable (fun ω =>
-        ((approx n).stochasticIntegral_at Xp.BM s₂ ω) ^ 2) μ :=
-      simple_stochasticIntegral_at_sq_integrable _ Xp.BM
+        ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2) μ :=
+      simple_stochasticIntegral_at_sq_integrable _ X.BM
         (hadapted n) (hbdd n) (hnn n) s₂ hs₂
     have hHn_int : Integrable (fun ω =>
         ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) μ :=
-      simple_process_sq_interval_integrable _ Xp.BM
+      simple_process_sq_interval_integrable _ X.BM
         (hadapted n) (hbdd n) (hnn n) s₂ t₂ hs₂ hst₂
-    have h_split_ab : ∫ ω in A, ((approx n).stochasticIntegral_at Xp.BM t₂ ω ^ 2 -
-        (approx n).stochasticIntegral_at Xp.BM s₂ ω ^ 2) ∂μ =
-        ∫ ω in A, (approx n).stochasticIntegral_at Xp.BM t₂ ω ^ 2 ∂μ -
-        ∫ ω in A, (approx n).stochasticIntegral_at Xp.BM s₂ ω ^ 2 ∂μ :=
+    have h_split_ab : ∫ ω in A, ((approx n).stochasticIntegral_at X.BM t₂ ω ^ 2 -
+        (approx n).stochasticIntegral_at X.BM s₂ ω ^ 2) ∂μ =
+        ∫ ω in A, (approx n).stochasticIntegral_at X.BM t₂ ω ^ 2 ∂μ -
+        ∫ ω in A, (approx n).stochasticIntegral_at X.BM s₂ ω ^ 2 ∂μ :=
       integral_sub hSIn_t₂_sq.integrableOn hSIn_s₂_sq.integrableOn
-    have h_split_abc : ∫ ω in A, ((approx n).stochasticIntegral_at Xp.BM t₂ ω ^ 2 -
-        (approx n).stochasticIntegral_at Xp.BM s₂ ω ^ 2 -
+    have h_split_abc : ∫ ω in A, ((approx n).stochasticIntegral_at X.BM t₂ ω ^ 2 -
+        (approx n).stochasticIntegral_at X.BM s₂ ω ^ 2 -
         ∫ u in Icc s₂ t₂, (approx n).valueAtTime u ω ^ 2 ∂volume) ∂μ =
-        ∫ ω in A, ((approx n).stochasticIntegral_at Xp.BM t₂ ω ^ 2 -
-          (approx n).stochasticIntegral_at Xp.BM s₂ ω ^ 2) ∂μ -
+        ∫ ω in A, ((approx n).stochasticIntegral_at X.BM t₂ ω ^ 2 -
+          (approx n).stochasticIntegral_at X.BM s₂ ω ^ 2) ∂μ -
         ∫ ω in A, ∫ u in Icc s₂ t₂, (approx n).valueAtTime u ω ^ 2 ∂volume ∂μ :=
       integral_sub (hSIn_t₂_sq.sub hSIn_s₂_sq).integrableOn hHn_int.integrableOn
     linarith
-  have hL1_t₂ := sq_L1_tendsto_of_L2 Xp approx hadapted hbdd hnn t₂ ht₂ (hL2 t₂ ht₂)
-  have hL1_s₂ := sq_L1_tendsto_of_L2 Xp approx hadapted hbdd hnn s₂ hs₂ (hL2 s₂ hs₂)
-  have hL1_0t := diffusion_integral_L1_tendsto Xp approx hbdd hMσp t₂ ht₂ (hL2_int t₂ ht₂)
-  have hL1_0s := diffusion_integral_L1_tendsto Xp approx hbdd hMσp s₂ hs₂ (hL2_int s₂ hs₂)
+  have hL1_t₂ := sq_L1_tendsto_of_L2_core X C FC approx hadapted hbdd hnn t₂ ht₂ (hL2 t₂ ht₂)
+  have hL1_s₂ := sq_L1_tendsto_of_L2_core X C FC approx hadapted hbdd hnn s₂ hs₂ (hL2 s₂ hs₂)
+  have hL1_0t := diffusion_integral_L1_tendsto_core X D approx hbdd hMσ t₂ ht₂ (hL2_int t₂ ht₂)
+  have hL1_0s := diffusion_integral_L1_tendsto_core X D approx hbdd hMσ s₂ hs₂ (hL2_int s₂ hs₂)
   have h_split_Hn : ∀ n ω,
       ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume =
       (∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
@@ -1706,34 +2037,34 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
             _ ≤ C0 ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hC u ω) 2)
     linarith [setIntegral_Icc_split' hs₂ hst₂ h_int]
   have h_split_σ : ∀ ω,
-      ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume =
-      (∫ u in Icc 0 t₂, (Xp.diffusion u ω) ^ 2 ∂volume) -
-      (∫ u in Icc 0 s₂, (Xp.diffusion u ω) ^ 2 ∂volume) := by
+      ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume =
+      (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume) -
+      (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume) := by
     intro ω
-    linarith [setIntegral_Icc_split' hs₂ hst₂ (Xp.diffusion_sq_time_integrable ω t₂ ht₂)]
+    linarith [setIntegral_Icc_split' hs₂ hst₂ (D.diffusion_sq_time_integrable ω t₂ ht₂)]
   have hL1_diff : Tendsto (fun n => ∫ ω,
       ‖(∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-       (∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ)
+       (∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ)
       atTop (nhds 0) := by
     have hL1_sum : Tendsto (fun n =>
         (∫ ω, ‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 t₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
         (∫ ω, ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 s₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ))
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ))
         atTop (nhds 0) := by
       have := hL1_0t.add hL1_0s; rwa [add_zero] at this
     apply squeeze_zero (fun _ => integral_nonneg fun _ => norm_nonneg _) (fun n => ?_) hL1_sum
     calc ∫ ω, ‖(∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-         (∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ
+         (∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ
         ≤ ∫ ω, (‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 t₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ +
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ +
           ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 s₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖) ∂μ := by
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖) ∂μ := by
             apply integral_mono_of_nonneg (ae_of_all _ fun _ => norm_nonneg _)
-            · exact ((simple_process_sq_integral_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
-                (Xp.diffusion_sq_integral_integrable t₂ ht₂)).norm.add
-                ((simple_process_sq_integral_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
-                  (Xp.diffusion_sq_integral_integrable s₂ hs₂)).norm
+            · exact ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
+                (D.diffusion_sq_integral_integrable t₂ ht₂)).norm.add
+                ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
+                  (D.diffusion_sq_integral_integrable s₂ hs₂)).norm
             · exact ae_of_all _ fun ω => by
                 dsimp only
                 rw [h_split_Hn n ω, h_split_σ ω]
@@ -1741,32 +2072,32 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
                 rw [this]
                 exact norm_sub_le _ _
       _ = (∫ ω, ‖(∫ u in Icc 0 t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 t₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
+           (∫ u in Icc 0 t₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) +
           (∫ ω, ‖(∫ u in Icc 0 s₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) -
-           (∫ u in Icc 0 s₂, (Xp.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) := by
+           (∫ u in Icc 0 s₂, (X.diffusion u ω) ^ 2 ∂volume)‖ ∂μ) := by
             exact integral_add
-              ((simple_process_sq_integral_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
-                (Xp.diffusion_sq_integral_integrable t₂ ht₂)).norm
-              ((simple_process_sq_integral_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
-                (Xp.diffusion_sq_integral_integrable s₂ hs₂)).norm
+              ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂).sub
+                (D.diffusion_sq_integral_integrable t₂ ht₂)).norm
+              ((simple_process_sq_integral_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂).sub
+                (D.diffusion_sq_integral_integrable s₂ hs₂)).norm
   have h_SI_n_t₂_int : ∀ n, Integrable (fun ω =>
-      ((approx n).stochasticIntegral_at Xp.BM t₂ ω) ^ 2) μ :=
-    fun n => simple_stochasticIntegral_at_sq_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂
+      ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2) μ :=
+    fun n => simple_stochasticIntegral_at_sq_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) t₂ ht₂
   have h_SI_n_s₂_int : ∀ n, Integrable (fun ω =>
-      ((approx n).stochasticIntegral_at Xp.BM s₂ ω) ^ 2) μ :=
-    fun n => simple_stochasticIntegral_at_sq_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂
+      ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2) μ :=
+    fun n => simple_stochasticIntegral_at_sq_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ hs₂
   have h_Hn_int : ∀ n, Integrable (fun ω =>
       ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume) μ :=
-    fun n => simple_process_sq_interval_integrable _ Xp.BM (hadapted n) (hbdd n) (hnn n) s₂ t₂ hs₂ hst₂
+    fun n => simple_process_sq_interval_integrable _ X.BM (hadapted n) (hbdd n) (hnn n) s₂ t₂ hs₂ hst₂
   have hA_t₂ := tendsto_setIntegral_of_L1
-    (fun n ω => ((approx n).stochasticIntegral_at Xp.BM t₂ ω) ^ 2)
-    (fun ω => (Xp.stoch_integral t₂ ω) ^ 2) h_SI_n_t₂_int hSI_t₂_sq_int hL1_t₂ A
+    (fun n ω => ((approx n).stochasticIntegral_at X.BM t₂ ω) ^ 2)
+    (fun ω => (X.stoch_integral t₂ ω) ^ 2) h_SI_n_t₂_int hSI_t₂_sq_int hL1_t₂ A
   have hA_s₂ := tendsto_setIntegral_of_L1
-    (fun n ω => ((approx n).stochasticIntegral_at Xp.BM s₂ ω) ^ 2)
-    (fun ω => (Xp.stoch_integral s₂ ω) ^ 2) h_SI_n_s₂_int hSI_s₂_sq_int hL1_s₂ A
+    (fun n ω => ((approx n).stochasticIntegral_at X.BM s₂ ω) ^ 2)
+    (fun ω => (X.stoch_integral s₂ ω) ^ 2) h_SI_n_s₂_int hSI_s₂_sq_int hL1_s₂ A
   have hA_diff := tendsto_setIntegral_of_L1
     (fun n ω => ∫ u in Icc s₂ t₂, (SimpleProcess.valueAtTime (approx n) u ω) ^ 2 ∂volume)
-    (fun ω => ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume)
+    (fun ω => ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume)
     h_Hn_int hQ_s₂t₂_int hL1_diff A
   have hLHS_tendsto := hA_t₂.sub hA_s₂
   have hRHS_also := Tendsto.congr h_simple_id hLHS_tendsto
@@ -1986,7 +2317,7 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
           |>.mono (F.mono t₁ s₂ ht₁s₂) le_rfl
     · exact hZ₂_int
     · exact hΔ₁_sq_Z₂_int
-    · exact X.compensated_sq_setIntegral_zero_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
+    · exact X.compensated_sq_setIntegral_zero_core C D FC hMσ s₂ t₂ hs₂ hst₂
   -- Step 3: E[Q₁·Z₂] = 0 by Fubini + pointwise orthogonality
   have h_part2 : ∫ ω, (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω ∂μ = 0 := by
     have h_diff_Fs₂ : ∀ u, u ∈ Set.Icc s₁ t₁ →
@@ -2008,7 +2339,7 @@ theorem ItoProcessCore.stoch_integral_squared_orthogonal_core {F : Filtration Ω
               (by calc (X.diffusion u ω) ^ 2 = |X.diffusion u ω| ^ 2 := (sq_abs _).symm
                   _ ≤ Mσ ^ 2 := pow_le_pow_left₀ (abs_nonneg _) (hMσ u ω) 2)
               (abs_nonneg _))
-      · exact X.compensated_sq_setIntegral_zero_core C DR D FC hMσ s₂ t₂ hs₂ hst₂
+      · exact X.compensated_sq_setIntegral_zero_core C D FC hMσ s₂ t₂ hs₂ hst₂
     simp_rw [show ∀ ω, (∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 ∂volume) * Z₂ ω =
         ∫ u in Icc s₁ t₁, (X.diffusion u ω) ^ 2 * Z₂ ω ∂volume from
       fun ω => (integral_mul_const (Z₂ ω) _).symm]
@@ -2052,7 +2383,7 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core_ofRegularity
                ∫ u in Icc s₂ t₂, (X.diffusion u ω) ^ 2 ∂volume) ∂μ = 0 := by
   simpa using
     (X.compensated_sq_setIntegral_zero_core
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
+      (C := R.toConstruction)
       (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       hMσ s₂ t₂ hs₂ hst₂ A hA)
 

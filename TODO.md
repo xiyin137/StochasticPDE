@@ -235,10 +235,12 @@ Introduced a compatibility-first split of Itô process assumptions:
   `setIntegral_cross_term_zero_core` and
   `setIntegral_sq_increment_eq_diff_core`
   (assumptions `C + FC`)
-- Rewired the front half of
-  `ItoProcessCore.compensated_sq_setIntegral_zero_core` to use the new
-  core set-integral decomposition and core SI/diffusion integrability lemmas,
-  reducing local dependence on legacy adapters in that theorem body
+- Added core L¹ limit helpers in `ConditionalIsometry.lean`:
+  `sq_L1_tendsto_of_L2_core` and
+  `diffusion_integral_L1_tendsto_core`
+- Rewrote `ItoProcessCore.compensated_sq_setIntegral_zero_core`
+  as a full direct core proof using only `C + D + FC`
+  (removed `DR`) with no local legacy reconstruction
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process
