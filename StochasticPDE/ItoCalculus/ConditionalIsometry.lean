@@ -156,6 +156,103 @@ theorem ItoProcess.setIntegral_sq_increment_eq_diff {F : Filtration Ω ℝ}
       integral_const_mul, hcross, mul_zero]
   linarith
 
+/-! ## Core set-integral cross-term and square decomposition -/
+
+/-- Core set-integral cross-term vanishing on `A ∈ F_s`. -/
+theorem ItoProcessCore.setIntegral_cross_term_zero_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) [IsProbabilityMeasure μ]
+    (C : ItoProcessConstruction X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s) A) :
+    ∫ ω in A, X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω) ∂μ = 0 := by
+  rw [← integral_indicator (F.le_ambient s A hA)]
+  simp_rw [indicator_mul_left]
+  apply integral_mul_eq_zero_of_setIntegral_eq_zero' (F.le_ambient s)
+  · exact (stoch_integral_adapted_core (X := X) C FC s hs).indicator hA
+  · exact (stoch_integral_integrable_core (X := X) C FC t (le_trans hs hst)).sub
+      (stoch_integral_integrable_core (X := X) C FC s hs)
+  · have hSI_s_sq := stoch_integral_sq_integrable_core (X := X) C FC s hs
+    have hSI_t_sq := stoch_integral_sq_integrable_core (X := X) C FC t (le_trans hs hst)
+    apply Integrable.mono' ((hSI_s_sq.add hSI_t_sq).add hSI_s_sq)
+    · exact ((stoch_integral_integrable_core (X := X) C FC s hs).indicator
+        (F.le_ambient s A hA)).aestronglyMeasurable.mul
+        ((stoch_integral_integrable_core (X := X) C FC t (le_trans hs hst)).sub
+          (stoch_integral_integrable_core (X := X) C FC s hs)).aestronglyMeasurable
+    · filter_upwards with ω
+      simp only [Pi.add_apply, Real.norm_eq_abs]
+      by_cases hω : ω ∈ A
+      · simp only [indicator_of_mem hω]
+        rw [abs_mul]
+        set a := |X.stoch_integral s ω|
+        set b := |X.stoch_integral t ω - X.stoch_integral s ω|
+        nlinarith [sq_nonneg (a - b), sq_abs (X.stoch_integral s ω),
+          sq_abs (X.stoch_integral t ω - X.stoch_integral s ω),
+          sq_abs (X.stoch_integral t ω)]
+      · simp only [indicator_of_notMem hω, zero_mul, abs_zero]
+        positivity
+  · intro B hB
+    rw [integral_sub (stoch_integral_integrable_core (X := X) C FC t (le_trans hs hst)).integrableOn
+        (stoch_integral_integrable_core (X := X) C FC s hs).integrableOn]
+    exact sub_eq_zero.mpr (X.stoch_integral_martingale_core C FC s t hs hst B hB)
+
+/-- Core set-integral squared increment decomposition:
+    `∫_A (SI(t)-SI(s))² = ∫_A SI(t)² - ∫_A SI(s)²`. -/
+theorem ItoProcessCore.setIntegral_sq_increment_eq_diff_core {F : Filtration Ω ℝ}
+    (X : ItoProcessCore F μ) [IsProbabilityMeasure μ]
+    (C : ItoProcessConstruction X)
+    (FC : ItoProcessFiltrationCompatibility X)
+    (s t : ℝ) (hs : 0 ≤ s) (hst : s ≤ t)
+    (A : Set Ω) (hA : @MeasurableSet Ω (F.σ_algebra s) A) :
+    ∫ ω in A, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ =
+    ∫ ω in A, (X.stoch_integral t ω) ^ 2 ∂μ -
+    ∫ ω in A, (X.stoch_integral s ω) ^ 2 ∂μ := by
+  have hSI_s_sq := stoch_integral_sq_integrable_core (X := X) C FC s hs
+  have hSI_t_sq := stoch_integral_sq_integrable_core (X := X) C FC t (le_trans hs hst)
+  have hcross := X.setIntegral_cross_term_zero_core C FC s t hs hst A hA
+  have hcross_int : Integrable
+      (fun ω => X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω)) μ := by
+    apply Integrable.mono' ((hSI_t_sq.add hSI_s_sq).add hSI_s_sq)
+    · exact (stoch_integral_integrable_core (X := X) C FC s hs).aestronglyMeasurable.mul
+        ((stoch_integral_integrable_core (X := X) C FC t (le_trans hs hst)).sub
+          (stoch_integral_integrable_core (X := X) C FC s hs)).aestronglyMeasurable
+    · filter_upwards with ω
+      simp only [Pi.add_apply, Real.norm_eq_abs]
+      rw [abs_mul]; nlinarith [sq_abs (X.stoch_integral s ω),
+        sq_abs (X.stoch_integral t ω - X.stoch_integral s ω),
+        sq_abs (X.stoch_integral t ω),
+        sq_nonneg (|X.stoch_integral s ω| - |X.stoch_integral t ω - X.stoch_integral s ω|)]
+  suffices h : ∫ ω in A, (X.stoch_integral t ω) ^ 2 ∂μ =
+      ∫ ω in A, (X.stoch_integral s ω) ^ 2 ∂μ +
+      ∫ ω in A, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ by linarith
+  have h_step1 : ∫ ω in A, (X.stoch_integral t ω) ^ 2 ∂μ =
+      ∫ ω in A, ((X.stoch_integral s ω) ^ 2 +
+        2 * (X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω)) +
+        (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) ∂μ := by
+    congr 1; ext ω; ring
+  have h_step2 : ∫ ω in A, ((X.stoch_integral s ω) ^ 2 +
+      2 * (X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω)) +
+      (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2) ∂μ =
+      ∫ ω in A, ((X.stoch_integral s ω) ^ 2 +
+        2 * (X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω))) ∂μ +
+      ∫ ω in A, (X.stoch_integral t ω - X.stoch_integral s ω) ^ 2 ∂μ :=
+    integral_add (hSI_s_sq.integrableOn.add (hcross_int.const_mul 2).integrableOn)
+      (X.si_increment_sq_integrable_core C FC s t hs hst).integrableOn
+  have h_step3 : ∫ ω in A, ((X.stoch_integral s ω) ^ 2 +
+      2 * (X.stoch_integral s ω * (X.stoch_integral t ω - X.stoch_integral s ω))) ∂μ =
+      ∫ ω in A, (X.stoch_integral s ω) ^ 2 ∂μ +
+      ∫ ω in A, 2 * (X.stoch_integral s ω *
+        (X.stoch_integral t ω - X.stoch_integral s ω)) ∂μ :=
+    integral_add hSI_s_sq.integrableOn (hcross_int.const_mul 2).integrableOn
+  have h_step4 : ∫ ω in A, 2 * (X.stoch_integral s ω *
+      (X.stoch_integral t ω - X.stoch_integral s ω)) ∂μ = 0 := by
+    rw [show (fun ω => 2 * (X.stoch_integral s ω *
+        (X.stoch_integral t ω - X.stoch_integral s ω))) =
+        (fun ω => (2 : ℝ) * (X.stoch_integral s ω *
+          (X.stoch_integral t ω - X.stoch_integral s ω))) from rfl,
+      integral_const_mul, hcross, mul_zero]
+  linarith
+
 /-! ## Compensated square L¹ convergence -/
 
 /-- L¹ convergence of the compensated square:
@@ -1524,18 +1621,27 @@ theorem ItoProcessCore.compensated_sq_setIntegral_zero_core {F : Filtration Ω �
   let Xp : ItoProcess F μ := X.toItoProcess R
   have hMσp : ∀ t ω, |Xp.diffusion t ω| ≤ Mσ := by
     simpa [Xp] using hMσ
+  have h_sq_diff :
+      ∫ ω in A, (Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2 ∂μ =
+      ∫ ω in A, (Xp.stoch_integral t₂ ω) ^ 2 ∂μ -
+      ∫ ω in A, (Xp.stoch_integral s₂ ω) ^ 2 ∂μ := by
+    simpa [Xp] using X.setIntegral_sq_increment_eq_diff_core C FC s₂ t₂ hs₂ hst₂ A hA
+  have ht₂ := le_trans hs₂ hst₂
+  have hSI_t₂_sq_int : Integrable (fun ω => (Xp.stoch_integral t₂ ω) ^ 2) μ := by
+    simpa [Xp] using (stoch_integral_sq_integrable_core (X := X) C FC t₂ ht₂)
+  have hSI_s₂_sq_int : Integrable (fun ω => (Xp.stoch_integral s₂ ω) ^ 2) μ := by
+    simpa [Xp] using (stoch_integral_sq_integrable_core (X := X) C FC s₂ hs₂)
+  have hQ_s₂t₂_int : Integrable (fun ω => ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) μ := by
+    simpa [Xp] using (X.diffusion_sq_interval_integrable_core D s₂ t₂ hs₂ hst₂)
   change ∫ ω in A, ((Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2 -
                ∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ = 0
-  have h_sq_diff := Xp.setIntegral_sq_increment_eq_diff s₂ t₂ hs₂ hst₂ A hA
-  have ht₂ := le_trans hs₂ hst₂
-  have hSI_t₂_sq_int := Xp.stoch_integral_sq_integrable t₂ ht₂
-  have hSI_s₂_sq_int := Xp.stoch_integral_sq_integrable s₂ hs₂
-  have hQ_s₂t₂_int := diffusion_sq_interval_integrable Xp s₂ t₂ hs₂ hst₂
   suffices h : ∫ ω in A, (Xp.stoch_integral t₂ ω) ^ 2 ∂μ -
       ∫ ω in A, (Xp.stoch_integral s₂ ω) ^ 2 ∂μ =
       ∫ ω in A, (∫ u in Icc s₂ t₂, (Xp.diffusion u ω) ^ 2 ∂volume) ∂μ by
-    rw [integral_sub (si_increment_sq_integrable' Xp s₂ t₂ hs₂ hst₂).integrableOn
-      hQ_s₂t₂_int.integrableOn, h_sq_diff]
+    have hsi_core : Integrable
+        (fun ω => (Xp.stoch_integral t₂ ω - Xp.stoch_integral s₂ ω) ^ 2) μ := by
+      simpa [Xp] using (X.si_increment_sq_integrable_core C FC s₂ t₂ hs₂ hst₂)
+    rw [integral_sub hsi_core.integrableOn hQ_s₂t₂_int.integrableOn, h_sq_diff]
     linarith
   obtain ⟨approx, hadapted_F, hbdd, hnn, hL2, _, hL2_int, _⟩ := Xp.stoch_integral_is_L2_limit
   have hadapted : ∀ n, ∀ i : Fin (approx n).n,
