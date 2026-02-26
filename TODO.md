@@ -172,6 +172,15 @@ Introduced a compatibility-first split of Itô process assumptions:
    `drift_sq_sum_bound_core`, `qv_partition_sum_core`,
    `si_compensated_sq_L2_single_core`) as direct core proofs/proof bodies,
   removing direct legacy theorem-body delegation for these helpers
+- Reduced assumption load in QV helper interfaces by removing redundant
+  split-bundle parameters from:
+  `ito_process_increment_decomp_ae_core` (keeps only drift regularity),
+  `drift_increment_bound_core`, `drift_sq_sum_bound_core`,
+  and `qv_partition_sum_core`
+- Rewired key internal steps in `capped_ito_qv_L2_bound_core` to use
+  regularity-first core adapters for SI isometry, compensated-integrability,
+  and orthogonality (`*_core_ofRegularity`) via a local
+  `ItoProcessRegularity.ofSplit` bundle
 - Added core-local wrappers for L4 increment bounds/measurability and
   core capped-QV helper lemmas in `QVConvergence.lean`, so
   `capped_ito_qv_L2_bound_core` no longer reconstructs a legacy process

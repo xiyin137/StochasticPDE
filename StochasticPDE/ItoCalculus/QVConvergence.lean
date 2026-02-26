@@ -1654,10 +1654,7 @@ private theorem capped_increment_decomp_ae_core {F : Filtration Ω ℝ}
 theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
     [IsProbabilityMeasure μ]
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
     (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     (t : ℝ) (ht : 0 < t) (n : ℕ) :
     ∀ᵐ ω ∂μ, ∀ i : Fin (n + 1),
       X.process ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
@@ -1666,9 +1663,6 @@ theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
         X.drift s ω ∂volume) +
       (X.stoch_integral ((↑(i : ℕ) + 1) * t / ↑(n + 1)) ω -
        X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
-  let _ := C
-  let _ := D
-  let _ := FC
   have h_all_times : ∀ᵐ ω ∂μ, ∀ i : Fin (n + 2),
       X.process (↑(i : ℕ) * t / ↑(n + 1)) ω =
         X.process 0 ω +
@@ -1699,17 +1693,9 @@ theorem ito_process_increment_decomp_ae_core {F : Filtration Ω ℝ}
 /-- Core adapter for drift increment bound. -/
 lemma drift_increment_bound_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
     |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
-  let _ := C
-  let _ := DR
-  let _ := D
-  let _ := FC
   by_cases hint : IntegrableOn (fun r => X.drift r ω) (Icc s u) volume
   · calc |∫ r in Icc s u, X.drift r ω ∂volume|
         ≤ ∫ r in Icc s u, |X.drift r ω| ∂volume := by
@@ -1731,10 +1717,6 @@ lemma drift_increment_bound_core {F : Filtration Ω ℝ}
 /-- Core adapter for deterministic bound on squared drift increments. -/
 lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω) :
     ∑ i : Fin (n + 1),
@@ -1745,7 +1727,7 @@ lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
       (∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
         X.drift s ω ∂volume) ^ 2 ≤ Mμ ^ 2 * (t / ↑(n + 1)) ^ 2 := by
     intro i
-    have hle := drift_increment_bound_core X C DR D FC hMμ
+    have hle := drift_increment_bound_core X hMμ
       (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1))
       (partition_time_mono t ht n (i : ℕ)) ω
     calc (∫ s in Icc _ _, X.drift s ω ∂volume) ^ 2
@@ -1766,20 +1748,12 @@ lemma drift_sq_sum_bound_core {F : Filtration Ω ℝ}
 /-- Core adapter for partition splitting of quadratic variation. -/
 lemma qv_partition_sum_core {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (C : ItoProcessConstruction X)
-    (DR : ItoProcessDriftRegularity X)
-    (D : ItoProcessDiffusionRegularity X)
-    (FC : ItoProcessFiltrationCompatibility X)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω)
     (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 t) volume) :
     X.quadraticVariation t ω =
     ∑ i : Fin (n + 1),
       ∫ s in Icc (↑(i : ℕ) * t / ↑(n + 1)) ((↑(i : ℕ) + 1) * t / ↑(n + 1)),
         (X.diffusion s ω) ^ 2 ∂volume := by
-  let _ := C
-  let _ := DR
-  let _ := D
-  let _ := FC
   unfold ItoProcessCore.quadraticVariation
   have h := integral_partition_sum_aux (fun s => (X.diffusion s ω) ^ 2) t ht n hf_int (n + 1) le_rfl
   rw [show (↑(n + 1) : ℝ) * t / ↑(n + 1) = t from by field_simp] at h
@@ -1881,6 +1855,8 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
     (3 * Mμ ^ 4 * T ^ 4 + 12 * Mμ ^ 2 * Mσ ^ 2 * T ^ 3 +
      24 * Mσ ^ 4 * T ^ 2) / ↑(n + 1) := by
   have hn_pos : (0 : ℝ) < ↑(n + 1) := by positivity
+  have R : ItoProcessRegularity X :=
+    ItoProcessRegularity.ofSplit C DR D FC
   -- Abbreviate capped partition times
   set sc : ℕ → ℝ := fun i => min (↑i * T / ↑(n + 1)) u
   -- Bridge: sc (k+1) = min ((↑k + 1) * T / ↑(n+1)) u (unmatched by `set`)
@@ -1962,14 +1938,16 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
   have hΔSI_sq_int : ∀ i : Fin (n + 1),
       Integrable (fun ω => (ΔSI i ω) ^ 2) μ := by
     intro i; simp only [ΔSI]
-    exact ItoProcessCore.si_increment_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+    exact ItoProcessCore.si_increment_sq_integrable_core_ofRegularity
+      X R _ _ (hsc_nn _) (hsc_mono _)
   -- Integrability: compensated Z² (from L⁴ domination)
   have hZ_sq_int : ∀ i : Fin (n + 1),
       Integrable (fun ω => ((ΔSI i ω) ^ 2 -
         ∫ s in Icc (sc (i : ℕ)) (sc ((i : ℕ) + 1)),
           (X.diffusion s ω) ^ 2 ∂volume) ^ 2) μ := by
     intro i; simp only [ΔSI]
-    exact ItoProcessCore.compensated_sq_sq_integrable_core X C DR D FC hMσ _ _ (hsc_nn _) (hsc_mono _)
+    exact ItoProcessCore.compensated_sq_sq_integrable_core_ofRegularity
+      X R hMσ _ _ (hsc_nn _) (hsc_mono _)
   -- Strong measurability of ΔSI and ΔX
   have hΔSI_sm : ∀ i : Fin (n + 1), StronglyMeasurable (ΔSI i) := by
     intro i
@@ -1996,7 +1974,8 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
             ∫ s in Icc (sc (k : ℕ)) (sc ((k : ℕ) + 1)),
               (X.diffusion s ω) ^ 2 ∂volume) μ := by
         intro k; simp only [ΔSI]
-        exact ItoProcessCore.compensated_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+        exact ItoProcessCore.compensated_sq_integrable_core_ofRegularity
+          X R _ _ (hsc_nn _) (hsc_mono _)
       apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
         ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
       filter_upwards with ω
@@ -2037,7 +2016,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
               Finset.sum_le_sum fun i _ => mul_le_mul_of_nonneg_right (by
                 simp only [ΔD]
                 calc |∫ s in Icc _ _, X.drift s ω ∂volume| ≤ Mμ * (_ - _) :=
-                    drift_increment_bound_core X C DR D FC hMμ _ _ (hsc_mono _) ω
+                    drift_increment_bound_core X hMμ _ _ (hsc_mono _) ω
                   _ ≤ Mμ * (T / ↑(n + 1)) := by
                     exact mul_le_mul_of_nonneg_left (hΔ_le _) (le_trans (abs_nonneg _) (hMμ 0 ω)))
                 (abs_nonneg _)
@@ -2083,7 +2062,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
           ≤ ∑ i : Fin (n + 1), Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 :=
             Finset.sum_le_sum fun i _ => by
               simp only [ΔD]
-              have h := drift_increment_bound_core X C DR D FC hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
+              have h := drift_increment_bound_core X hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
               calc _ ≤ |∫ s in Icc _ _, X.drift s ω ∂volume| ^ 2 := by rw [sq_abs]
                 _ ≤ (Mμ * (sc (↑i + 1) - sc ↑i)) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) h 2
                 _ ≤ (Mμ * (T / ↑(n + 1))) ^ 2 := by
@@ -2140,7 +2119,7 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
                         ≤ ∑ i : Fin (n + 1), Mμ ^ 2 * (T / ↑(n + 1)) ^ 2 :=
                           Finset.sum_le_sum fun i _ => by
                             simp only [ΔD]
-                            have h := drift_increment_bound_core X C DR D FC hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
+                            have h := drift_increment_bound_core X hMμ (sc ↑i) (sc (↑i + 1)) (hsc_mono ↑i) ω
                             calc _ ≤ |∫ s in Icc _ _, X.drift s ω ∂volume| ^ 2 := by rw [sq_abs]
                               _ ≤ (Mμ * (sc (↑i + 1) - sc ↑i)) ^ 2 := pow_le_pow_left₀ (abs_nonneg _) h 2
                               _ ≤ (Mμ * (T / ↑(n + 1))) ^ 2 := by
@@ -2166,7 +2145,8 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
                 ∑ i : Fin (n + 1), Mσ ^ 2 * (T / ↑(n + 1)) := by
               gcongr with i
               simp only [ΔSI]
-              rw [ItoProcessCore.stoch_integral_isometry_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)]
+              rw [ItoProcessCore.stoch_integral_isometry_core_ofRegularity
+                X R _ _ (hsc_nn _) (hsc_mono _)]
               calc ∫ ω, ∫ r in Icc _ _, (X.diffusion r ω) ^ 2 ∂volume ∂μ
                   ≤ ∫ ω, (Mσ ^ 2 * (T / ↑(n + 1))) ∂μ := by
                     apply integral_mono_of_nonneg
@@ -2202,7 +2182,8 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
           intro i j
           have hZk_int : ∀ k : Fin (n + 1), Integrable (Z k) μ := by
             intro k; simp only [Z, ΔSI]
-            exact ItoProcessCore.compensated_sq_integrable_core X C DR D FC _ _ (hsc_nn _) (hsc_mono _)
+            exact ItoProcessCore.compensated_sq_integrable_core_ofRegularity
+              X R _ _ (hsc_nn _) (hsc_mono _)
           apply ((hZ_sq_int i).add (hZ_sq_int j)).div_const 2 |>.mono
             ((hZk_int i).aestronglyMeasurable.mul (hZk_int j).aestronglyMeasurable)
           filter_upwards with ω
@@ -2223,14 +2204,14 @@ theorem capped_ito_qv_L2_bound_core {F : Filtration Ω ℝ}
           intro i j hij
           rcases Nat.lt_or_gt_of_ne (Fin.val_ne_of_ne hij) with h | h
           · simp only [Z, ΔSI]
-            exact ItoProcessCore.stoch_integral_squared_orthogonal_core X C DR D FC hMσ _ _ _ _
+            exact ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity X R hMσ _ _ _ _
               (hsc_nn _) (hsc_mono _)
               (by exact_mod_cast capped_disjoint T hT.le u n i j h)
               (hsc_mono _)
           · rw [show (fun ω => Z i ω * Z j ω) = (fun ω => Z j ω * Z i ω) from by
                 ext ω; ring]
             simp only [Z, ΔSI]
-            exact ItoProcessCore.stoch_integral_squared_orthogonal_core X C DR D FC hMσ _ _ _ _
+            exact ItoProcessCore.stoch_integral_squared_orthogonal_core_ofRegularity X R hMσ _ _ _ _
               (hsc_nn _) (hsc_mono _)
               (by exact_mod_cast capped_disjoint T hT.le u n j i h)
               (hsc_mono _)
@@ -2396,27 +2377,24 @@ theorem ito_process_increment_decomp_ae_core_ofRegularity {F : Filtration Ω ℝ
        X.stoch_integral (↑(i : ℕ) * t / ↑(n + 1)) ω) := by
   simpa using
     (ito_process_increment_decomp_ae_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
+      (DR := R.toDriftRegularity)
       t ht n)
 
 /-- Regularity-first adapter for drift increment bound. -/
 lemma drift_increment_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
+    (_R : ItoProcessRegularity X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (s u : ℝ) (hsu : s ≤ u) (ω : Ω) :
     |∫ r in Icc s u, X.drift r ω ∂volume| ≤ Mμ * (u - s) := by
   simpa using
     (drift_increment_bound_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       hMμ s u hsu ω)
 
 /-- Regularity-first adapter for deterministic bound on squared drift increments. -/
 lemma drift_sq_sum_bound_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
+    (_R : ItoProcessRegularity X)
     {Mμ : ℝ} (hMμ : ∀ t ω, |X.drift t ω| ≤ Mμ)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω) :
     ∑ i : Fin (n + 1),
@@ -2425,14 +2403,12 @@ lemma drift_sq_sum_bound_core_ofRegularity {F : Filtration Ω ℝ}
     Mμ ^ 2 * t ^ 2 / ↑(n + 1) := by
   simpa using
     (drift_sq_sum_bound_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       hMμ t ht n ω)
 
 /-- Regularity-first adapter for partition splitting of quadratic variation. -/
 lemma qv_partition_sum_core_ofRegularity {F : Filtration Ω ℝ}
     (X : ItoProcessCore F μ)
-    (R : ItoProcessRegularity X)
+    (_R : ItoProcessRegularity X)
     (t : ℝ) (ht : 0 ≤ t) (n : ℕ) (ω : Ω)
     (hf_int : IntegrableOn (fun s => (X.diffusion s ω) ^ 2) (Icc 0 t) volume) :
     X.quadraticVariation t ω =
@@ -2441,8 +2417,6 @@ lemma qv_partition_sum_core_ofRegularity {F : Filtration Ω ℝ}
         (X.diffusion s ω) ^ 2 ∂volume := by
   simpa using
     (qv_partition_sum_core (X := X)
-      (C := R.toConstruction) (DR := R.toDriftRegularity)
-      (D := R.toDiffusionRegularity) (FC := R.toFiltrationCompatibility)
       t ht n ω hf_int)
 
 /-- Regularity-first adapter for single compensated SI² increment L² bound. -/
