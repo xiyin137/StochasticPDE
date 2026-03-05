@@ -6,7 +6,8 @@ A rigorous formalization of stochastic partial differential equations (SPDEs), s
 
 This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axiom smuggling, no placeholder definitions, and proper definitions throughout; remaining `sorry`s are tracked explicitly outside critical proof paths.
 
-**~52,000 lines of Lean 4** across **99 files**.
+The active monorepo focuses on `ItoCalculus`, `RegularityStructures`, `SPDE`, `Examples`, and `EKMS`.
+The Nonstandard development has been split out to a standalone repository while preserving `StochasticPDE.Nonstandard.*` module names.
 
 ## Main Components
 
@@ -80,19 +81,15 @@ Detailed theorem/definition audit: [`ItoCalculus/ItoFormulaSpecification.md`](St
 | `EKMS/InvariantMeasure.lean` | Unique invariant measure ("one force, one solution") |
 | `EKMS/Hyperbolicity.lean` | Hyperbolicity and Pesin theory |
 
-### Nonstandard Analysis Approach (`Nonstandard/`)
+### Nonstandard Analysis (`stochasticpde-nonstandard`)
 
-Anderson's (1976) construction of Brownian motion via hyperfinite random walks, formalized in Lean 4. Brownian motion is literally the standard part of a hyperfinite random walk: B(t) = st(W_{⌊tN⌋}/√N).
+The nonstandard-analysis development has been split into a standalone repository while preserving module names under `StochasticPDE.Nonstandard.*`.
 
-| Module | Description |
-|--------|-------------|
-| `Foundation/` | Hypernatural numbers, hyperfinite sums, internal sets, ℵ₁-saturation, arithmetic helpers (0 sorrys) |
-| `Anderson/` | Local CLT, S-continuity a.s., maximal inequality, Anderson's theorem, Ito correspondence |
-| `LoebMeasure/` | Loeb measure construction, σ-additivity via saturation, Wiener measure, path continuity (0 sorrys) |
-| `HyperfiniteRandomWalk.lean` | Hyperfinite walk, quadratic variation = time exactly (0 sorrys) |
-| `HyperfiniteStochasticIntegral.lean` | Hyperfinite Ito integral, Ito isometry exactly (0 sorrys) |
-
-**Key proven results**: S-continuity a.s. (Loeb-almost-all paths continuous), local CLT (binomial → Gaussian), cylinder set probability convergence (general n, with continuous bounded test functions), wienerNestedIntegral properties (nonneg, ≤1, continuous), quadratic variation identity, SDE existence/uniqueness via Euler-Maruyama. **3 sorrys** remain on Anderson critical path (Riemann sum convergence helper, hT₁ coordinate alignment, uniform convergence). **7 additional sorrys** for Itô correspondence and explicit solutions (not on critical path).
+- Local split repo path: `_split_repos/stochasticpde-nonstandard`
+- This monorepo no longer contains `StochasticPDE/Nonstandard` source files
+- Source-of-truth development now lives in the split repository
+- Cutover scripts are retained under `scripts/factorization/` for provenance/auditability
+- Split package build target: `lake build StochasticPDE.Nonstandard`
 
 ### Proof Infrastructure
 
@@ -134,11 +131,18 @@ lake build StochasticPDE
 
 The first build fetches and compiles Mathlib dependencies, which may take significant time. Subsequent builds are incremental.
 
+## Nonstandard Split Workflow
+
+The Nonstandard module is no longer developed in this monorepo source tree.
+
+- Build split repo: `cd _split_repos/stochasticpde-nonstandard && lake build StochasticPDE.Nonstandard`
+- The extraction scripts are historical cutover tooling and are intended for pre-cutover snapshots that still include `StochasticPDE/Nonstandard`
+
 ## Project Status
 
 This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
 
-- **~108 total sorrys** across all files
+- `sorry` counts are tracked in `TODO.md`; split-out `Nonstandard` counts are tracked in the split repo
 - **0 sorrys** on the Ito formula critical path — **fully proven**
 - **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
 - All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
