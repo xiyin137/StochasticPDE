@@ -4,59 +4,27 @@ A rigorous formalization of stochastic partial differential equations (SPDEs), s
 
 ## Overview
 
-This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Ito integration, Ito formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axiom smuggling, no placeholder definitions, and proper definitions throughout; remaining `sorry`s are tracked explicitly outside critical proof paths.
-
-The active monorepo focuses on `ItoCalculus`, `RegularityStructures`, `SPDE`, `Examples`, and `EKMS`.
-The Nonstandard development has been split out to a standalone repository while preserving `StochasticPDE.Nonstandard.*` module names.
+This project provides machine-checked proofs for core results in stochastic analysis, from foundational stochastic calculus (Brownian motion, Itô integration, Itô formula) through to the theory of regularity structures and singular SPDEs. The formalization emphasizes mathematical rigor: no axiom smuggling, no placeholder definitions, and proper definitions throughout; remaining `sorry`s are tracked explicitly outside critical proof paths.
 
 ## Main Components
 
-### Ito Calculus (`ItoCalculus/`)
+### Itô Calculus (`ItoCalculus/`)
 
-Self-contained module (37+ files, depends only on Mathlib) providing a complete formalization of Ito calculus including a **fully proven Ito formula (0 sorrys on the critical path)** and a **Kolmogorov-Chentsov theorem** for continuous modifications. All definitions have been audited for soundness — no axiom smuggling, no axioms, and all derivable properties (`stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable`) are proved as theorems rather than assumed as structure fields.
+Self-contained module (37+ files, ~26k lines, depends only on Mathlib) providing a complete formalization of Itô calculus including a **fully proven Itô formula (0 sorrys, 0 axioms)** and a **Kolmogorov-Chentsov theorem** for continuous modifications.
 
-| Module | Description |
-|--------|-------------|
-| `ItoCalculus/Basic.lean` | Filtrations, adapted processes, martingales, local martingales, stopping times |
-| `ItoCalculus/BrownianMotion.lean` | Wiener process, cylindrical Wiener process, Q-Wiener process, scaling/reflection |
-| `ItoCalculus/StochasticIntegration.lean` | Ito integral (simple + L^2 limit), Ito formula, SDEs, Stratonovich integral |
-| `ItoCalculus/Probability/` | Gaussian distributions, conditional expectation helpers, L^2 Pythagoras, independence |
-| `ItoCalculus/ItoFormulaProof.lean` | Complete Ito formula proof (0 sorrys) |
-| `ItoCalculus/ItoProcessCore.lean` | Core/regularity split for Ito processes with compatibility adapters |
-| `ItoCalculus/ItoFormulaCoreBridge.lean` | Ito formula bridge theorems for `ItoProcessCore` with split regularity bundles |
-| `ItoCalculus/KolmogorovChentsov/` | Kolmogorov-Chentsov theorem: Hölder continuous modifications (0 sorrys) |
-| `ItoCalculus/AdaptedLimit.lean` | Measurability of L^2 limits under usual conditions |
-| `ItoCalculus/RemainderIntegrability.lean` | Ito remainder integrability derived from boundedness (0 sorrys) |
+The core Itô formula proof chain (33 files, ~24k lines) has been extracted into a standalone repository with a comprehensive README covering file structure, definitions, and proof architecture: **[`stochasticpde-itocalculus`](_split_repos/stochasticpde-itocalculus/)**.
 
-Detailed theorem/definition audit: [`ItoCalculus/ItoFormulaSpecification.md`](StochasticPDE/ItoCalculus/ItoFormulaSpecification.md)
+The monorepo additionally includes SDE structures, Stratonovich integrals, semimartingale definitions, cylindrical/Q-Wiener processes, Ornstein-Uhlenbeck processes, Brownian bridges, and Grönwall-type infrastructure beyond the Itô formula proof chain.
 
-### Key Proven Theorems
-
-- **Ito formula**: `f(t, X_t) = f(0, X_0) + int_0^t [∂_t f + ∂_x f · μ + ½ ∂²_x f · σ²] ds + M_t` (**fully proven, 0 sorrys**)
-- **Ito remainder martingale (derived hypotheses)**: `ito_formula_martingale_of_bounds` derives remainder integrability from boundedness + `X_0 ∈ L²`
-- **Ito isometry**: `E[(int H dW)^2] = E[int H^2 ds]` (simple processes + L^2 extension)
-- **Bilinear Ito isometry**: `E[(int H1 dW)(int H2 dW)] = E[int H1*H2 ds]`
-- **Ito integral is a martingale** (set-integral characterization)
-- **Ito integral linearity** in L^2
-- **BM quadratic variation**: `[W]_t = t` (L^2 convergence of discrete approximations)
-- **Weighted QV convergence** for adapted bounded processes
-- **Ito process discrete QV L^2 convergence**
-- **Core QV endpoint bounds**: split-core adapters with no legacy theorem-body delegation
-- **Ito error decomposition** (telescope + Taylor identity for Ito formula)
-- **Kolmogorov-Chentsov theorem**: processes with `E[|X_t - X_s|^p] ≤ M|t-s|^q` (q>1) have Hölder continuous modifications
-- **Stochastic integral continuous modification** via KC (p=4, q=2)
-- **Ito remainder integrability**: derived from boundedness, not assumed
-- **BM scaling**: `c^{-1/2} W_{ct}` is a Brownian motion
-- **BM reflection**: `-W` is a Brownian motion
-- **Process L^2 increment bounds** for Ito processes
+**Main theorem** — `ito_formula_core`: For f C² in x and differentiable in t, applied to an Itô process X_t = X_0 + ∫μ ds + ∫σ dW with bounded coefficients, the remainder M_t = f(t,X_t) − f(0,X_0) − ∫[∂_t f + ∂_x f·μ + ½∂²_x f·σ²] ds is a **martingale**.
 
 ### Regularity Structures
 
 | Module | Description |
 |--------|-------------|
-| `RegularityStructures/Trees/` | Multi-indices, tree symbols, homogeneity, formal sums (fully proven) |
-| `RegularityStructures/Models/` | Admissible models (fully proven), canonical models |
-| `RegularityStructures/Reconstruction.lean` | Reconstruction theorem (existence proven, uniqueness in progress) |
+| `RegularityStructures/Trees/` | Multi-indices, tree symbols, homogeneity, formal sums |
+| `RegularityStructures/Models/` | Admissible models, canonical models |
+| `RegularityStructures/Reconstruction.lean` | Reconstruction theorem |
 | `RegularityStructures/BPHZ.lean` | BPHZ renormalization framework |
 | `RegularityStructures/FixedPoint.lean` | Fixed-point formulation for singular SPDEs |
 
@@ -64,10 +32,10 @@ Detailed theorem/definition audit: [`ItoCalculus/ItoFormulaSpecification.md`](St
 
 | Module | Description |
 |--------|-------------|
-| `SPDE.lean` | Abstract SPDE framework: mild/strong solutions, semigroup theory, well-posedness |
-| `Examples/Phi4.lean` | The dynamic Phi^4 model (stochastic quantization of scalar field theory) |
-| `Examples/KPZ.lean` | The KPZ equation |
-| `Examples/YangMills2D.lean` | 2D stochastic Yang-Mills (Langevin dynamics for Yang-Mills measure) |
+| `SPDE.lean` | Abstract SPDE framework: mild/strong solutions, semigroup theory |
+| `Examples/Phi4.lean` | Dynamic Φ⁴ model (stochastic quantization) |
+| `Examples/KPZ.lean` | KPZ equation |
+| `Examples/YangMills2D.lean` | 2D stochastic Yang-Mills |
 | `Examples/Burgers.lean` | Stochastic Burgers equation |
 | `Examples/StochasticHeat.lean` | Stochastic heat equation |
 
@@ -81,32 +49,12 @@ Detailed theorem/definition audit: [`ItoCalculus/ItoFormulaSpecification.md`](St
 | `EKMS/InvariantMeasure.lean` | Unique invariant measure ("one force, one solution") |
 | `EKMS/Hyperbolicity.lean` | Hyperbolicity and Pesin theory |
 
-### Nonstandard Analysis (`stochasticpde-nonstandard`)
+### Split Repositories
 
-The nonstandard-analysis development has been split into a standalone repository while preserving module names under `StochasticPDE.Nonstandard.*`.
-
-- Local split repo path: `_split_repos/stochasticpde-nonstandard`
-- This monorepo no longer contains `StochasticPDE/Nonstandard` source files
-- Source-of-truth development now lives in the split repository
-- Cutover scripts are retained under `scripts/factorization/` for provenance/auditability
-- Split package build target: `lake build StochasticPDE.Nonstandard`
-
-### Proof Infrastructure
-
-The `ItoCalculus/` module includes 25+ fully proven infrastructure files for the Ito formula proof chain:
-
-- Common refinement and partition machinery
-- Simple process integral definitions and linearity
-- Set integral helpers and cross-term vanishing
-- L^2 limit infrastructure
-- Ito integral properties (isometry, martingale)
-- Taylor remainder bounds
-- Quadratic variation convergence
-- Quartic moment bounds (L^4 estimates)
-- Ito formula decomposition and error analysis
-- Conditional isometry infrastructure
-- Weighted QV L^2 bounds
-- Gronwall lemma for SDEs
+| Repository | Description |
+|-----------|-------------|
+| [`stochasticpde-itocalculus`](_split_repos/stochasticpde-itocalculus/) | Streamlined Itô formula proof (33 files, ~24k lines, 0 sorrys, 0 axioms) |
+| [`stochasticpde-nonstandard`](https://github.com/xiyin137/stochasticpde-nonstandard) | Nonstandard analysis development |
 
 ## Building
 
@@ -118,44 +66,21 @@ The `ItoCalculus/` module includes 25+ fully proven infrastructure files for the
 ### Build
 
 ```bash
-# Clone the repository
 git clone https://github.com/YourUsername/StochasticPDE.git
 cd StochasticPDE
 
-# Fetch Mathlib cache (recommended, avoids rebuilding Mathlib from source)
+# Fetch Mathlib cache
 lake exe cache get
 
-# Build the project
-lake build StochasticPDE
+# Build specific modules (recommended over bare `lake build`)
+lake build StochasticPDE.ItoCalculus.ItoFormulaCoreBridge
 ```
-
-The first build fetches and compiles Mathlib dependencies, which may take significant time. Subsequent builds are incremental.
-
-## Nonstandard Split Workflow
-
-The Nonstandard module is no longer developed in this monorepo source tree.
-
-- Build split repo: `cd _split_repos/stochasticpde-nonstandard && lake build StochasticPDE.Nonstandard`
-- The extraction scripts are historical cutover tooling and are intended for pre-cutover snapshots that still include `StochasticPDE/Nonstandard`
 
 ## Project Status
 
-This is an active research project. The codebase contains `sorry` placeholders for results that are work in progress:
+Active research project. The Itô formula critical path is **fully proven (0 sorrys, 0 axioms)**. Remaining `sorry`s are tracked in [TODO.md](TODO.md) and are outside the critical proof chain.
 
-- `sorry` counts are tracked in `TODO.md`; split-out `Nonstandard` counts are tracked in the split repo
-- **0 sorrys** on the Ito formula critical path — **fully proven**
-- **37+ files** in self-contained `ItoCalculus/` module (depends only on Mathlib)
-- All definitions audited for soundness (no axioms, no axiom smuggling, zero computational results in structure fields)
-- `stoch_integral_adapted`, `stoch_integral_measurable`, `stoch_integral_sq_integrable` all derived as theorems from L^2 limit + a.e. convergence + usual conditions
-- `ItoProcessCore`/`ItoProcessRegularity` split is in place with core QV endpoint bounds and QV/helper/isometry/remainder-integrability adapters migrated to direct or regularity-first core proof bodies; `ito_formula_core` and `ito_formula_martingale_core` are now proved directly in the core bridge layer rather than one-line delegation to legacy theorem bodies, local reconstruction wrappers are normalized to `ItoProcessRegularity.ofSplit` + `toItoProcess`, redundant compatibility bundles (`ItoFormulaAssumptions`, `ItoProcessCoefficientJointMeasurability`) have been removed, redundant split-bundle parameters have been stripped from key QV helper lemmas, both diffusion-squared interval bound helpers (core + legacy) are now assumption-light (no split bundles for core, no extra `0 ≤ s` hypothesis), key core isometry integrability adapters now use lighter hypothesis subsets (`C+FC` for SI-increment square-integrability, `D` for diffusion interval integrability, `C+D+FC` for compensated integrability), `stoch_integral_isometry_core` has been tightened further to `C + D + FC` (removed `DR`) via direct core base/cross/martingale SI lemmas, `compensated_sq_setIntegral_zero_core` is now a full direct core proof using only `C + D + FC` (removed `DR`) via core L¹ limit lemmas and core set-integral decomposition lemmas (`setIntegral_cross_term_zero_core`, `setIntegral_sq_increment_eq_diff_core`) without local legacy reconstruction, `stoch_integral_squared_orthogonal_core` now runs its measurability/integrability spine directly through core lemmas (no local legacy reconstruction in theorem body) while exposing local compensated-square L² premises explicitly instead of a global `DR` bundle parameter, `compensated_sq_sq_integrable_core` likewise exposes a local `Δ⁴` premise instead of carrying `DR` in its interface, QV increment-decomposition helpers now take only explicit drift-time-integrability hypotheses rather than a full `DR` bundle, the core QV L² theorem chain now also drops `DR` (`si_compensated_sq_L2_single_core`, `capped_ito_qv_L2_bound_core`, `ito_qv_L2_bound_core`, and the core QV convergence theorems now use explicit local drift/L⁴ premises), and `ItoFormulaCoreBridge` now derives remainder integrability directly from core lemmas (`itoRemainder_integrable_core`, `itoRemainder_sq_integrable_core`) with split measurability assumptions instead of routing through regularity-only wrappers
-
-## Near-Term Roadmap
-
-- Continue reducing assumption-heavy legacy `ItoProcess` adapter hypotheses while preserving theorem usability and statement compatibility
-- Reduce assumption-heavy legacy `ItoProcess` entry points while keeping `ito_formula` and `ito_formula_martingale` statement-compatible
-- Keep the Ito formula path sorry-free during migration and validate with full `lake build`
-
-See [TODO.md](TODO.md) for detailed status and the sorry dependency chain.
+See [TODO.md](TODO.md) for detailed status.
 
 ## References
 
